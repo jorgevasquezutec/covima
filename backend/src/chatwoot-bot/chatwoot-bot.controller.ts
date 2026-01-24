@@ -126,10 +126,8 @@ export class ChatwootBotController {
 
                     this.logger.log(`Message from ${nombreWhatsapp} (${telefono}): "${content}"`);
 
-                    // Marcar como leído
-                    await this.chatwootService.markAsRead(message.id);
-
                     // Procesar mensaje de forma asíncrona
+                    const messageId = message.id;
                     setImmediate(async () => {
                         try {
                             await this.intentRouter.processMessage(
@@ -138,6 +136,7 @@ export class ChatwootBotController {
                                 content,
                                 telefono,
                                 nombreWhatsapp,
+                                messageId, // Para typing indicator
                             );
                         } catch (error) {
                             this.logger.error(`Error processing message: ${error.message}`, error.stack);

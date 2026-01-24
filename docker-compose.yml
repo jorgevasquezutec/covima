@@ -42,54 +42,6 @@ services:
     depends_on:
       - postgres
 
-  # === CHATWOOT ===
-  chatwoot:
-    image: chatwoot/chatwoot:latest
-    container_name: covima-chatwoot
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      - SECRET_KEY_BASE=replace_with_your_secret_key_base_64_chars_minimum
-      - FRONTEND_URL=http://localhost:3000
-      - DEFAULT_LOCALE=es
-      - RAILS_ENV=production
-      - NODE_ENV=production
-      - INSTALLATION_ENV=docker
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatwoot_production
-      - REDIS_URL=redis://redis:6379
-      - RAILS_LOG_TO_STDOUT=true
-      - ENABLE_ACCOUNT_SIGNUP=false
-    entrypoint: docker/entrypoints/rails.sh
-    command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
-    volumes:
-      - chatwoot_storage:/app/storage
-      - chatwoot_public:/app/public
-
-  chatwoot-sidekiq:
-    image: chatwoot/chatwoot:latest
-    container_name: covima-chatwoot-sidekiq
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      - SECRET_KEY_BASE=replace_with_your_secret_key_base_64_chars_minimum
-      - FRONTEND_URL=http://localhost:3000
-      - RAILS_ENV=production
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatwoot_production
-      - REDIS_URL=redis://redis:6379
-    command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
-    volumes:
-      - chatwoot_storage:/app/storage
-
 volumes:
   postgres_data:
   redis_data:
-  chatwoot_storage:
-  chatwoot_public:

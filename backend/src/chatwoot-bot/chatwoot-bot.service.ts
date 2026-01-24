@@ -20,6 +20,8 @@ export class ChatwootBotService {
 
     // Mapa de conversationId -> telefono para mantener compatibilidad
     private conversationPhoneMap = new Map<number, string>();
+    // Mapa de conversationId -> último messageId recibido (para typing indicator)
+    private lastMessageIdMap = new Map<number, string>();
 
     constructor(
         private readonly httpService: HttpService,
@@ -43,11 +45,14 @@ export class ChatwootBotService {
     }
 
     /**
-     * Registrar el teléfono asociado a un conversationId
+     * Registrar el teléfono y messageId asociado a un conversationId
      * Debe llamarse al inicio de cada mensaje procesado
      */
-    registerConversation(conversationId: number, telefono: string): void {
+    registerConversation(conversationId: number, telefono: string, messageId?: string): void {
         this.conversationPhoneMap.set(conversationId, telefono);
+        if (messageId) {
+            this.lastMessageIdMap.set(conversationId, messageId);
+        }
     }
 
     /**
@@ -58,10 +63,43 @@ export class ChatwootBotService {
     }
 
     /**
-     * Toggle typing status - no-op para WhatsApp directo
+     * Mostrar typing indicator en WhatsApp
+     * Marca el mensaje como leído y muestra "escribiendo..."
      */
     async toggleTypingStatus(conversationId: number, isTyping: boolean): Promise<void> {
-        // No-op: WhatsApp API no soporta controlar el indicador de escritura
+        if (!isTyping) return;
+
+        const messageId = this.lastMessageIdMap.get(conversationId);
+        if (!messageId) {
+            this.logger.debug(`No messageId found for conversation ${conversationId}`);
+            return;
+        }
+
+        await this.showTypingIndicator(messageId);
+    }
+
+    /**
+     * Enviar typing indicator a WhatsApp Cloud API
+     * Marca como leído + muestra "escribiendo..." por hasta 25 segundos
+     */
+    private async showTypingIndicator(messageId: string): Promise<void> {
+        const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
+
+        try {
+            await firstValueFrom(
+                this.httpService.post(url, {
+                    messaging_product: 'whatsapp',
+                    status: 'read',
+                    message_id: messageId,
+                    typing_indicator: {
+                        type: 'text',
+                    },
+                }, { headers: this.getHeaders() })
+            );
+            this.logger.debug(`Typing indicator sent for message ${messageId}`);
+        } catch (error) {
+            this.logger.warn(`Error sending typing indicator: ${error.message}`);
+        }
     }
 
     /**
