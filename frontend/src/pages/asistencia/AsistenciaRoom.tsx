@@ -331,10 +331,10 @@ export default function AsistenciaRoom() {
                                     Haz click para expandir
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="flex flex-col items-center">
+                            <CardContent className="flex flex-col items-center px-4">
                                 {(qr.urlWhatsapp || qr.urlGenerada) && (
                                     <div
-                                        className="bg-white p-4 rounded-xl border-2 border-gray-100 cursor-pointer hover:border-blue-300 hover:shadow-lg transition-all group relative"
+                                        className="bg-white p-4 rounded-xl border-2 border-gray-100 cursor-pointer hover:border-blue-300 hover:shadow-lg transition-all group relative w-full max-w-[220px]"
                                         onClick={() => setQrExpanded(true)}
                                     >
                                         <QRCodeSVG
@@ -344,6 +344,7 @@ export default function AsistenciaRoom() {
                                             includeMargin={true}
                                             bgColor="#ffffff"
                                             fgColor={tipoColor}
+                                            style={{ width: '100%', height: 'auto' }}
                                         />
                                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl flex items-center justify-center transition-all">
                                             <Maximize2 className="w-8 h-8 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -510,18 +511,18 @@ export default function AsistenciaRoom() {
 
             {/* Modal QR Expandido */}
             <Dialog open={qrExpanded} onOpenChange={setQrExpanded}>
-                <DialogContent className="max-w-3xl bg-white border-gray-200">
+                <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-2xl bg-white border-gray-200">
                     <DialogHeader className="text-center">
-                        <DialogTitle className="text-2xl font-bold text-gray-900">
+                        <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">
                             {qr.tipoAsistencia?.label || 'Asistencia'}
                         </DialogTitle>
                         <DialogDescription className="text-gray-500">
                             Escanea para registrar tu asistencia
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center px-2">
                         {(qr.urlWhatsapp || qr.urlGenerada) && (
-                            <div className="bg-white p-6 rounded-2xl border-4 border-gray-100 shadow-lg">
+                            <div className="bg-white p-4 sm:p-6 rounded-2xl border-4 border-gray-100 shadow-lg w-full max-w-[280px] sm:max-w-[400px]">
                                 <QRCodeSVG
                                     value={qr.urlWhatsapp || qr.urlGenerada || ''}
                                     size={400}
@@ -529,6 +530,7 @@ export default function AsistenciaRoom() {
                                     includeMargin={true}
                                     bgColor="#ffffff"
                                     fgColor={tipoColor}
+                                    style={{ width: '100%', height: 'auto' }}
                                 />
                             </div>
                         )}
