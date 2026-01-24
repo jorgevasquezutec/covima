@@ -1,0 +1,95 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: covima-postgres
+    # restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: covima_ja
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: covima-redis
+    # restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: covima-adminer
+    # restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      - postgres
+
+  # === CHATWOOT ===
+  chatwoot:
+    image: chatwoot/chatwoot:latest
+    container_name: covima-chatwoot
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      - SECRET_KEY_BASE=replace_with_your_secret_key_base_64_chars_minimum
+      - FRONTEND_URL=http://localhost:3000
+      - DEFAULT_LOCALE=es
+      - RAILS_ENV=production
+      - NODE_ENV=production
+      - INSTALLATION_ENV=docker
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatwoot_production
+      - REDIS_URL=redis://redis:6379
+      - RAILS_LOG_TO_STDOUT=true
+      - ENABLE_ACCOUNT_SIGNUP=false
+    entrypoint: docker/entrypoints/rails.sh
+    command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
+    volumes:
+      - chatwoot_storage:/app/storage
+      - chatwoot_public:/app/public
+
+  chatwoot-sidekiq:
+    image: chatwoot/chatwoot:latest
+    container_name: covima-chatwoot-sidekiq
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - SECRET_KEY_BASE=replace_with_your_secret_key_base_64_chars_minimum
+      - FRONTEND_URL=http://localhost:3000
+      - RAILS_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatwoot_production
+      - REDIS_URL=redis://redis:6379
+    command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
+    volumes:
+      - chatwoot_storage:/app/storage
+
+volumes:
+  postgres_data:
+  redis_data:
+  chatwoot_storage:
+  chatwoot_public:

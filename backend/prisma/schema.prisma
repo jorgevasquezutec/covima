@@ -1,0 +1,333 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Rol {
+  id          Int           @id @default(autoincrement())
+  nombre      String        @unique @db.VarChar(50)
+  descripcion String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  usuarios    UsuarioRol[]
+
+  @@map("roles")
+}
+
+model Usuario {
+  id                   Int              @id @default(autoincrement())
+  codigoPais           String           @default("51") @map("codigo_pais") @db.VarChar(5) // 51 = Perú
+  telefono             String           @db.VarChar(20) // Solo el número local (sin código de país)
+  passwordHash         String           @map("password_hash") @db.VarChar(255)
+  nombre               String           @db.VarChar(100)
+  nombreWhatsapp       String?          @map("nombre_whatsapp") @db.VarChar(100)
+  email                String?          @db.VarChar(100)
+  fotoUrl              String?          @map("foto_url") @db.VarChar(500)
+  fechaNacimiento      DateTime?        @map("fecha_nacimiento") @db.Date
+  direccion            String?          @db.VarChar(200)
+  biografia            String?          @db.Text
+  activo               Boolean          @default(true)
+  debeCambiarPassword  Boolean          @default(true) @map("debe_cambiar_password")
+  ultimoLogin          DateTime?        @map("ultimo_login")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+
+  // Índice único compuesto: código de país + teléfono
+  @@unique([codigoPais, telefono])
+
+  roles                UsuarioRol[]
+  usuarioPartes        UsuarioParte[]
+  programasCreados     Programa[]       @relation("ProgramaCreador")
+  asignaciones         ProgramaAsignacion[]
+  asistencias          Asistencia[]
+  asistenciasConfirmadas Asistencia[]   @relation("ConfirmadorAsistencia")
+  conversaciones       Conversacion[]
+  notificaciones       Notificacion[]
+  qrsCreados           QRAsistencia[]
+  linksAgregados       ProgramaLink[]
+  rolesAsignados       UsuarioRol[]     @relation("AsignadoPor")
+
+  @@map("usuarios")
+}
+
+model UsuarioRol {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int      @map("usuario_id")
+  rolId       Int      @map("rol_id")
+  asignadoPor Int?     @map("asignado_por")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol         Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  asignador   Usuario? @relation("AsignadoPor", fields: [asignadoPor], references: [id])
+
+  @@unique([usuarioId, rolId])
+  @@map("usuarios_roles")
+}
+
+model Parte {
+  id            Int         @id @default(autoincrement())
+  nombre        String      @unique @db.VarChar(100)
+  descripcion   String?
+  orden         Int
+  esFija        Boolean     @default(false) @map("es_fija")
+  esObligatoria Boolean     @default(false) @map("es_obligatoria") // Siempre aparece en programas nuevos
+  textoFijo     String?     @map("texto_fijo") @db.VarChar(100)
+  activo        Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  usuarioPartes UsuarioParte[]
+  asignaciones  ProgramaAsignacion[]
+  links         ProgramaLink[]
+  programaPartes ProgramaParte[]
+
+  @@map("partes")
+}
+
+model UsuarioParte {
+  id                   Int       @id @default(autoincrement())
+  usuarioId            Int       @map("usuario_id")
+  parteId              Int       @map("parte_id")
+  ultimaParticipacion  DateTime? @map("ultima_participacion") @db.Date
+  totalParticipaciones Int       @default(0) @map("total_participaciones")
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  usuario              Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  parte                Parte     @relation(fields: [parteId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, parteId])
+  @@map("usuarios_partes")
+}
+
+model Programa {
+  id             Int         @id @default(autoincrement())
+  codigo         String      @unique @db.VarChar(20) // Ej: MA-X3kP9m (iniciales titulo + nanoid)
+  fecha          DateTime    @db.Date // Ya no es unique - permite múltiples programas por día
+  horaInicio     DateTime?   @map("hora_inicio") @db.Time() // Opcional
+  horaFin        DateTime?   @map("hora_fin") @db.Time() // Opcional
+  titulo         String      @default("Programa Maranatha Adoración") @db.VarChar(200)
+  estado         String      @default("borrador") @db.VarChar(20)
+  textoGenerado  String?     @map("texto_generado")
+  creadoPor      Int?        @map("creado_por")
+  enviadoAt      DateTime?   @map("enviado_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  creador        Usuario?    @relation("ProgramaCreador", fields: [creadoPor], references: [id])
+  partes         ProgramaParte[]
+  asignaciones   ProgramaAsignacion[]
+  links          ProgramaLink[]
+  notificaciones Notificacion[]
+  conversaciones Conversacion[]
+
+  @@map("programas")
+}
+
+// Nueva tabla para almacenar las partes de cada programa con su orden
+model ProgramaParte {
+  id          Int      @id @default(autoincrement())
+  programaId  Int      @map("programa_id")
+  parteId     Int      @map("parte_id")
+  orden       Int      // Orden de esta parte en este programa específico
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  programa    Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte       Parte    @relation(fields: [parteId], references: [id])
+
+  @@unique([programaId, parteId])
+  @@map("programa_partes")
+}
+
+model ProgramaAsignacion {
+  id           Int       @id @default(autoincrement())
+  programaId   Int       @map("programa_id")
+  parteId      Int       @map("parte_id")
+  usuarioId    Int?      @map("usuario_id")    // Opcional - null si es nombre libre
+  nombreLibre  String?   @map("nombre_libre") @db.VarChar(100) // Nombre cuando no hay usuario registrado
+  orden        Int       @default(1)
+  notificado   Boolean   @default(false)
+  notificadoAt DateTime? @map("notificado_at")
+  confirmado   Boolean   @default(false)
+  confirmadoAt DateTime? @map("confirmado_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  programa     Programa  @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte        Parte     @relation(fields: [parteId], references: [id])
+  usuario      Usuario?  @relation(fields: [usuarioId], references: [id])
+
+  @@map("programa_asignaciones")
+}
+
+model ProgramaLink {
+  id          Int      @id @default(autoincrement())
+  programaId  Int      @map("programa_id")
+  parteId     Int      @map("parte_id")
+  nombre      String   @db.VarChar(200)
+  url         String
+  orden       Int      @default(1)
+  agregadoPor Int?     @map("agregado_por")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  programa    Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte       Parte    @relation(fields: [parteId], references: [id])
+  agregador   Usuario? @relation(fields: [agregadoPor], references: [id])
+
+  @@map("programa_links")
+}
+
+model QRAsistencia {
+  id           Int          @id @default(autoincrement())
+  semanaInicio DateTime     @map("semana_inicio") @db.Date
+  codigo       String       @unique @db.VarChar(50)
+  tipoId       Int?         @map("tipo_id")
+  descripcion  String?      @db.VarChar(200)
+  urlGenerada  String?      @map("url_generada")
+  activo       Boolean      @default(true)
+  horaInicio   DateTime     @default(dbgenerated("'09:00:00'::time")) @map("hora_inicio") @db.Time()
+  horaFin      DateTime     @default(dbgenerated("'12:00:00'::time")) @map("hora_fin") @db.Time()
+  createdBy    Int?         @map("created_by")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  creador        Usuario?        @relation(fields: [createdBy], references: [id])
+  tipoAsistencia TipoAsistencia? @relation(fields: [tipoId], references: [id])
+  asistencias    Asistencia[]
+
+  @@map("qr_asistencia")
+}
+
+model Asistencia {
+  id                  Int           @id @default(autoincrement())
+  usuarioId           Int?          @map("usuario_id")
+  telefonoRegistro    String?       @map("telefono_registro") @db.VarChar(25)
+  nombreRegistro      String?       @map("nombre_registro") @db.VarChar(100)
+  tipoId              Int?          @map("tipo_id")
+  fecha               DateTime      @db.Date
+  semanaInicio        DateTime      @map("semana_inicio") @db.Date
+  datosFormulario     Json?         @map("datos_formulario")
+  metodoRegistro      String        @map("metodo_registro") @db.VarChar(20)  // 'qr_web', 'qr_bot', 'plataforma'
+  estado              String        @default("pendiente_confirmacion") @db.VarChar(30)
+  confirmadoPor       Int?          @map("confirmado_por")
+  confirmadoAt        DateTime?     @map("confirmado_at")
+  notasConfirmacion   String?       @map("notas_confirmacion")
+  qrId                Int?          @map("qr_id")
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  usuario             Usuario?      @relation(fields: [usuarioId], references: [id])
+  confirmador         Usuario?      @relation("ConfirmadorAsistencia", fields: [confirmadoPor], references: [id])
+  qr                  QRAsistencia? @relation(fields: [qrId], references: [id])
+  tipo                TipoAsistencia? @relation(fields: [tipoId], references: [id])
+
+  @@unique([telefonoRegistro, semanaInicio, tipoId])
+  @@map("asistencias")
+}
+
+// ==================== TIPOS DE ASISTENCIA ====================
+
+model TipoAsistencia {
+  id            Int       @id @default(autoincrement())
+  nombre        String    @unique @db.VarChar(50) // 'escuela_sabatica', 'programa_ja', 'gp', etc.
+  label         String    @db.VarChar(100) // 'Escuela Sabática', 'Programa JA', 'Grupo Pequeño'
+  descripcion   String?   @db.VarChar(255)
+  icono         String?   @db.VarChar(50) // Nombre del ícono (lucide)
+  color         String?   @db.VarChar(20) // Color en hex
+  soloPresencia Boolean   @default(false) @map("solo_presencia")
+  activo        Boolean   @default(true)
+  orden         Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  campos       FormularioCampo[]
+  qrs          QRAsistencia[]
+  asistencias  Asistencia[]
+
+  @@map("tipos_asistencia")
+}
+
+model FormularioCampo {
+  id              Int       @id @default(autoincrement())
+  tipoAsistenciaId Int      @map("tipo_asistencia_id")
+  nombre          String    @db.VarChar(50) // 'dias_estudio', 'hizo_estudio_biblico', etc.
+  label           String    @db.VarChar(100) // 'Días de estudio de lección'
+  tipo            String    @db.VarChar(30) // 'number', 'checkbox', 'text', 'select', 'rating'
+  requerido       Boolean   @default(false)
+  orden           Int       @default(0)
+  placeholder     String?   @db.VarChar(100)
+  valorMinimo     Int?      @map("valor_minimo") // Para type=number
+  valorMaximo     Int?      @map("valor_maximo") // Para type=number
+  opciones        Json?     // Para type=select [{ value: '', label: '' }]
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tipoAsistencia  TipoAsistencia @relation(fields: [tipoAsistenciaId], references: [id], onDelete: Cascade)
+
+  @@map("formulario_campos")
+}
+
+model Conversacion {
+  id                Int       @id @default(autoincrement())
+  usuarioId         Int?      @map("usuario_id")
+  telefono          String    @db.VarChar(20)
+  estado            String    @default("inicio") @db.VarChar(50)
+  contexto          Json      @default("{}")
+  moduloActivo      String?   @map("modulo_activo") @db.VarChar(50)
+  programaEnEdicion Int?      @map("programa_en_edicion")
+  ultimoMensajeAt   DateTime  @default(now()) @map("ultimo_mensaje_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  usuario           Usuario?  @relation(fields: [usuarioId], references: [id])
+  programa          Programa? @relation(fields: [programaEnEdicion], references: [id])
+  mensajes          Mensaje[]
+
+  @@map("conversaciones")
+}
+
+model Mensaje {
+  id             Int          @id @default(autoincrement())
+  conversacionId Int          @map("conversacion_id")
+  direccion      String       @db.VarChar(10)
+  contenido      String
+  tipo           String       @default("texto") @db.VarChar(20)
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  conversacion   Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+
+  @@map("mensajes")
+}
+
+model Notificacion {
+  id           Int       @id @default(autoincrement())
+  usuarioId    Int?      @map("usuario_id")
+  telefono     String    @db.VarChar(20)
+  tipo         String    @db.VarChar(50)
+  mensaje      String
+  programaId   Int?      @map("programa_id")
+  estado       String    @default("pendiente") @db.VarChar(20)
+  enviadoAt    DateTime? @map("enviado_at")
+  errorMensaje String?   @map("error_mensaje")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  usuario      Usuario?  @relation(fields: [usuarioId], references: [id])
+  programa     Programa? @relation(fields: [programaId], references: [id])
+
+  @@map("notificaciones")
+}
+
+model AuditLog {
+  id              Int      @id @default(autoincrement())
+  usuarioId       Int?     @map("usuario_id")
+  accion          String   @db.VarChar(100)
+  tablaAfectada   String?  @map("tabla_afectada") @db.VarChar(50)
+  registroId      Int?     @map("registro_id")
+  datosAnteriores Json?    @map("datos_anteriores")
+  datosNuevos     Json?    @map("datos_nuevos")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("audit_log")
+}
