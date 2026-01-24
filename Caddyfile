@@ -1,0 +1,10 @@
+# Caddyfile - Reverse Proxy con SSL automatico
+# Cambiar jvasquezd.me por tu dominio
+
+covima.jvasquezd.me {
+    reverse_proxy frontend:80
+}
+
+covima-api.jvasquezd.me {
+    reverse_proxy backend:3001
+}

@@ -1,8 +1,25 @@
-# Docker Compose para Producción - Sin Chatwoot
-# Rama: sin-chatwoot
-# El bot de WhatsApp se conecta directamente a la API de Meta
+# Docker Compose para Produccion - Azure VM
+# Con Caddy para SSL automatico
 
 services:
+  # === REVERSE PROXY + SSL ===
+  caddy:
+    image: caddy:2-alpine
+    container_name: covima-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - covima-network
+
   # === BASE DE DATOS ===
   postgres:
     image: pgvector/pgvector:pg16
@@ -55,17 +72,13 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - NODE_ENV=production
       - PORT=3001
-      - FRONTEND_URL=${FRONTEND_URL:-https://covima.jvasquezd.me}
-      - BACKEND_URL=${BACKEND_URL:-https://covima-api.jvasquezd.me}
-      # WhatsApp Direct (sin Chatwoot)
+      - FRONTEND_URL=${FRONTEND_URL}
+      - BACKEND_URL=${BACKEND_URL}
       - WHATSAPP_TOKEN=${WHATSAPP_TOKEN:?WHATSAPP_TOKEN is required}
       - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID:?WHATSAPP_PHONE_NUMBER_ID is required}
       - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN:-covima_verify_token}
       - WHATSAPP_BOT_NUMBER=${WHATSAPP_BOT_NUMBER}
-      # OpenAI (opcional)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    ports:
-      - "3001:3001"
     networks:
       - covima-network
 
@@ -75,17 +88,17 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${BACKEND_URL:-https://covima-api.jvasquezd.me}/api
+        VITE_API_URL: ${BACKEND_URL}/api
     container_name: covima-frontend
     restart: always
-    ports:
-      - "80:80"
     networks:
       - covima-network
 
 volumes:
   postgres_data:
   redis_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   covima-network:
