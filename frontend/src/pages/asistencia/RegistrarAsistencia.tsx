@@ -55,8 +55,8 @@ export default function RegistrarAsistencia() {
     } = useAsistenciaSocket({
         qrCode: codigo || '',
         onNuevaAsistencia: (asistencia) => {
-            if (asistencia.usuario.id !== user?.id) {
-                toast.info(`${asistencia.usuario.nombre} registró su asistencia`);
+            if (asistencia.usuario?.id !== user?.id) {
+                toast.info(`${asistencia.usuario?.nombre} registró su asistencia`);
             }
         },
     });
@@ -268,7 +268,7 @@ export default function RegistrarAsistencia() {
                                 <div className="space-y-2 max-h-40 overflow-y-auto">
                                     {asistenciasEnRoom.slice(0, 5).map((a) => (
                                         <div key={a.id} className="flex items-center justify-between text-sm">
-                                            <span className="font-medium">{a.usuario.nombre}</span>
+                                            <span className="font-medium">{a.usuario?.nombre}</span>
                                             <Badge variant="secondary" className="text-xs">
                                                 {new Date(a.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
                                             </Badge>
@@ -369,7 +369,7 @@ export default function RegistrarAsistencia() {
                             <div className="space-y-2 max-h-32 overflow-y-auto">
                                 {asistenciasEnRoom.slice(0, 5).map((a) => (
                                     <div key={a.id} className="flex items-center justify-between text-sm">
-                                        <span className="font-medium">{a.usuario.nombre}</span>
+                                        <span className="font-medium">{a.usuario?.nombre}</span>
                                         <Badge variant="secondary" className="text-xs">
                                             {new Date(a.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
                                         </Badge>

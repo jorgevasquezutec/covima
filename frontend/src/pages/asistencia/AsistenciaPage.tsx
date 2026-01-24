@@ -278,8 +278,7 @@ export default function AsistenciaPage() {
     const openEditQRModal = (qr: QRAsistencia) => {
         setEditingQR(qr);
         // Extraer fecha sin problemas de timezone
-        const fechaStr = typeof qr.semanaInicio === 'string' ? qr.semanaInicio : qr.semanaInicio.toISOString();
-        const [datePart] = fechaStr.split('T');
+        const [datePart] = qr.semanaInicio.split('T');
         setEditQRData({
             semanaInicio: datePart,
             horaInicio: formatHora(qr.horaInicio),

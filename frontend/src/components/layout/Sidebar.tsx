@@ -8,7 +8,6 @@ import {
   Users,
   ClipboardCheck,
   ClipboardList,
-  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,

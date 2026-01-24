@@ -16,7 +16,6 @@ import {
   XCircle,
   Loader2,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { programasApi, asistenciaApi } from '@/services/api';
 import type { EstadisticasGenerales, MiAsistencia } from '@/types';
 
