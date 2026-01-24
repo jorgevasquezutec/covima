@@ -1,90 +1,166 @@
-import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Logger, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { IntentRouterService } from './intent-router.service';
+import { ChatwootBotService } from './chatwoot-bot.service';
 
-@ApiTags('Chatwoot Bot')
-@Controller('chatwoot')
+interface WhatsAppWebhookPayload {
+    object: string;
+    entry: {
+        id: string;
+        changes: {
+            value: {
+                messaging_product: string;
+                metadata: {
+                    display_phone_number: string;
+                    phone_number_id: string;
+                };
+                contacts?: {
+                    profile: { name: string };
+                    wa_id: string;
+                }[];
+                messages?: {
+                    from: string;
+                    id: string;
+                    timestamp: string;
+                    type: string;
+                    text?: { body: string };
+                    interactive?: {
+                        type: string;
+                        button_reply?: { id: string; title: string };
+                        list_reply?: { id: string; title: string };
+                    };
+                }[];
+                statuses?: {
+                    id: string;
+                    status: string;
+                    timestamp: string;
+                    recipient_id: string;
+                }[];
+            };
+            field: string;
+        }[];
+    }[];
+}
+
+@ApiTags('WhatsApp Bot')
+@Controller('whatsapp')
 export class ChatwootBotController {
     private readonly logger = new Logger(ChatwootBotController.name);
+    private readonly verifyToken: string;
 
-    constructor(private readonly intentRouter: IntentRouterService) { }
+    constructor(
+        private readonly configService: ConfigService,
+        private readonly intentRouter: IntentRouterService,
+        private readonly chatwootService: ChatwootBotService,
+    ) {
+        this.verifyToken = this.configService.get<string>('WHATSAPP_VERIFY_TOKEN', 'covima_verify_token');
+    }
 
+    /**
+     * Verificación del webhook (requerido por Meta)
+     */
+    @Get('webhook')
+    @ApiOperation({ summary: 'Verificación del webhook de WhatsApp' })
+    verifyWebhook(
+        @Query('hub.mode') mode: string,
+        @Query('hub.verify_token') token: string,
+        @Query('hub.challenge') challenge: string,
+    ): string | number {
+        this.logger.log(`Webhook verification: mode=${mode}, token=${token}`);
+
+        if (mode === 'subscribe' && token === this.verifyToken) {
+            this.logger.log('Webhook verified successfully');
+            return challenge;
+        }
+
+        this.logger.warn('Webhook verification failed');
+        return 'Verification failed';
+    }
+
+    /**
+     * Recibir mensajes de WhatsApp (directo de Meta API)
+     */
     @Post('webhook')
     @HttpCode(200)
-    @ApiOperation({ summary: 'Webhook para recibir eventos de Chatwoot' })
-    @ApiExcludeEndpoint() // Ocultar del Swagger público
-    async handleWebhook(@Body() payload: any): Promise<{ status: string }> {
+    @ApiExcludeEndpoint()
+    async handleWebhook(@Body() payload: WhatsAppWebhookPayload): Promise<{ status: string }> {
         this.logger.debug(`Webhook received: ${JSON.stringify(payload).substring(0, 500)}...`);
 
-        // Para Agent Bot, el event viene como "message_created" 
-        // y el contenido está directamente en payload.content
-        const event = payload.event || 'message_created';
-
-        // Solo procesar mensajes entrantes
-        if (event !== 'message_created') {
-            this.logger.debug(`Ignoring event: ${event}`);
+        // Verificar que es un mensaje de WhatsApp
+        if (payload.object !== 'whatsapp_business_account') {
             return { status: 'ignored' };
         }
 
-        // El Agent Bot recibe el contenido directamente en payload
-        const message = payload.content || payload.message?.content;
-        const messageType = payload.message_type || payload.message?.message_type;
+        // Procesar cada entrada
+        for (const entry of payload.entry || []) {
+            for (const change of entry.changes || []) {
+                if (change.field !== 'messages') continue;
 
-        // Ignorar mensajes salientes o privados
-        if (messageType === 'outgoing' || payload.message?.private) {
-            this.logger.debug('Ignoring outgoing or private message');
-            return { status: 'ignored' };
-        }
+                const value = change.value;
+                const messages = value.messages || [];
+                const contacts = value.contacts || [];
 
-        const conversationId = payload.conversation?.id;
+                for (const message of messages) {
+                    // Solo procesar mensajes de texto o respuestas interactivas
+                    if (!['text', 'interactive'].includes(message.type)) {
+                        this.logger.debug(`Ignoring message type: ${message.type}`);
+                        continue;
+                    }
 
-        // Obtener teléfono del contacto - múltiples fuentes posibles
-        const telefono = payload.sender?.phone_number ||
-            payload.conversation?.meta?.sender?.phone_number ||
-            payload.conversation?.contact_inbox?.source_id ||
-            payload.message?.sender?.phone_number ||
-            '';
+                    // Extraer contenido del mensaje
+                    let content = '';
+                    if (message.type === 'text') {
+                        content = message.text?.body || '';
+                    } else if (message.type === 'interactive') {
+                        content = message.interactive?.button_reply?.title ||
+                            message.interactive?.list_reply?.title || '';
+                    }
 
-        // Obtener nombre del contacto
-        const nombreWhatsapp = payload.sender?.name ||
-            payload.conversation?.meta?.sender?.name ||
-            payload.message?.sender?.name ||
-            'Usuario';
+                    if (!content) continue;
 
-        this.logger.log(`Processing message: "${message}" from ${nombreWhatsapp} (${telefono}) - conv: ${conversationId}`);
+                    // Obtener información del contacto
+                    const telefono = message.from;
+                    const contact = contacts.find(c => c.wa_id === telefono);
+                    const nombreWhatsapp = contact?.profile?.name || 'Usuario';
 
-        if (!message || !conversationId || !telefono) {
-            this.logger.warn('Webhook missing required data', { message: !!message, conversationId, telefono: !!telefono });
-            return { status: 'error' };
-        }
+                    this.logger.log(`Message from ${nombreWhatsapp} (${telefono}): "${content}"`);
 
-        // Procesar mensaje de forma asíncrona (no bloquear respuesta del webhook)
-        setImmediate(async () => {
-            try {
-                await this.intentRouter.processMessage(
-                    conversationId,
-                    message,
-                    telefono,
-                    nombreWhatsapp,
-                );
-            } catch (error) {
-                this.logger.error(`Error processing message: ${error.message}`, error.stack);
+                    // Marcar como leído
+                    await this.chatwootService.markAsRead(message.id);
+
+                    // Procesar mensaje de forma asíncrona
+                    setImmediate(async () => {
+                        try {
+                            await this.intentRouter.processMessage(
+                                // Usamos el teléfono como "conversationId"
+                                parseInt(telefono.slice(-8), 10) || Date.now(),
+                                content,
+                                telefono,
+                                nombreWhatsapp,
+                            );
+                        } catch (error) {
+                            this.logger.error(`Error processing message: ${error.message}`, error.stack);
+                        }
+                    });
+                }
             }
-        });
+        }
 
         return { status: 'ok' };
     }
 
+    /**
+     * Endpoint de prueba para simular mensajes
+     */
     @Post('test')
     @ApiOperation({ summary: 'Endpoint de prueba para simular mensajes' })
     async testMessage(
         @Body() body: { message: string; telefono: string; nombre?: string },
     ): Promise<any> {
-        // Solo para desarrollo/pruebas
         this.logger.log(`Test message: ${body.message} from ${body.telefono}`);
 
-        // Simular conversationId para pruebas
-        const fakeConversationId = 9999;
+        const fakeConversationId = parseInt(body.telefono.slice(-8), 10) || Date.now();
 
         try {
             await this.intentRouter.processMessage(

@@ -31,6 +31,9 @@ export class IntentRouterService {
         telefono: string,
         nombreWhatsapp: string,
     ): Promise<void> {
+        // Registrar teléfono para poder enviar respuestas (requerido para WhatsApp directo)
+        this.chatwootService.registerConversation(conversationId, telefono);
+
         // Obtener o crear contexto de conversación
         const context = await this.getOrCreateContext(conversationId, telefono, nombreWhatsapp);
 
