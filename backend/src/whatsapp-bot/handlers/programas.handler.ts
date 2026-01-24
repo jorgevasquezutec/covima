@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ChatwootBotService } from '../chatwoot-bot.service';
+import { WhatsappBotService } from '../whatsapp-bot.service';
 import { ProgramasService } from '../../programas/programas.service';
 import { ConversationContext, IntentResult } from '../dto';
 
@@ -10,7 +10,7 @@ export class ProgramasHandler {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly chatwootService: ChatwootBotService,
+        private readonly whatsappService: WhatsappBotService,
         private readonly programasService: ProgramasService,
     ) { }
 
@@ -36,7 +36,7 @@ export class ProgramasHandler {
                 await this.editarProgramaDesdeTexto(context, message);
                 break;
             default:
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '❓ Acción de programas no reconocida.',
                 });
         }
@@ -54,7 +54,7 @@ export class ProgramasHandler {
         const fecha = this.parseFecha(entities.fecha || message);
 
         if (!fecha) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⚠️ Por favor especifica la fecha del programa.\n\nEjemplo: "crear programa para el 25/01" o "crear programa para mañana"',
             });
             return;
@@ -70,7 +70,7 @@ export class ProgramasHandler {
 
             if (existentes.length > 0) {
                 const listaExistentes = existentes.map(p => `• ${p.codigo} - ${p.titulo}`).join('\n');
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: `⚠️ Ya existen ${existentes.length} programa(s) para el ${this.formatFecha(fecha)}:\n\n${listaExistentes}\n\n¿Deseas crear otro? Escribe "crear programa para el ${this.formatFecha(fecha)}" de nuevo para confirmar.`,
                 });
                 return;
@@ -100,11 +100,11 @@ export class ProgramasHandler {
             respuesta += `Para asignar participantes, escribe:\n`;
             respuesta += `"Asignar [parte] a [nombre] en ${programa.codigo}"`;
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: respuesta });
+            await this.whatsappService.sendMessage(context.conversationId, { content: respuesta });
 
         } catch (error) {
             this.logger.error(`Error creando programa: ${error.message}`);
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error al crear el programa.',
             });
         }
@@ -130,7 +130,7 @@ export class ProgramasHandler {
                 programa = await this.programasService.findByCodigo(codigo);
 
                 if (!programa) {
-                    await this.chatwootService.sendMessage(context.conversationId, {
+                    await this.whatsappService.sendMessage(context.conversationId, {
                         content: `📭 No encontré el programa con código *${codigo}*.\n\nVerifica el código o escribe "ver programa del [fecha]"`,
                     });
                     return;
@@ -162,7 +162,7 @@ export class ProgramasHandler {
                 });
 
                 if (programas.length === 0) {
-                    await this.chatwootService.sendMessage(context.conversationId, {
+                    await this.whatsappService.sendMessage(context.conversationId, {
                         content: `📭 No hay programas para el ${this.formatFecha(fecha)}.\n\n¿Deseas crear uno? Escribe "crear programa para el ${this.formatFecha(fecha)}"`,
                     });
                     return;
@@ -177,7 +177,7 @@ export class ProgramasHandler {
                     }
                     lista += `\nEscribe el código para ver detalles.\nEj: "ver ${programas[0].codigo}"`;
 
-                    await this.chatwootService.sendMessage(context.conversationId, { content: lista });
+                    await this.whatsappService.sendMessage(context.conversationId, { content: lista });
                     return;
                 }
 
@@ -191,7 +191,7 @@ export class ProgramasHandler {
             }
 
             if (!programa || !fecha) {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '📭 No hay programas próximos.\n\n¿Deseas crear uno? Escribe "crear programa para el [fecha]"',
                 });
                 return;
@@ -239,11 +239,11 @@ export class ProgramasHandler {
                 }
             }
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: respuesta });
+            await this.whatsappService.sendMessage(context.conversationId, { content: respuesta });
 
         } catch (error) {
             this.logger.error(`Error viendo programa: ${error.message}`);
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error al obtener el programa.',
             });
         }
@@ -261,7 +261,7 @@ export class ProgramasHandler {
         const usuarioNombre = entities.usuario as string;
 
         if (!parteNombre || !usuarioNombre) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⚠️ Usa el formato: "Asignar [parte] a [nombre]"\n\nEjemplo: "Asignar bienvenida a María"\nO con código: "Asignar bienvenida a María en PMA-X3kP9m"',
             });
             return;
@@ -276,7 +276,7 @@ export class ProgramasHandler {
                 // Buscar por código específico
                 programa = await this.programasService.findByCodigo(codigoMatch[1]);
                 if (!programa) {
-                    await this.chatwootService.sendMessage(context.conversationId, {
+                    await this.whatsappService.sendMessage(context.conversationId, {
                         content: `❌ No encontré el programa con código "${codigoMatch[1]}"`,
                     });
                     return;
@@ -287,7 +287,7 @@ export class ProgramasHandler {
             }
 
             if (!programa) {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '❌ No hay programas próximos.\n\nPrimero crea uno con "crear programa para el [fecha]"',
                 });
                 return;
@@ -303,7 +303,7 @@ export class ProgramasHandler {
 
             if (!parteEncontrada) {
                 const partesDisponibles = programa.partes.map(pp => pp.parte.nombre).join(', ');
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: `❌ No encontré la parte "${parteNombre}".\n\n📋 Partes disponibles:\n${partesDisponibles}`,
                 });
                 return;
@@ -323,13 +323,13 @@ export class ProgramasHandler {
                 .map(a => `📌 ${a.parteNombre}`)
                 .join('\n');
 
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: `✅ *¡Asignación realizada!*\n\n🔖 *Programa:* ${programa.codigo}\n👤 ${asig?.nombre}${indicadorUsuario}\n${mensajeAsignaciones}\n📅 ${this.formatFecha(fecha)}`,
             });
 
         } catch (error) {
             this.logger.error(`Error asignando parte: ${error.message}`);
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error al asignar. Intenta de nuevo.',
             });
         }
@@ -361,11 +361,11 @@ export class ProgramasHandler {
                 }
             }
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: respuesta });
+            await this.whatsappService.sendMessage(context.conversationId, { content: respuesta });
 
         } catch (error) {
             this.logger.error(`Error procesando programa: ${error.message}`);
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error al procesar el programa. Verifica el formato.',
             });
         }
@@ -376,7 +376,7 @@ export class ProgramasHandler {
      */
     async continueFlow(context: ConversationContext, message: string): Promise<void> {
         // Por ahora el módulo de programas no tiene flujo multi-paso
-        await this.chatwootService.sendMessage(context.conversationId, {
+        await this.whatsappService.sendMessage(context.conversationId, {
             content: '❓ No hay una operación de programas pendiente.',
         });
 

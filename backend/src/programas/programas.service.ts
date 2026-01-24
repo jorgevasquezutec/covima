@@ -6,15 +6,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProgramaDto, UpdateProgramaDto } from './dto';
-import { ChatwootBotService } from '../chatwoot-bot/chatwoot-bot.service';
+import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
 import { nanoid } from 'nanoid';
 
 @Injectable()
 export class ProgramasService {
   constructor(
     private prisma: PrismaService,
-    @Inject(forwardRef(() => ChatwootBotService))
-    private chatwootService: ChatwootBotService,
+    @Inject(forwardRef(() => WhatsappBotService))
+    private whatsappService: WhatsappBotService,
   ) { }
 
   /**
@@ -1573,7 +1573,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
       const telefono = `${notif.usuario.codigoPais}${notif.usuario.telefono}`;
 
       try {
-        const result = await this.chatwootService.sendMessageToPhone(
+        const result = await this.whatsappService.sendMessageToPhone(
           telefono,
           notif.usuario.nombre,
           notif.mensaje,

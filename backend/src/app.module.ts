@@ -9,7 +9,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { ProgramasModule } from './programas/programas.module';
 import { AsistenciaModule } from './asistencia/asistencia.module';
 import { TiposAsistenciaModule } from './tipos-asistencia/tipos-asistencia.module';
-import { ChatwootBotModule } from './chatwoot-bot/chatwoot-bot.module';
+import { WhatsappBotModule } from './whatsapp-bot/whatsapp-bot.module';
 
 @Module({
   imports: [
@@ -21,7 +21,7 @@ import { ChatwootBotModule } from './chatwoot-bot/chatwoot-bot.module';
     ProgramasModule,
     AsistenciaModule,
     TiposAsistenciaModule,
-    ChatwootBotModule,
+    WhatsappBotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

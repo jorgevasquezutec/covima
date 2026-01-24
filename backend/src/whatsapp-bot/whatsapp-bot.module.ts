@@ -1,7 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { ChatwootBotController } from './chatwoot-bot.controller';
-import { ChatwootBotService } from './chatwoot-bot.service';
+import { WhatsappBotController } from './whatsapp-bot.controller';
+import { WhatsappBotService } from './whatsapp-bot.service';
 import { OpenAIService } from './openai.service';
 import { IntentRouterService } from './intent-router.service';
 import { AsistenciaHandler } from './handlers/asistencia.handler';
@@ -21,9 +21,9 @@ import { ProgramasModule } from '../programas/programas.module';
         UsuariosModule,
         forwardRef(() => ProgramasModule),
     ],
-    controllers: [ChatwootBotController],
+    controllers: [WhatsappBotController],
     providers: [
-        ChatwootBotService,
+        WhatsappBotService,
         OpenAIService,
         IntentRouterService,
         AsistenciaHandler,
@@ -31,6 +31,6 @@ import { ProgramasModule } from '../programas/programas.module';
         ProgramasHandler,
         NotificacionesHandler,
     ],
-    exports: [ChatwootBotService],
+    exports: [WhatsappBotService],
 })
-export class ChatwootBotModule { }
+export class WhatsappBotModule { }

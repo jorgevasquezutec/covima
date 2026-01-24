@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ChatwootBotService } from '../chatwoot-bot.service';
+import { WhatsappBotService } from '../whatsapp-bot.service';
 import { UsuariosService } from '../../usuarios/usuarios.service';
 import { ConversationContext, IntentResult } from '../dto';
 
@@ -10,7 +10,7 @@ export class UsuariosHandler {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly chatwootService: ChatwootBotService,
+        private readonly whatsappService: WhatsappBotService,
         private readonly usuariosService: UsuariosService,
     ) { }
 
@@ -30,7 +30,7 @@ export class UsuariosHandler {
                 await this.buscarUsuario(context, intent.entities, message);
                 break;
             default:
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '❓ Acción de usuarios no reconocida.',
                 });
         }
@@ -63,7 +63,7 @@ export class UsuariosHandler {
         }
 
         if (!nombre || !telefono) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⚠️ Para crear un usuario necesito:\n\n*Nombre* y *Teléfono*\n\nEjemplos:\n• "Registrar a Juan +51 999 888 777"\n• "Registrar a Juan 999888777"',
             });
             return;
@@ -81,7 +81,7 @@ export class UsuariosHandler {
             });
 
             if (existente) {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: `⚠️ Ya existe un usuario con el teléfono ${telefono}:\n\n👤 ${existente.nombre}`,
                 });
                 return;
@@ -101,11 +101,11 @@ export class UsuariosHandler {
             respuesta += `🎭 *Rol:* Participante\n`;
             respuesta += `🔐 *Contraseña:* password (debe cambiarla al iniciar sesión)`;
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: respuesta });
+            await this.whatsappService.sendMessage(context.conversationId, { content: respuesta });
 
         } catch (error) {
             this.logger.error(`Error creando usuario: ${error.message}`);
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error al crear el usuario. Intenta de nuevo.',
             });
         }
@@ -128,7 +128,7 @@ export class UsuariosHandler {
         }
 
         if (!busqueda) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⚠️ Indica el nombre o teléfono a buscar.\n\nEjemplo: "Buscar María"',
             });
             return;
@@ -141,7 +141,7 @@ export class UsuariosHandler {
             });
 
             if (resultado.data.length === 0) {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: `🔍 No se encontraron usuarios con "${busqueda}".`,
                 });
                 return;
@@ -160,11 +160,11 @@ export class UsuariosHandler {
                 respuesta += `_...y ${resultado.meta.total - 5} más_`;
             }
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: respuesta });
+            await this.whatsappService.sendMessage(context.conversationId, { content: respuesta });
 
         } catch (error) {
             this.logger.error(`Error buscando usuario: ${error.message}`);
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error al buscar usuarios.',
             });
         }
@@ -175,7 +175,7 @@ export class UsuariosHandler {
      */
     async continueFlow(context: ConversationContext, message: string): Promise<void> {
         // Por ahora el módulo de usuarios no tiene flujo multi-paso
-        await this.chatwootService.sendMessage(context.conversationId, {
+        await this.whatsappService.sendMessage(context.conversationId, {
             content: '❓ No hay una operación de usuarios pendiente. ¿Qué deseas hacer?',
         });
 

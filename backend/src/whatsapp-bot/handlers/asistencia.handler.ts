@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ChatwootBotService } from '../chatwoot-bot.service';
+import { WhatsappBotService } from '../whatsapp-bot.service';
 import { AsistenciaService } from '../../asistencia/asistencia.service';
 import { RedisService } from '../../redis/redis.service';
 import { ConversationContext } from '../dto';
@@ -27,7 +27,7 @@ export class AsistenciaHandler {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly chatwootService: ChatwootBotService,
+        private readonly whatsappService: WhatsappBotService,
         private readonly redisService: RedisService,
         @Inject(forwardRef(() => AsistenciaService))
         private readonly asistenciaService: AsistenciaService,
@@ -44,7 +44,7 @@ export class AsistenciaHandler {
         const codigoQR = entities.codigoQR as string;
 
         if (!codigoQR) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⚠️ No detecté un código QR válido. El formato es: JA-XXXXXXXX',
             });
             return;
@@ -66,14 +66,14 @@ export class AsistenciaHandler {
         });
 
         if (!qr) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Código QR no válido. Verifica el código e intenta de nuevo.',
             });
             return;
         }
 
         if (!qr.activo) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⏸️ Este código QR ya no está activo.',
             });
             return;
@@ -87,7 +87,7 @@ export class AsistenciaHandler {
 
         if (horaActual < horaInicio || horaActual >= horaFin) {
             const formatTime = (d: Date) => `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: `⏰ El registro de asistencia solo está disponible de ${formatTime(qr.horaInicio)} a ${formatTime(qr.horaFin)}.`,
             });
             return;
@@ -106,7 +106,7 @@ export class AsistenciaHandler {
         });
 
         if (existente) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: `✅ Ya registraste tu asistencia esta semana para ${qr.tipoAsistencia?.label || 'este tipo'}. ¡Dios te bendiga!`,
             });
             return;
@@ -141,7 +141,7 @@ export class AsistenciaHandler {
             `¡Hola ${context.nombreWhatsapp}! 👋`,
             `Para *${qr.tipoAsistencia.label}* necesito algunos datos:`,
         ];
-        await this.chatwootService.sendMessages(context.conversationId, saludos);
+        await this.whatsappService.sendMessages(context.conversationId, saludos);
 
         // Enviar primera pregunta
         await this.sendQuestion(context.conversationId, flowData.campos[0]);
@@ -160,14 +160,14 @@ export class AsistenciaHandler {
         const telefonoUsuario = entities.telefonoUsuario as string | undefined;
 
         if (!codigoQR) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⚠️ Necesito el código QR para registrar la asistencia.\n\nEjemplo: _registrar asistencia de Juan en JA-A1B2C3D4_',
             });
             return;
         }
 
         if (!nombreUsuario && !telefonoUsuario) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⚠️ Necesito el nombre o teléfono del usuario a registrar.\n\nEjemplo: _registrar asistencia de Juan en JA-A1B2C3D4_',
             });
             return;
@@ -189,14 +189,14 @@ export class AsistenciaHandler {
         });
 
         if (!qr) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Código QR no válido. Verifica el código e intenta de nuevo.',
             });
             return;
         }
 
         if (!qr.activo) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '⏸️ Este código QR ya no está activo.',
             });
             return;
@@ -210,7 +210,7 @@ export class AsistenciaHandler {
 
         if (horaActual < horaInicio || horaActual >= horaFin) {
             const formatTime = (d: Date) => `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: `⏰ El registro de asistencia solo está disponible de ${formatTime(qr.horaInicio)} a ${formatTime(qr.horaFin)}.`,
             });
             return;
@@ -257,7 +257,7 @@ export class AsistenciaHandler {
                     mensaje += `${i + 1}. ${u.nombre} (${u.telefono})\n`;
                 });
                 mensaje += `\n_Por favor especifica el teléfono del usuario._`;
-                await this.chatwootService.sendMessage(context.conversationId, { content: mensaje });
+                await this.whatsappService.sendMessage(context.conversationId, { content: mensaje });
                 return;
             }
             // Si no encuentra usuario, usará el nombre proporcionado
@@ -283,7 +283,7 @@ export class AsistenciaHandler {
         const existente = await this.prisma.asistencia.findFirst({ where: whereClause });
 
         if (existente) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: `⚠️ ${nombreRegistro || 'Este usuario'} ya tiene asistencia registrada esta semana para ${qr.tipoAsistencia?.label || 'este tipo'}.`,
             });
             return;
@@ -321,7 +321,7 @@ export class AsistenciaHandler {
             `📝 Registrando asistencia de *${nombreRegistro || telefonoRegistro}*`,
             `Para *${qr.tipoAsistencia.label}* necesito algunos datos:`,
         ];
-        await this.chatwootService.sendMessages(context.conversationId, saludos);
+        await this.whatsappService.sendMessages(context.conversationId, saludos);
 
         await this.sendQuestion(context.conversationId, flowData.campos[0]);
     }
@@ -374,7 +374,7 @@ export class AsistenciaHandler {
                 }
             }
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: mensaje });
+            await this.whatsappService.sendMessage(context.conversationId, { content: mensaje });
             await this.resetContext(context.telefono);
 
             // Emitir evento WebSocket
@@ -402,11 +402,11 @@ export class AsistenciaHandler {
             this.logger.error(`Error registrando asistencia manual: ${error.message}`);
 
             if (error.code === 'P2002') {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '⚠️ Este usuario ya tiene asistencia registrada esta semana.',
                 });
             } else {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '❌ Ocurrió un error al registrar la asistencia. Intenta de nuevo.',
                 });
             }
@@ -422,7 +422,7 @@ export class AsistenciaHandler {
         const flowData = context.datos as AsistenciaFlowData;
 
         if (!flowData || !flowData.campos) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Ocurrió un error. Por favor, envía el código QR nuevamente.',
             });
             await this.resetContext(context.telefono);
@@ -435,7 +435,7 @@ export class AsistenciaHandler {
         const validacion = this.validateResponse(message, campoActual);
 
         if (!validacion.valid) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: validacion.error!,
             });
             return;
@@ -461,7 +461,7 @@ export class AsistenciaHandler {
         });
 
         if (!qr) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error: QR no encontrado.',
             });
             await this.resetContext(context.telefono);
@@ -546,7 +546,7 @@ export class AsistenciaHandler {
 
             mensaje += `\n¡Dios te bendiga! 🙏`;
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: mensaje });
+            await this.whatsappService.sendMessage(context.conversationId, { content: mensaje });
 
             // Resetear contexto
             await this.resetContext(context.telefono);
@@ -579,11 +579,11 @@ export class AsistenciaHandler {
             this.logger.error(`Error registrando asistencia: ${error.message}`);
 
             if (error.code === 'P2002') {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '⚠️ Ya registraste tu asistencia esta semana.',
                 });
             } else {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '❌ Ocurrió un error al registrar tu asistencia. Intenta de nuevo.',
                 });
             }
@@ -621,7 +621,7 @@ export class AsistenciaHandler {
             pregunta += `\n_(Responde "sí" o "no")_`;
         }
 
-        await this.chatwootService.sendMessage(conversationId, { content: pregunta });
+        await this.whatsappService.sendMessage(conversationId, { content: pregunta });
     }
 
     /**

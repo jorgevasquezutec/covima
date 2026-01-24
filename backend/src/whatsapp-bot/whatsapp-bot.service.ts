@@ -12,8 +12,8 @@ import { SendMessageDto } from './dto';
  * con los handlers existentes.
  */
 @Injectable()
-export class ChatwootBotService {
-    private readonly logger = new Logger(ChatwootBotService.name);
+export class WhatsappBotService {
+    private readonly logger = new Logger(WhatsappBotService.name);
     private readonly token: string;
     private readonly phoneNumberId: string;
     private readonly apiUrl = 'https://graph.facebook.com/v18.0';

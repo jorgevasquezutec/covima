@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIService } from './openai.service';
-import { ChatwootBotService } from './chatwoot-bot.service';
+import { WhatsappBotService } from './whatsapp-bot.service';
 import { AsistenciaHandler } from './handlers/asistencia.handler';
 import { UsuariosHandler } from './handlers/usuarios.handler';
 import { ProgramasHandler } from './handlers/programas.handler';
@@ -15,7 +15,7 @@ export class IntentRouterService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly openaiService: OpenAIService,
-        private readonly chatwootService: ChatwootBotService,
+        private readonly whatsappService: WhatsappBotService,
         private readonly asistenciaHandler: AsistenciaHandler,
         private readonly usuariosHandler: UsuariosHandler,
         private readonly programasHandler: ProgramasHandler,
@@ -33,10 +33,10 @@ export class IntentRouterService {
         messageId?: string,
     ): Promise<void> {
         // Registrar teléfono y messageId para poder enviar respuestas y typing indicator
-        this.chatwootService.registerConversation(conversationId, telefono, messageId);
+        this.whatsappService.registerConversation(conversationId, telefono, messageId);
 
         // Mostrar typing indicator mientras procesamos
-        await this.chatwootService.toggleTypingStatus(conversationId, true);
+        await this.whatsappService.toggleTypingStatus(conversationId, true);
 
         // Obtener o crear contexto de conversación
         const context = await this.getOrCreateContext(conversationId, telefono, nombreWhatsapp);
@@ -53,7 +53,7 @@ export class IntentRouterService {
 
         // Verificar permisos
         if (intentResult.requiresAuth && !context.usuarioId) {
-            await this.chatwootService.sendMessage(conversationId, {
+            await this.whatsappService.sendMessage(conversationId, {
                 content: '⚠️ Esta acción requiere que estés registrado en el sistema. Contacta a un administrador.',
             });
             return;
@@ -62,7 +62,7 @@ export class IntentRouterService {
         if (intentResult.requiredRoles.length > 0) {
             const hasRole = intentResult.requiredRoles.some(role => context.roles.includes(role));
             if (!hasRole) {
-                await this.chatwootService.sendMessage(conversationId, {
+                await this.whatsappService.sendMessage(conversationId, {
                     content: `🔒 No tienes permisos para esta acción. Se requiere rol: ${intentResult.requiredRoles.join(' o ')}`,
                 });
                 return;
@@ -242,7 +242,7 @@ export class IntentRouterService {
             helpText += `   • "buscar María"\n`;
         }
 
-        await this.chatwootService.sendMessage(context.conversationId, { content: helpText });
+        await this.whatsappService.sendMessage(context.conversationId, { content: helpText });
     }
 
     /**
@@ -251,14 +251,14 @@ export class IntentRouterService {
     private async sendGreeting(context: ConversationContext): Promise<void> {
         const nombre = context.usuarioId ? context.nombreWhatsapp : 'hermano/a';
         const greeting = `¡Hola ${nombre}! 👋\n\n¿En qué puedo ayudarte?\n\nEscribe *ayuda* para ver los comandos disponibles.`;
-        await this.chatwootService.sendMessage(context.conversationId, { content: greeting });
+        await this.whatsappService.sendMessage(context.conversationId, { content: greeting });
     }
 
     /**
      * Intención desconocida
      */
     private async sendUnknownIntent(context: ConversationContext): Promise<void> {
-        await this.chatwootService.sendMessage(context.conversationId, {
+        await this.whatsappService.sendMessage(context.conversationId, {
             content: '🤔 No entendí tu mensaje. Escribe *ayuda* para ver los comandos disponibles.',
         });
     }

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ChatwootBotService } from '../chatwoot-bot.service';
+import { WhatsappBotService } from '../whatsapp-bot.service';
 import { ProgramasService } from '../../programas/programas.service';
 import { ConversationContext, IntentResult } from '../dto';
 
@@ -10,7 +10,7 @@ export class NotificacionesHandler {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly chatwootService: ChatwootBotService,
+        private readonly whatsappService: WhatsappBotService,
         private readonly programasService: ProgramasService,
     ) { }
 
@@ -50,7 +50,7 @@ export class NotificacionesHandler {
             }
 
             if (!programa || !fecha) {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: '📭 No hay programas próximos. Crea uno primero.',
                 });
                 return;
@@ -58,7 +58,7 @@ export class NotificacionesHandler {
 
             // Verificar que hay asignaciones
             if (programa.asignaciones.length === 0) {
-                await this.chatwootService.sendMessage(context.conversationId, {
+                await this.whatsappService.sendMessage(context.conversationId, {
                     content: `⚠️ El programa del ${this.formatFecha(fecha)} no tiene participantes asignados.`,
                 });
                 return;
@@ -119,11 +119,11 @@ export class NotificacionesHandler {
                 },
             });
 
-            await this.chatwootService.sendMessage(context.conversationId, { content: resumen });
+            await this.whatsappService.sendMessage(context.conversationId, { content: resumen });
 
         } catch (error) {
             this.logger.error(`Error preparando envío: ${error.message}`);
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error al preparar el envío del programa.',
             });
         }
@@ -136,7 +136,7 @@ export class NotificacionesHandler {
         const lower = message.toLowerCase().trim();
 
         if (!['sí', 'si', 'yes', 'confirmar', 'enviar'].includes(lower)) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Envío cancelado.',
             });
             await this.resetContext(context.telefono);
@@ -151,14 +151,14 @@ export class NotificacionesHandler {
         };
 
         if (!datos || !datos.participantes) {
-            await this.chatwootService.sendMessage(context.conversationId, {
+            await this.whatsappService.sendMessage(context.conversationId, {
                 content: '❌ Error: datos de envío no encontrados.',
             });
             await this.resetContext(context.telefono);
             return;
         }
 
-        await this.chatwootService.sendMessage(context.conversationId, {
+        await this.whatsappService.sendMessage(context.conversationId, {
             content: '📤 Enviando notificaciones...',
         });
 
@@ -204,7 +204,7 @@ export class NotificacionesHandler {
         }
         resultado += `\n_Nota: Los mensajes serán enviados cuando se configure la integración completa con WhatsApp._`;
 
-        await this.chatwootService.sendMessage(context.conversationId, { content: resultado });
+        await this.whatsappService.sendMessage(context.conversationId, { content: resultado });
         await this.resetContext(context.telefono);
     }
 

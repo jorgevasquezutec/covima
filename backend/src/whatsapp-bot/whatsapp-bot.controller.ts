@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Query, Logger, HttpCode } from '@nestjs/co
 import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { IntentRouterService } from './intent-router.service';
-import { ChatwootBotService } from './chatwoot-bot.service';
+import { WhatsappBotService } from './whatsapp-bot.service';
 
 interface WhatsAppWebhookPayload {
     object: string;
@@ -45,14 +45,14 @@ interface WhatsAppWebhookPayload {
 
 @ApiTags('WhatsApp Bot')
 @Controller('whatsapp')
-export class ChatwootBotController {
-    private readonly logger = new Logger(ChatwootBotController.name);
+export class WhatsappBotController {
+    private readonly logger = new Logger(WhatsappBotController.name);
     private readonly verifyToken: string;
 
     constructor(
         private readonly configService: ConfigService,
         private readonly intentRouter: IntentRouterService,
-        private readonly chatwootService: ChatwootBotService,
+        private readonly whatsappService: WhatsappBotService,
     ) {
         this.verifyToken = this.configService.get<string>('WHATSAPP_VERIFY_TOKEN', 'covima_verify_token');
     }
