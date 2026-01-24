@@ -30,21 +30,19 @@ interface Props {
     onSuccess?: () => void;
 }
 
-// Helper para formatear hora (muestra hora UTC, que es lo que guardó el usuario)
+// Helper para formatear hora
 const formatHora = (hora: string): string => {
     if (!hora) return '--:--';
     if (/^\d{2}:\d{2}$/.test(hora)) return hora;
     try {
         const date = new Date(hora);
-        const hours = date.getUTCHours().toString().padStart(2, '0');
-        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
+        return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
     } catch {
         return hora;
     }
 };
 
-// Helper para verificar si QR está en horario válido (compara hora local del usuario con la hora guardada)
+// Helper para verificar si QR está en horario válido
 const isQRInTime = (qr: QRAsistencia): boolean => {
     const now = new Date();
     const horaActual = now.getHours() * 60 + now.getMinutes();
@@ -52,9 +50,9 @@ const isQRInTime = (qr: QRAsistencia): boolean => {
     const horaInicio = qr.horaInicio ? new Date(qr.horaInicio) : null;
     const horaFin = qr.horaFin ? new Date(qr.horaFin) : null;
 
-    // Usar getUTCHours porque el backend guarda la hora que ingresó el usuario como UTC
-    const inicioMinutos = horaInicio ? horaInicio.getUTCHours() * 60 + horaInicio.getUTCMinutes() : 9 * 60;
-    const finMinutos = horaFin ? horaFin.getUTCHours() * 60 + horaFin.getUTCMinutes() : 12 * 60;
+    // Usar getHours para obtener hora local (Peru)
+    const inicioMinutos = horaInicio ? horaInicio.getHours() * 60 + horaInicio.getMinutes() : 9 * 60;
+    const finMinutos = horaFin ? horaFin.getHours() * 60 + horaFin.getMinutes() : 12 * 60;
 
     return horaActual >= inicioMinutos && horaActual < finMinutos;
 };

@@ -87,7 +87,8 @@ export class AsistenciaService {
 
     private parseTimeToDate(timeStr: string): Date {
         const [hours, minutes] = timeStr.split(':').map(Number);
-        const date = new Date('1970-01-01');
+        // Con TZ=America/Lima en el contenedor, setHours usa hora de Lima
+        const date = new Date('1970-01-01T00:00:00');
         date.setHours(hours, minutes, 0, 0);
         return date;
     }

@@ -39,17 +39,15 @@ const parseLocalDate = (fecha: string | Date): Date => {
     return new Date(year, month - 1, day);
 };
 
-// Helper para formatear hora desde timestamp o string (muestra hora UTC, que es lo que guardó el usuario)
+// Helper para formatear hora desde timestamp o string
 const formatHora = (hora: string): string => {
     if (!hora) return '--:--';
     // Si ya es un formato HH:MM, devolverlo
     if (/^\d{2}:\d{2}$/.test(hora)) return hora;
-    // Si es un timestamp, extraer la hora UTC
+    // Si es un timestamp, extraer la hora local
     try {
         const date = new Date(hora);
-        const hours = date.getUTCHours().toString().padStart(2, '0');
-        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
+        return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
     } catch {
         return hora;
     }
@@ -511,7 +509,7 @@ export default function AsistenciaRoom() {
 
             {/* Modal QR Expandido */}
             <Dialog open={qrExpanded} onOpenChange={setQrExpanded}>
-                <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-2xl bg-white border-gray-200">
+                <DialogContent className="w-[92vw] max-w-sm sm:max-w-md bg-white border-gray-200 p-4 sm:p-6 overflow-hidden">
                     <DialogHeader className="text-center">
                         <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">
                             {qr.tipoAsistencia?.label || 'Asistencia'}
@@ -520,22 +518,22 @@ export default function AsistenciaRoom() {
                             Escanea para registrar tu asistencia
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex flex-col items-center px-2">
+                    <div className="flex flex-col items-center w-full overflow-hidden">
                         {(qr.urlWhatsapp || qr.urlGenerada) && (
-                            <div className="bg-white p-4 sm:p-6 rounded-2xl border-4 border-gray-100 shadow-lg w-full max-w-[280px] sm:max-w-[400px]">
+                            <div className="bg-white p-2 sm:p-4 rounded-2xl border-4 border-gray-100 shadow-lg w-fit max-w-full">
                                 <QRCodeSVG
                                     value={qr.urlWhatsapp || qr.urlGenerada || ''}
-                                    size={400}
+                                    size={256}
                                     level="H"
                                     includeMargin={true}
                                     bgColor="#ffffff"
                                     fgColor={tipoColor}
-                                    style={{ width: '100%', height: 'auto' }}
+                                    className="max-w-full h-auto"
                                 />
                             </div>
                         )}
-                        <div className="mt-6 text-center">
-                            <p className="text-lg font-medium text-gray-900">
+                        <div className="mt-4 sm:mt-6 text-center">
+                            <p className="text-base sm:text-lg font-medium text-gray-900">
                                 {parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', {
                                     weekday: 'long',
                                     day: 'numeric',
@@ -543,12 +541,12 @@ export default function AsistenciaRoom() {
                                     year: 'numeric',
                                 })}
                             </p>
-                            <p className="text-gray-500 mt-1">
+                            <p className="text-gray-500 mt-1 text-sm sm:text-base">
                                 <Clock className="w-4 h-4 inline mr-1" />
                                 Válido de {formatHora(qr.horaInicio)} a {formatHora(qr.horaFin)}
                             </p>
                             <Badge
-                                className="mt-4"
+                                className="mt-3 sm:mt-4"
                                 style={{ backgroundColor: tipoColor, color: 'white' }}
                             >
                                 {qr.tipoAsistencia?.label}
