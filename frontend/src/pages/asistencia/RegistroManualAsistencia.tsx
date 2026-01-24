@@ -30,18 +30,6 @@ interface Props {
     onSuccess?: () => void;
 }
 
-// Helper para formatear hora
-const formatHora = (hora: string): string => {
-    if (!hora) return '--:--';
-    if (/^\d{2}:\d{2}$/.test(hora)) return hora;
-    try {
-        const date = new Date(hora);
-        return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
-    } catch {
-        return hora;
-    }
-};
-
 // Helper para verificar si QR está en horario válido
 const isQRInTime = (qr: QRAsistencia): boolean => {
     const now = new Date();
@@ -212,9 +200,9 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                         <SelectContent className="bg-white border-gray-200">
                             {qrs.map((qr) => (
                                 <SelectItem key={qr.id} value={qr.codigo}>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                                         <Badge
-                                            className="text-xs"
+                                            className="text-xs shrink-0"
                                             style={{
                                                 backgroundColor: qr.tipoAsistencia?.color || '#3B82F6',
                                                 color: 'white',
@@ -222,10 +210,7 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                                         >
                                             {qr.tipoAsistencia?.label}
                                         </Badge>
-                                        <span className="font-mono text-sm">{qr.codigo}</span>
-                                        <span className="text-gray-400 text-xs">
-                                            ({formatHora(qr.horaInicio)} - {formatHora(qr.horaFin)})
-                                        </span>
+                                        <span className="font-mono text-xs sm:text-sm">{qr.codigo}</span>
                                     </div>
                                 </SelectItem>
                             ))}
@@ -238,26 +223,26 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                         {/* Modo de registro */}
                         <div className="space-y-2">
                             <Label className="text-gray-700">Tipo de registro</Label>
-                            <div className="flex gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                                 <Button
                                     type="button"
                                     variant={modo === 'usuario' ? 'default' : 'outline'}
                                     size="sm"
                                     onClick={() => setModo('usuario')}
-                                    className={modo === 'usuario' ? 'bg-blue-600' : ''}
+                                    className={`${modo === 'usuario' ? 'bg-blue-600' : ''} text-xs sm:text-sm`}
                                 >
-                                    <User className="w-4 h-4 mr-1" />
-                                    Usuario existente
+                                    <User className="w-4 h-4 mr-1 shrink-0" />
+                                    <span className="truncate">Usuario existente</span>
                                 </Button>
                                 <Button
                                     type="button"
                                     variant={modo === 'manual' ? 'default' : 'outline'}
                                     size="sm"
                                     onClick={() => setModo('manual')}
-                                    className={modo === 'manual' ? 'bg-blue-600' : ''}
+                                    className={`${modo === 'manual' ? 'bg-blue-600' : ''} text-xs sm:text-sm`}
                                 >
-                                    <Phone className="w-4 h-4 mr-1" />
-                                    Ingreso manual
+                                    <Phone className="w-4 h-4 mr-1 shrink-0" />
+                                    <span className="truncate">Ingreso manual</span>
                                 </Button>
                             </div>
                         </div>
@@ -269,10 +254,10 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <Input
-                                        placeholder="Buscar por nombre o teléfono..."
+                                        placeholder="Buscar por nombre o teléfono"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 bg-white border-gray-300"
+                                        className="pl-10 bg-white border-gray-300 text-sm"
                                     />
                                     {searching && (
                                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
