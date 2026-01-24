@@ -46,43 +46,43 @@ pnpm dev           # Inicia en http://localhost:5173
 ### Credenciales por defecto
 - **PostgreSQL**: `postgres:postgres@localhost:5432/covima_ja`
 - **Todos los usuarios**: password `password`
-- **Admin**: Jorge Vasquez - `+51 940393758`
+- **Admin**: Jorge Vasquez - `+51 9XX-XXX-XXX`
 
 ### Usuarios registrados (31 participantes + 1 admin)
 | Nombre | Teléfono |
 |--------|----------|
-| Jorge Vasquez (admin) | +51 940393758 |
-| Damaris | +51 928801948 |
-| Elizabhet Bolaños | +51 962236060 |
-| Piedad Rivera | +51 957679148 |
-| Jean Caso | +51 932287482 |
-| Ruth Diaz | +51 963033161 |
-| Anyela Calle | +51 993803296 |
-| Bryan Chavez | +51 970508614 |
-| Pamela Maldonado | +51 984121155 |
-| Belen Diaz | +51 933714369 |
-| Renzo Higinio | +51 945388949 |
-| Liz Delgado | +51 949125725 |
-| Carla Delgado | +51 991157405 |
-| Kelly Delgado | +51 991018759 |
-| Cristhian Ramirez | +51 987622613 |
-| Jherson Flores | +51 994727249 |
-| Milca Humpiri | +51 966750219 |
-| Gina Mamani | +51 951212662 |
-| Patricia Tola | +51 927934296 |
-| Milli | +51 993211474 |
-| Irene | +51 951360200 |
-| Diego | +51 932722857 |
-| Jose Olivera | +51 996160566 |
-| Fernanda Quinto | +51 997170847 |
-| Zelo | +51 975662737 |
-| Fanny Calderon | +51 963895061 |
-| Yuxy | +51 966386930 |
-| Nicole Castro | +51 990134132 |
-| Xavier | +51 976203046 |
-| Lucia | +51 954764679 |
-| Alex | +51 939494403 |
-| Annie Chavez | +51 902098838 |
+| Jorge Vasquez (admin) | +51 9XX-XXX-XXX |
+| Damaris | +51 9XX-XXX-XXX |
+| Elizabhet Bolaños | +51 9XX-XXX-XXX |
+| Piedad Rivera | +51 9XX-XXX-XXX |
+| Jean Caso | +51 9XX-XXX-XXX |
+| Ruth Diaz | +51 9XX-XXX-XXX |
+| Anyela Calle | +51 9XX-XXX-XXX |
+| Bryan Chavez | +51 9XX-XXX-XXX |
+| Pamela Maldonado | +51 9XX-XXX-XXX |
+| Belen Diaz | +51 9XX-XXX-XXX |
+| Renzo Higinio | +51 9XX-XXX-XXX |
+| Liz Delgado | +51 9XX-XXX-XXX |
+| Carla Delgado | +51 9XX-XXX-XXX |
+| Kelly Delgado | +51 9XX-XXX-XXX |
+| Cristhian Ramirez | +51 9XX-XXX-XXX |
+| Jherson Flores | +51 9XX-XXX-XXX |
+| Milca Humpiri | +51 9XX-XXX-XXX |
+| Gina Mamani | +51 9XX-XXX-XXX |
+| Patricia Tola | +51 9XX-XXX-XXX |
+| Milli | +51 9XX-XXX-XXX |
+| Irene | +51 9XX-XXX-XXX |
+| Diego | +51 9XX-XXX-XXX |
+| Jose Olivera | +51 9XX-XXX-XXX |
+| Fernanda Quinto | +51 9XX-XXX-XXX |
+| Zelo | +51 9XX-XXX-XXX |
+| Fanny Calderon | +51 9XX-XXX-XXX |
+| Yuxy | +51 9XX-XXX-XXX |
+| Nicole Castro | +51 9XX-XXX-XXX |
+| Xavier | +51 9XX-XXX-XXX |
+| Lucia | +51 9XX-XXX-XXX |
+| Alex | +51 9XX-XXX-XXX |
+| Annie Chavez | +51 9XX-XXX-XXX |
 
 ### Scripts útiles (backend)
 ```bash
@@ -187,8 +187,8 @@ CREATE INDEX idx_usuarios_telefono ON usuarios(codigo_pais, telefono);
 
 **Nota sobre teléfonos:**
 - `codigo_pais`: Código del país SIN el símbolo `+` (ej: `51` para Perú, `1` para USA)
-- `telefono`: Solo el número local (ej: `940393758`)
-- Para WhatsApp API: concatenar `${codigo_pais}${telefono}` = `51940393758`
+- `telefono`: Solo el número local (ej: `9XXXXXXXX`)
+- Para WhatsApp API: concatenar `${codigo_pais}${telefono}` = `519XXXXXXXX`
 
 ### Tabla: `usuarios_roles`
 ```sql
