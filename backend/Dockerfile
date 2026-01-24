@@ -38,5 +38,5 @@ COPY --from=builder /app/prisma ./prisma
 # Exponer puerto
 EXPOSE 3001
 
-# Comando de inicio: migrar y ejecutar
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# Comando de inicio: migrar, seed y ejecutar
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js"]
