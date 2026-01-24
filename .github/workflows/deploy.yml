@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOMAIN: jvasquezd.me
+  DOMAIN: jvasquez.me
 
 jobs:
   deploy:
