@@ -39,15 +39,17 @@ const parseLocalDate = (fecha: string | Date): Date => {
     return new Date(year, month - 1, day);
 };
 
-// Helper para formatear hora desde timestamp o string
+// Helper para formatear hora desde timestamp o string (muestra hora UTC, que es lo que guardó el usuario)
 const formatHora = (hora: string): string => {
     if (!hora) return '--:--';
     // Si ya es un formato HH:MM, devolverlo
     if (/^\d{2}:\d{2}$/.test(hora)) return hora;
-    // Si es un timestamp, extraer la hora
+    // Si es un timestamp, extraer la hora UTC
     try {
         const date = new Date(hora);
-        return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const hours = date.getUTCHours().toString().padStart(2, '0');
+        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
     } catch {
         return hora;
     }
