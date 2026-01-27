@@ -92,11 +92,11 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ```bash
 # Verificar propagación
-dig +short covima.jvasquezd.me
-dig +short covima-api.jvasquezd.me
+dig +short covima.jvasquez.me
+dig +short covima-api.jvasquez.me
 
 # Verificar con Google DNS
-dig +short covima.jvasquezd.me @8.8.8.8
+dig +short covima.jvasquez.me @8.8.8.8
 ```
 
 ## Caddy (SSL)
@@ -109,7 +109,7 @@ docker restart covima-caddy
 docker logs covima-caddy
 
 # Verificar certificados
-curl -vI https://covima.jvasquezd.me 2>&1 | grep -i "certificate"
+curl -vI https://covima.jvasquez.me 2>&1 | grep -i "certificate"
 ```
 
 ## Credenciales
@@ -121,6 +121,6 @@ curl -vI https://covima.jvasquezd.me 2>&1 | grep -i "certificate"
 
 ## URLs
 
-- Frontend: https://covima.jvasquezd.me
-- API: https://covima-api.jvasquezd.me
-- API Docs: https://covima-api.jvasquezd.me/api/docs
+- Frontend: https://covima.jvasquez.me
+- API: https://covima-api.jvasquez.me
+- API Docs: https://covima-api.jvasquez.me/api/docs
