@@ -18,6 +18,8 @@ import {
     MessageCircle,
     Phone,
     AlertTriangle,
+    Square,
+    CheckSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,6 +87,7 @@ export default function ProgramasPage() {
         errores: number;
         detalles: { nombre: string; telefono: string; success: boolean; error?: string }[];
     } | null>(null);
+    const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         loadProgramas();
@@ -181,6 +184,8 @@ export default function ProgramasPage() {
             setNotifResult(null);
             const response = await programasApi.previewNotificaciones(programa.id);
             setPreviewNotif(response);
+            // Seleccionar todos los usuarios por defecto
+            setSelectedUsers(new Set(response.notificaciones.map((n) => n.usuario.id)));
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Error al cargar preview');
         } finally {
@@ -189,11 +194,12 @@ export default function ProgramasPage() {
     };
 
     const handleEnviarNotificaciones = async () => {
-        if (!previewNotif) return;
+        if (!previewNotif || selectedUsers.size === 0) return;
 
         try {
             setSendingNotif(true);
-            const result = await programasApi.enviarNotificaciones(previewNotif.programa.id);
+            const usuarioIds = Array.from(selectedUsers);
+            const result = await programasApi.enviarNotificaciones(previewNotif.programa.id, usuarioIds);
             setNotifResult(result);
 
             if (result.enviados > 0) {
@@ -207,6 +213,28 @@ export default function ProgramasPage() {
             toast.error(error.response?.data?.message || 'Error al enviar notificaciones');
         } finally {
             setSendingNotif(false);
+        }
+    };
+
+    const toggleUserSelection = (userId: number) => {
+        setSelectedUsers((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(userId)) {
+                newSet.delete(userId);
+            } else {
+                newSet.add(userId);
+            }
+            return newSet;
+        });
+    };
+
+    const toggleAllUsers = () => {
+        if (!previewNotif) return;
+        const allUserIds = previewNotif.notificaciones.map((n) => n.usuario.id);
+        if (selectedUsers.size === allUserIds.length) {
+            setSelectedUsers(new Set());
+        } else {
+            setSelectedUsers(new Set(allUserIds));
         }
     };
 
@@ -463,7 +491,7 @@ export default function ProgramasPage() {
             </AlertDialog>
 
             {/* Dialog para preview de notificaciones WhatsApp */}
-            <Dialog open={!!previewNotif} onOpenChange={() => setPreviewNotif(null)}>
+            <Dialog open={!!previewNotif} onOpenChange={() => { setPreviewNotif(null); setSelectedUsers(new Set()); }}>
                 <DialogContent className="bg-white border-gray-200 max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-gray-900 flex items-center gap-2">
@@ -526,19 +554,57 @@ export default function ProgramasPage() {
 
                             {/* Lista de notificaciones */}
                             <div className="space-y-4">
-                                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                                    <Send className="h-4 w-4 text-green-600" />
-                                    Mensajes a enviar ({previewNotif.notificaciones.length})
-                                </h3>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                                        <Send className="h-4 w-4 text-green-600" />
+                                        Mensajes a enviar ({previewNotif.notificaciones.length})
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={toggleAllUsers}
+                                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
+                                    >
+                                        {selectedUsers.size === previewNotif.notificaciones.length ? (
+                                            <>
+                                                <CheckSquare className="h-4 w-4" />
+                                                Deseleccionar todos
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Square className="h-4 w-4" />
+                                                Seleccionar todos
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
 
                                 {previewNotif.notificaciones.map((notif) => (
-                                    <div key={notif.usuario.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div
+                                        key={notif.usuario.id}
+                                        className={`border rounded-lg overflow-hidden transition-colors ${selectedUsers.has(notif.usuario.id)
+                                                ? 'border-green-300 bg-green-50/30'
+                                                : 'border-gray-200 opacity-60'
+                                            }`}
+                                    >
                                         <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium text-gray-900">{notif.usuario.nombre}</p>
-                                                <p className="text-sm text-gray-500">
-                                                    {notif.usuario.codigoPais} {notif.usuario.telefono}
-                                                </p>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleUserSelection(notif.usuario.id)}
+                                                    className="text-gray-500 hover:text-green-600"
+                                                >
+                                                    {selectedUsers.has(notif.usuario.id) ? (
+                                                        <CheckSquare className="h-5 w-5 text-green-600" />
+                                                    ) : (
+                                                        <Square className="h-5 w-5" />
+                                                    )}
+                                                </button>
+                                                <div>
+                                                    <p className="font-medium text-gray-900">{notif.usuario.nombre}</p>
+                                                    <p className="text-sm text-gray-500">
+                                                        {notif.usuario.codigoPais} {notif.usuario.telefono}
+                                                    </p>
+                                                </div>
                                             </div>
                                             <div className="flex flex-wrap gap-1">
                                                 {notif.partes.map((parte) => (
@@ -553,10 +619,17 @@ export default function ProgramasPage() {
                                                 <Eye className="h-3 w-3" />
                                                 Ver mensaje completo
                                             </summary>
-                                            <div className="px-4 py-3 bg-white border-t border-gray-100">
-                                                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
-                                                    {notif.mensaje}
-                                                </pre>
+                                            <div className="px-4 py-3 bg-green-50 border-t border-gray-100">
+                                                <div className="text-sm text-gray-700 whitespace-pre-wrap font-sans bg-white rounded-lg p-3 shadow-sm border border-green-200">
+                                                    <p>¡Hola <strong>{notif.usuario.nombre}</strong>! 👋</p>
+                                                    <p className="mt-2">Te recordamos que tienes asignaciones para el programa del <strong>{previewNotif && formatDate(previewNotif.programa.fecha)}</strong>.</p>
+                                                    <p className="mt-2">Tus partes: <strong>{notif.partes.join(', ')}</strong></p>
+                                                    <p className="mt-2">Responde "ver programa <strong>{previewNotif?.programa.codigo}</strong>" para ver el programa completo.</p>
+                                                    <p className="mt-2">¡Que Dios te bendiga! 🙏</p>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-2 text-center">
+                                                    📱 Plantilla: <code className="bg-gray-100 px-1 rounded">recordatorio_programa</code>
+                                                </p>
                                             </div>
                                         </details>
                                     </div>
@@ -600,30 +673,31 @@ export default function ProgramasPage() {
                             <DialogFooter className="border-t border-gray-200 pt-4">
                                 <Button
                                     variant="outline"
-                                    onClick={() => { setPreviewNotif(null); setNotifResult(null); }}
+                                    onClick={() => { setPreviewNotif(null); setNotifResult(null); setSelectedUsers(new Set()); }}
                                     className="border-gray-300"
                                 >
                                     Cerrar
                                 </Button>
-                                {!notifResult && (
-                                    <Button
-                                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                                        onClick={handleEnviarNotificaciones}
-                                        disabled={sendingNotif || previewNotif.notificaciones.length === 0}
-                                    >
-                                        {sendingNotif ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Enviando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Send className="h-4 w-4 mr-2" />
-                                                Enviar via WhatsApp ({previewNotif.notificaciones.length})
-                                            </>
-                                        )}
-                                    </Button>
-                                )}
+                                <Button
+                                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                                    onClick={() => {
+                                        setNotifResult(null);
+                                        handleEnviarNotificaciones();
+                                    }}
+                                    disabled={sendingNotif || selectedUsers.size === 0}
+                                >
+                                    {sendingNotif ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Enviando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send className="h-4 w-4 mr-2" />
+                                            {notifResult ? 'Enviar de nuevo' : `Enviar via WhatsApp (${selectedUsers.size})`}
+                                        </>
+                                    )}
+                                </Button>
                             </DialogFooter>
                         </div>
                     ) : null}

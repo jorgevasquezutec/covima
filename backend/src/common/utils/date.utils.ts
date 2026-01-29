@@ -61,16 +61,25 @@ export function getTodayAsUTC(): Date {
 
 /**
  * Obtiene el inicio de la semana (sábado) para una fecha dada
+ * Devuelve la fecha en formato UTC (05:00 UTC = 00:00 Lima) para comparación con DB
  */
 export function getInicioSemana(fecha: Date): Date {
-    const d = new Date(fecha);
-    const day = d.getDay();
-    // Si es sábado (6), es el mismo día
-    // Si no, retroceder al sábado anterior
-    const diff = day === 6 ? 0 : -(day + 1);
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    // Obtener la fecha en formato local de Lima (YYYY-MM-DD)
+    const fechaStr = formatDateToLocal(fecha);
+    const [year, month, day] = fechaStr.split('-').map(Number);
+
+    // Crear fecha local para calcular el día de la semana
+    const localDate = new Date(year, month - 1, day);
+    const dayOfWeek = localDate.getDay();
+
+    // Calcular días hasta el sábado anterior (o actual si es sábado)
+    // Domingo = 0, Lunes = 1, ..., Sábado = 6
+    const diff = dayOfWeek === 6 ? 0 : -(dayOfWeek + 1);
+    localDate.setDate(localDate.getDate() + diff);
+
+    // Convertir a formato UTC (05:00 UTC = 00:00 Lima)
+    const sabadoStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+    return toStartOfDayUTC(sabadoStr);
 }
 
 /**

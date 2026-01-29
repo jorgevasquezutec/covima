@@ -31,6 +31,6 @@ import { ProgramasModule } from '../programas/programas.module';
         ProgramasHandler,
         NotificacionesHandler,
     ],
-    exports: [WhatsappBotService],
+    exports: [WhatsappBotService, OpenAIService],
 })
 export class WhatsappBotModule { }

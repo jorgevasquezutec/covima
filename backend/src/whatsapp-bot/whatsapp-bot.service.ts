@@ -235,4 +235,57 @@ export class WhatsappBotService {
             this.logger.warn(`Error marking message as read: ${error.message}`);
         }
     }
+
+    /**
+     * Enviar plantilla de WhatsApp a un número de teléfono
+     * @param phoneNumber Número de teléfono con código de país
+     * @param templateName Nombre de la plantilla aprobada en Meta
+     * @param languageCode Código de idioma (ej: es_PE)
+     * @param bodyParameters Parámetros del cuerpo de la plantilla
+     */
+    async sendTemplateToPhone(
+        phoneNumber: string,
+        templateName: string,
+        languageCode: string,
+        bodyParameters: string[],
+    ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+        const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
+        const normalizedPhone = phoneNumber.replace(/[\s+\-]/g, '');
+
+        const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: normalizedPhone,
+            type: 'template',
+            template: {
+                name: templateName,
+                language: { code: languageCode },
+                components: [
+                    {
+                        type: 'body',
+                        parameters: bodyParameters.map(text => ({
+                            type: 'text',
+                            text,
+                        })),
+                    },
+                ],
+            },
+        };
+
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(url, payload, { headers: this.getHeaders() })
+            );
+
+            const messageId = response.data?.messages?.[0]?.id;
+            this.logger.log(`Template "${templateName}" sent to ${normalizedPhone}: ${messageId}`);
+            return { success: true, messageId };
+        } catch (error) {
+            this.logger.error(`Error sending template to ${normalizedPhone}: ${error.message}`);
+            if (error.response?.data) {
+                this.logger.error(`WhatsApp API error: ${JSON.stringify(error.response.data)}`);
+            }
+            return { success: false, error: error.response?.data?.error?.message || error.message };
+        }
+    }
 }

@@ -3,6 +3,16 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { IntentResult } from './dto';
 
+export interface ParsedPrograma {
+    fecha: string | null;
+    titulo: string | null;
+    partes: {
+        nombre: string;
+        asignaciones: string[];
+        links?: { nombre: string; url: string }[];
+    }[];
+}
+
 const INTENT_CLASSIFICATION_PROMPT = `Eres un asistente de clasificación de intenciones para un bot de WhatsApp de una iglesia.
 
 Analiza el mensaje del usuario y devuelve un JSON con:
@@ -281,6 +291,228 @@ export class OpenAIService {
         }
 
         return { intent: 'desconocido', entities: {}, confidence: 0.3, requiresAuth: false, requiredRoles: [] };
+    }
+
+    /**
+     * Parsear un programa desde texto usando IA
+     * Extrae fecha, título y partes con asignaciones de manera inteligente
+     */
+    async parsePrograma(mensaje: string, partesDisponibles: string[]): Promise<ParsedPrograma> {
+        const prompt = `Analiza el siguiente mensaje y extrae la información del programa de iglesia.
+
+PARTES DISPONIBLES EN EL SISTEMA (usa estos nombres exactos):
+${partesDisponibles.map(p => `- ${p}`).join('\n')}
+
+ALIAS DE PARTES (mapea estos nombres a la parte correcta):
+- "Dirección" o "Dirigir" → "Bienvenida"
+- "Alabanzas" o "Cantos" o "Música" → "Espacio de Cantos"
+- "Oración" (sola) → "Oración Inicial"
+- "Intercesión" → "Oración Intercesora"
+- "Mensaje" o "Predicación" o "Palabra" → "Tema"
+- "Himnos" → "Himno Final"
+
+REGLAS:
+1. Extrae la fecha si está presente (puede ser "31 de enero", "25/01", "sábado 25", etc.)
+2. Extrae el título si lo hay (ej: "Programa JA", "Programa Maranatha", "Culto Joven")
+3. Para cada línea que tenga formato "Parte: Nombres", extrae la parte y los nombres asignados
+4. Los nombres pueden estar separados por comas, "y", guiones o espacios
+5. Si una parte tiene múltiples personas, devuélvelas como array
+6. IMPORTANTE: Extrae los links (YouTube, Kahoot, etc.) y asócialos a la parte correspondiente
+   - Los links suelen estar en líneas con bullets (•, -, *) después de una parte
+   - Extrae el nombre del link (texto antes de la URL) y la URL completa
+   - Asocia los links a la parte que los precede (ej: links después de "Alabanzas" van con "Espacio de Cantos")
+7. IMPORTANTE: Usa los ALIAS para convertir nombres de partes a los nombres del SISTEMA
+8. Si no encuentras una parte en el sistema ni en los alias, usa el nombre tal cual
+
+MENSAJE:
+${mensaje}
+
+Responde SOLO con JSON válido en este formato:
+{
+  "fecha": "31 de enero de 2026" o null,
+  "titulo": "Programa JA" o null,
+  "partes": [
+    { "nombre": "Bienvenida", "asignaciones": ["Jorge", "Miguel"], "links": [] },
+    { "nombre": "Espacio de Cantos", "asignaciones": ["José Olivera", "Esther Saucedo"], "links": [
+      { "nombre": "El mejor lugar del mundo", "url": "https://www.youtube.com/watch?v=MkCN3NzDhIc" },
+      { "nombre": "Oh buen Maestro despierta", "url": "https://www.youtube.com/watch?v=QWlOUXfkIE4" }
+    ] }
+  ]
+}`;
+
+        if (!this.enabled) {
+            return this.fallbackParsePrograma(mensaje);
+        }
+
+        try {
+            const response = await this.openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: 'Eres un parser de programas de iglesia. Extrae información estructurada del texto.' },
+                    { role: 'user', content: prompt }
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.1,
+                max_tokens: 1000,
+            });
+
+            const content = response.choices[0]?.message?.content;
+            if (!content) {
+                throw new Error('Empty response from OpenAI');
+            }
+
+            const result = JSON.parse(content);
+            this.logger.debug(`Programa parseado: ${JSON.stringify(result)}`);
+
+            return {
+                fecha: result.fecha || null,
+                titulo: result.titulo || null,
+                partes: result.partes || [],
+            };
+        } catch (error) {
+            this.logger.error(`Error parsing programa: ${error.message}`);
+            return this.fallbackParsePrograma(mensaje);
+        }
+    }
+
+    /**
+     * Matchear nombres de usuarios del mensaje con usuarios de la BD
+     * Devuelve un mapa de nombre_mensaje -> id_usuario (o null si no encontró)
+     */
+    async matchUsuarios(
+        nombresDelMensaje: string[],
+        usuariosDisponibles: { id: number; nombre: string }[],
+    ): Promise<Map<string, number | null>> {
+        const resultado = new Map<string, number | null>();
+
+        if (nombresDelMensaje.length === 0) {
+            return resultado;
+        }
+
+        const prompt = `Tienes una lista de nombres escritos en un mensaje y una lista de usuarios registrados en el sistema.
+Tu tarea es encontrar el mejor match para cada nombre del mensaje.
+
+USUARIOS REGISTRADOS EN EL SISTEMA:
+${usuariosDisponibles.map(u => `- ID ${u.id}: "${u.nombre}"`).join('\n')}
+
+NOMBRES DEL MENSAJE A MATCHEAR:
+${nombresDelMensaje.map(n => `- "${n}"`).join('\n')}
+
+REGLAS:
+1. Busca coincidencias por nombre completo, nombre parcial, o apodos comunes
+2. "Angela" puede matchear con "Anyela" (variación ortográfica)
+3. "Rubi" puede matchear con "Rubí" (acentos)
+4. Un nombre como "Jorge" debe matchear con "Jorge Vasquez"
+5. Si no hay ninguna coincidencia razonable, devuelve null para ese nombre
+6. No fuerces matches si los nombres son muy diferentes
+
+Responde SOLO con JSON válido en este formato:
+{
+  "matches": {
+    "nombre_del_mensaje": id_usuario_o_null,
+    "Jorge": 1,
+    "Angela": 7,
+    "Persona Desconocida": null
+  }
+}`;
+
+        if (!this.enabled) {
+            // Fallback: búsqueda simple por contains
+            for (const nombre of nombresDelMensaje) {
+                const nombreLower = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const match = usuariosDisponibles.find(u => {
+                    const usuarioLower = u.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    return usuarioLower.includes(nombreLower) || nombreLower.includes(usuarioLower.split(' ')[0]);
+                });
+                resultado.set(nombre, match?.id || null);
+            }
+            return resultado;
+        }
+
+        try {
+            const response = await this.openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: 'Eres un sistema de matching de nombres. Encuentra correspondencias entre nombres escritos informalmente y nombres registrados en una base de datos.' },
+                    { role: 'user', content: prompt }
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.1,
+                max_tokens: 500,
+            });
+
+            const content = response.choices[0]?.message?.content;
+            if (!content) {
+                throw new Error('Empty response from OpenAI');
+            }
+
+            const parsed = JSON.parse(content);
+            this.logger.debug(`Usuarios matcheados: ${JSON.stringify(parsed)}`);
+
+            if (parsed.matches) {
+                for (const [nombre, id] of Object.entries(parsed.matches)) {
+                    resultado.set(nombre, id as number | null);
+                }
+            }
+
+            return resultado;
+        } catch (error) {
+            this.logger.error(`Error matching usuarios: ${error.message}`);
+            // Fallback
+            for (const nombre of nombresDelMensaje) {
+                resultado.set(nombre, null);
+            }
+            return resultado;
+        }
+    }
+
+    /**
+     * Parsing básico de programa sin IA (fallback)
+     */
+    private fallbackParsePrograma(mensaje: string): ParsedPrograma {
+        const lineas = mensaje.split('\n').filter(l => l.trim().length > 0);
+        const partes: { nombre: string; asignaciones: string[] }[] = [];
+        let fecha: string | null = null;
+        let titulo: string | null = null;
+
+        for (const linea of lineas) {
+            // Detectar fecha en formato dd/mm o "dd de mes"
+            const fechaMatch = linea.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/) ||
+                               linea.match(/(\d{1,2})\s+de\s+(\w+)(?:\s+de\s+(\d{4}))?/i);
+            if (fechaMatch && !fecha) {
+                fecha = fechaMatch[0];
+            }
+
+            // Detectar título (primera línea con "Programa")
+            if (/programa/i.test(linea) && !titulo) {
+                titulo = linea.trim();
+                continue;
+            }
+
+            // Detectar formato "Parte: Nombres"
+            const match = linea.match(/^(.+?):\s*(.+)$/);
+            if (match) {
+                const nombreParte = match[1].trim();
+                const contenido = match[2].trim();
+
+                // Ignorar si es URL o link
+                if (/https?:\/\/|youtube|kahoot/i.test(contenido)) {
+                    continue;
+                }
+
+                // Separar nombres por coma, "y", o guión
+                const nombres = contenido
+                    .split(/[,\-]|\s+y\s+/i)
+                    .map(n => n.trim())
+                    .filter(n => n.length > 0 && !/^https?:\/\//.test(n));
+
+                if (nombres.length > 0) {
+                    partes.push({ nombre: nombreParte, asignaciones: nombres });
+                }
+            }
+        }
+
+        return { fecha, titulo, partes };
     }
 
     /**

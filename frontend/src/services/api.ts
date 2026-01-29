@@ -155,6 +155,17 @@ export const usuariosApi = {
     });
     return response.data;
   },
+
+  // Cumpleaños del mes
+  getCumpleanosDelMes: async (params?: { mes?: number; anio?: number }): Promise<{
+    mes: number;
+    mesNombre: string;
+    anio: number;
+    cumpleaneros: { id: number; nombre: string; dia: number; mes: number }[];
+  }> => {
+    const response = await api.get('/usuarios/cumpleanos-mes', { params });
+    return response.data;
+  },
 };
 
 // ==================== PROGRAMAS API ====================
@@ -227,12 +238,14 @@ export const programasApi = {
     return response.data;
   },
 
-  enviarNotificaciones: async (id: number): Promise<{
+  enviarNotificaciones: async (id: number, usuarioIds?: number[]): Promise<{
     enviados: number;
     errores: number;
     detalles: { nombre: string; telefono: string; success: boolean; error?: string }[];
   }> => {
-    const response = await api.post(`/programas/${id}/enviar-notificaciones`);
+    const response = await api.post(`/programas/${id}/enviar-notificaciones`, {
+      usuarioIds,
+    });
     return response.data;
   },
 
@@ -346,6 +359,11 @@ export const asistenciaApi = {
     return response.data;
   },
 
+  getQRsDisponibles: async (): Promise<QRAsistencia[]> => {
+    const response = await api.get<QRAsistencia[]>('/asistencia/qrs-disponibles');
+    return response.data;
+  },
+
   toggleQRActive: async (id: number): Promise<QRAsistencia> => {
     const response = await api.patch<QRAsistencia>(`/asistencia/qr/${id}/toggle`);
     return response.data;
@@ -394,6 +412,11 @@ export const asistenciaApi = {
 
   confirmarMultiples: async (ids: number[], estado: 'confirmado' | 'rechazado'): Promise<{ count: number; message: string }> => {
     const response = await api.post<{ count: number; message: string }>('/asistencia/confirmar-multiples', { ids, estado });
+    return response.data;
+  },
+
+  vincularUsuario: async (asistenciaId: number, usuarioId: number): Promise<Asistencia> => {
+    const response = await api.patch<Asistencia>(`/asistencia/${asistenciaId}/vincular-usuario`, { usuarioId });
     return response.data;
   },
 

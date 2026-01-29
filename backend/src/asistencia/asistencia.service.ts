@@ -100,6 +100,11 @@ export class AsistenciaService {
         const where: any = {};
         if (activo !== undefined) {
             where.activo = activo;
+            // Si se pide activos, solo mostrar los de hoy o futuros
+            if (activo === true) {
+                const hoy = getTodayAsUTC();
+                where.semanaInicio = { gte: hoy };
+            }
         }
         if (tipoId !== undefined) {
             where.tipoId = tipoId;
@@ -159,6 +164,76 @@ export class AsistenciaService {
         }
 
         return this.formatQR(qr);
+    }
+
+    /**
+     * Obtener QRs disponibles para registro (activos, de la fecha actual, dentro de su horario
+     * y que el usuario aún no haya registrado)
+     */
+    async getQRsDisponibles(usuarioId: number) {
+        const now = new Date();
+        const horaActual = now.getHours() * 60 + now.getMinutes();
+
+        // Obtener la fecha de hoy en formato UTC
+        const hoy = getTodayAsUTC();
+
+        // Obtener las asistencias ya registradas por el usuario hoy
+        const asistenciasRegistradas = await this.prisma.asistencia.findMany({
+            where: {
+                usuarioId,
+                semanaInicio: hoy,
+            },
+            select: { tipoId: true },
+        });
+        const tiposYaRegistrados = new Set(asistenciasRegistradas.map(a => a.tipoId));
+
+        // Obtener todos los QRs activos de hoy
+        const qrs = await this.prisma.qRAsistencia.findMany({
+            where: {
+                activo: true,
+                semanaInicio: hoy,
+            },
+            include: {
+                tipoAsistencia: {
+                    include: {
+                        campos: {
+                            where: { activo: true },
+                            orderBy: { orden: 'asc' },
+                        },
+                    },
+                },
+                creador: { select: { id: true, nombre: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        // Filtrar: dentro de horario Y que el usuario no haya registrado ese tipo
+        const qrsDisponibles = qrs.filter(qr => {
+            // Verificar horario
+            const horaInicioQR = qr.horaInicio instanceof Date
+                ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
+                : 9 * 60;
+            const horaFinQR = qr.horaFin instanceof Date
+                ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
+                : 12 * 60;
+
+            // Verificar si está en horario (considerando horarios que cruzan medianoche)
+            let enHorario: boolean;
+            if (horaFinQR > horaInicioQR) {
+                // Horario normal (ej: 09:00 - 12:00)
+                enHorario = horaActual >= horaInicioQR && horaActual < horaFinQR;
+            } else {
+                // Horario que cruza medianoche (ej: 14:00 - 04:00)
+                enHorario = horaActual >= horaInicioQR || horaActual < horaFinQR;
+            }
+
+            // Verificar que no haya registrado este tipo de asistencia
+            const noRegistrado = !tiposYaRegistrados.has(qr.tipoId);
+
+            return enHorario && noRegistrado;
+        });
+
+        return qrsDisponibles.map(qr => this.formatQR(qr));
     }
 
     async toggleQRActive(id: number) {
@@ -232,8 +307,8 @@ export class AsistenciaService {
         // Usar fecha de Lima (UTC-5) normalizada al inicio del día
         const hoy = getTodayAsUTC();
 
-        // Obtener inicio de la semana (sábado anterior o actual)
-        const semanaInicio = getInicioSemana(hoy);
+        // Usar la fecha de hoy como semanaInicio (no el sábado)
+        const semanaInicio = hoy;
 
         let tipoId: number | null = null;
         let qrId: number | null = null;
@@ -262,10 +337,9 @@ export class AsistenciaService {
                 throw new BadRequestException('Este código QR ya no está activo');
             }
 
-            // Verificar horario del QR
-            const horaActual = hoy.getHours();
-            const minutoActual = hoy.getMinutes();
-            const horaActualEnMinutos = horaActual * 60 + minutoActual;
+            // Verificar horario del QR usando la hora actual real
+            const now = new Date();
+            const horaActualEnMinutos = now.getHours() * 60 + now.getMinutes();
 
             // Obtener horas del QR
             const horaInicioQR = qr.horaInicio instanceof Date
@@ -275,7 +349,17 @@ export class AsistenciaService {
                 ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
                 : 12 * 60; // Default 12:00
 
-            if (horaActualEnMinutos < horaInicioQR || horaActualEnMinutos >= horaFinQR) {
+            // Verificar si está en horario (considerando horarios que cruzan medianoche)
+            let enHorario: boolean;
+            if (horaFinQR > horaInicioQR) {
+                // Horario normal (ej: 09:00 - 12:00)
+                enHorario = horaActualEnMinutos >= horaInicioQR && horaActualEnMinutos < horaFinQR;
+            } else {
+                // Horario que cruza medianoche (ej: 14:00 - 04:00)
+                enHorario = horaActualEnMinutos >= horaInicioQR || horaActualEnMinutos < horaFinQR;
+            }
+
+            if (!enHorario) {
                 const horaInicioStr = this.formatHora(qr.horaInicio);
                 const horaFinStr = this.formatHora(qr.horaFin);
                 throw new BadRequestException(`Solo se puede registrar asistencia entre ${horaInicioStr} y ${horaFinStr}`);
@@ -636,6 +720,34 @@ export class AsistenciaService {
         });
 
         return { count: updated.count, message: `${updated.count} asistencias ${estado}s` };
+    }
+
+    async vincularUsuario(asistenciaId: number, usuarioId: number) {
+        // Verificar que la asistencia existe
+        const asistencia = await this.prisma.asistencia.findUnique({
+            where: { id: asistenciaId },
+        });
+        if (!asistencia) {
+            throw new NotFoundException(`Asistencia ${asistenciaId} no encontrada`);
+        }
+
+        // Verificar que el usuario existe
+        const usuario = await this.prisma.usuario.findUnique({
+            where: { id: usuarioId },
+        });
+        if (!usuario) {
+            throw new NotFoundException(`Usuario ${usuarioId} no encontrado`);
+        }
+
+        // Actualizar la asistencia
+        return this.prisma.asistencia.update({
+            where: { id: asistenciaId },
+            data: { usuarioId },
+            include: {
+                usuario: { select: { id: true, nombre: true } },
+                tipo: true,
+            },
+        });
     }
 
     // ==================== ESTADÍSTICAS ====================

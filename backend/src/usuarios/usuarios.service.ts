@@ -150,6 +150,13 @@ export class UsuariosService {
         email: dto.email,
         nombreWhatsapp: dto.nombreWhatsapp,
         activo: dto.activo,
+        fechaNacimiento: dto.fechaNacimiento === null
+          ? null
+          : dto.fechaNacimiento
+            ? new Date(dto.fechaNacimiento)
+            : undefined,
+        direccion: dto.direccion,
+        biografia: dto.biografia,
       },
     });
 
@@ -294,6 +301,53 @@ export class UsuariosService {
     });
   }
 
+  /**
+   * Obtener cumpleaños de un mes específico
+   */
+  async getCumpleanosDelMes(mes?: number, anio?: number) {
+    const now = new Date();
+    const mesConsulta = mes ?? now.getMonth() + 1; // 1-12
+    const anioConsulta = anio ?? now.getFullYear();
+
+    // Crear fecha para obtener nombre del mes
+    const fechaRef = new Date(anioConsulta, mesConsulta - 1, 1);
+
+    // Obtener usuarios activos con cumpleaños
+    const usuarios = await this.prisma.usuario.findMany({
+      where: {
+        activo: true,
+        fechaNacimiento: { not: null },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        fechaNacimiento: true,
+      },
+    });
+
+    // Filtrar por mes
+    const cumpleaneros = usuarios
+      .filter((u) => {
+        if (!u.fechaNacimiento) return false;
+        const mesCumple = u.fechaNacimiento.getMonth() + 1;
+        return mesCumple === mesConsulta;
+      })
+      .map((u) => ({
+        id: u.id,
+        nombre: u.nombre,
+        dia: u.fechaNacimiento!.getDate(),
+        mes: u.fechaNacimiento!.getMonth() + 1,
+      }))
+      .sort((a, b) => a.dia - b.dia);
+
+    return {
+      mes: mesConsulta,
+      mesNombre: fechaRef.toLocaleDateString('es-PE', { month: 'long' }),
+      anio: anioConsulta,
+      cumpleaneros,
+    };
+  }
+
   private async assignRoles(
     usuarioId: number,
     roleNames: string[],
@@ -343,6 +397,7 @@ export class UsuariosService {
       debeCambiarPassword: usuario.debeCambiarPassword,
       ultimoLogin: usuario.ultimoLogin,
       createdAt: usuario.createdAt,
+      fechaNacimiento: usuario.fechaNacimiento,
       roles: usuario.roles?.map((ur: any) => ur.rol.nombre) || [],
     };
   }

@@ -41,6 +41,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Phone,
+  Cake,
 } from 'lucide-react';
 import UsuarioForm from './UsuarioForm';
 
@@ -172,6 +173,12 @@ export default function UsuariosPage() {
     }
   };
 
+  const formatBirthday = (fechaNacimiento?: string) => {
+    if (!fechaNacimiento) return null;
+    const date = new Date(fechaNacimiento);
+    return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -259,6 +266,7 @@ export default function UsuariosPage() {
                 <TableRow className="border-gray-200 bg-gray-50 hover:bg-gray-50">
                   <TableHead className="text-gray-600">Nombre</TableHead>
                   <TableHead className="text-gray-600">Teléfono</TableHead>
+                  <TableHead className="text-gray-600">Cumpleaños</TableHead>
                   <TableHead className="text-gray-600">Roles</TableHead>
                   <TableHead className="text-gray-600">Estado</TableHead>
                   <TableHead className="text-gray-600 text-right">Acciones</TableHead>
@@ -267,13 +275,13 @@ export default function UsuariosPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       Cargando...
                     </TableCell>
                   </TableRow>
                 ) : usuarios.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       No se encontraron usuarios
                     </TableCell>
                   </TableRow>
@@ -290,6 +298,16 @@ export default function UsuariosPage() {
                       </TableCell>
                       <TableCell className="text-gray-700">
                         +{usuario.codigoPais} {usuario.telefono}
+                      </TableCell>
+                      <TableCell>
+                        {usuario.fechaNacimiento ? (
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <Cake className="w-3.5 h-3.5 text-pink-500" />
+                            <span className="text-sm">{formatBirthday(usuario.fechaNacimiento)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">

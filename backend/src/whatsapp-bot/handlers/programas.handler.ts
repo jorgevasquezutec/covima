@@ -343,7 +343,7 @@ export class ProgramasHandler {
         message: string,
     ): Promise<void> {
         try {
-            const resultado = await this.programasService.procesarProgramaDesdeTexto(message);
+            const resultado = await this.programasService.procesarProgramaConIA(message);
 
             let respuesta = `✅ *Programa procesado*\n\n`;
             respuesta += `🔖 *Código:* ${resultado.codigo}\n`;

@@ -113,6 +113,8 @@ export class NotificacionesHandler {
                     contexto: {
                         programaId: programa.id,
                         fecha: fecha.toISOString(),
+                        fechaFormateada: this.formatFecha(fecha),
+                        codigo: programa.codigo,
                         participantes: Array.from(participantes.entries()),
                         textoGenerado: textoGenerado.texto,
                     },
@@ -146,6 +148,8 @@ export class NotificacionesHandler {
         const datos = context.datos as {
             programaId: number;
             fecha: string;
+            fechaFormateada: string;
+            codigo: string;
             participantes: [number, { nombre: string; telefono: string; partes: string[] }][];
             textoGenerado: string;
         };
@@ -167,6 +171,19 @@ export class NotificacionesHandler {
 
         for (const [usuarioId, participante] of datos.participantes) {
             try {
+                // Enviar plantilla de WhatsApp
+                const result = await this.whatsappService.sendTemplateToPhone(
+                    participante.telefono,
+                    'recordatorio_programa',
+                    'es_PE',
+                    [
+                        participante.nombre,           // {{1}} nombre
+                        datos.fechaFormateada,         // {{2}} fecha
+                        participante.partes.join(', '), // {{3}} partes asignadas
+                        datos.codigo,                  // {{4}} código del programa
+                    ],
+                );
+
                 // Crear notificación en BD
                 await this.prisma.notificacion.create({
                     data: {
@@ -175,16 +192,18 @@ export class NotificacionesHandler {
                         tipo: 'programa_asignacion',
                         mensaje: datos.textoGenerado,
                         programaId: datos.programaId,
-                        estado: 'enviado',
-                        enviadoAt: new Date(),
+                        estado: result.success ? 'enviado' : 'error',
+                        enviadoAt: result.success ? new Date() : null,
+                        errorMensaje: result.error || null,
                     },
                 });
 
-                // TODO: Enviar mensaje por WhatsApp vía Chatwoot
-                // Por ahora solo registramos en BD
-                // await this.enviarMensajeWhatsApp(participante.telefono, mensaje);
-
-                enviados++;
+                if (result.success) {
+                    enviados++;
+                } else {
+                    this.logger.warn(`Error enviando a ${participante.nombre}: ${result.error}`);
+                    errores++;
+                }
             } catch (error) {
                 this.logger.error(`Error enviando a ${participante.nombre}: ${error.message}`);
                 errores++;
@@ -202,7 +221,6 @@ export class NotificacionesHandler {
         if (errores > 0) {
             resultado += `❌ Errores: ${errores}\n`;
         }
-        resultado += `\n_Nota: Los mensajes serán enviados cuando se configure la integración completa con WhatsApp._`;
 
         await this.whatsappService.sendMessage(context.conversationId, { content: resultado });
         await this.resetContext(context.telefono);

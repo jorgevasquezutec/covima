@@ -15,9 +15,13 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  Cake,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import { programasApi, asistenciaApi } from '@/services/api';
+import { programasApi, asistenciaApi, usuariosApi } from '@/services/api';
 import type { EstadisticasGenerales, MiAsistencia } from '@/types';
+import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
 
 interface ProximaAsignacion {
   id: number;
@@ -33,6 +37,13 @@ interface AdminStats {
   totalProgramas: number;
 }
 
+interface CumpleanosMes {
+  mes: number;
+  mesNombre: string;
+  anio: number;
+  cumpleaneros: { id: number; nombre: string; dia: number; mes: number }[];
+}
+
 export default function Dashboard() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
@@ -40,6 +51,13 @@ export default function Dashboard() {
   // Admin stats
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
   const [estadisticasGenerales, setEstadisticasGenerales] = useState<EstadisticasGenerales | null>(null);
+  const [cumpleanosMes, setCumpleanosMes] = useState<CumpleanosMes | null>(null);
+  const [loadingCumpleanos, setLoadingCumpleanos] = useState(false);
+
+  // Calendar navigation state
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
   // Personal stats
   const [misAsignaciones, setMisAsignaciones] = useState<ProximaAsignacion[]>([]);
@@ -47,37 +65,72 @@ export default function Dashboard() {
 
   const isAdminOrLider = user?.roles?.some(r => ['admin', 'lider'].includes(r));
 
+  // Load cumpleanos for selected month
+  const loadCumpleanos = async (mes: number, anio: number) => {
+    if (!isAdminOrLider) return;
+    setLoadingCumpleanos(true);
+    try {
+      const data = await usuariosApi.getCumpleanosDelMes({ mes, anio });
+      setCumpleanosMes(data);
+    } catch (error) {
+      console.error('Error loading cumpleanos:', error);
+    } finally {
+      setLoadingCumpleanos(false);
+    }
+  };
+
+  // Navigate to previous month
+  const goToPreviousMonth = () => {
+    let newMonth = selectedMonth - 1;
+    let newYear = selectedYear;
+    if (newMonth < 1) {
+      newMonth = 12;
+      newYear -= 1;
+    }
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+    loadCumpleanos(newMonth, newYear);
+  };
+
+  // Navigate to next month
+  const goToNextMonth = () => {
+    let newMonth = selectedMonth + 1;
+    let newYear = selectedYear;
+    if (newMonth > 12) {
+      newMonth = 1;
+      newYear += 1;
+    }
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+    loadCumpleanos(newMonth, newYear);
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
         const promises: Promise<any>[] = [
           asistenciaApi.getMiAsistencia().catch(() => null),
+          programasApi.getMisAsignaciones().catch(() => []),
         ];
-
-        // Solo cargar asignaciones para participantes (no admin/lider)
-        if (!isAdminOrLider) {
-          promises.push(programasApi.getMisAsignaciones().catch(() => []));
-        }
 
         // Solo cargar stats de admin si tiene permisos
         if (isAdminOrLider) {
           promises.push(
             programasApi.getEstadisticasAdmin().catch(() => null),
             asistenciaApi.getEstadisticasGenerales().catch(() => null),
+            usuariosApi.getCumpleanosDelMes().catch(() => null),
           );
         }
 
         const results = await Promise.all(promises);
         setMiAsistencia(results[0]);
-
-        if (!isAdminOrLider) {
-          setMisAsignaciones(results[1] || []);
-        }
+        setMisAsignaciones(results[1] || []);
 
         if (isAdminOrLider) {
-          setAdminStats(results[1]);
-          setEstadisticasGenerales(results[2]);
+          setAdminStats(results[2]);
+          setEstadisticasGenerales(results[3]);
+          setCumpleanosMes(results[4]);
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -90,7 +143,13 @@ export default function Dashboard() {
   }, [isAdminOrLider]);
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-PE', {
+    // Parsear fecha evitando problemas de timezone
+    // Extraer YYYY-MM-DD y crear fecha en zona local
+    const [datePart] = date.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+
+    return localDate.toLocaleDateString('es-PE', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -206,6 +265,113 @@ export default function Dashboard() {
             </Card>
           </div>
 
+          {/* Cumpleaños del Mes - Siempre visible con navegación */}
+          <Card className="bg-white border-gray-200 shadow-sm">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                  <Cake className="w-4 h-4 text-pink-500" />
+                  Cumpleaños
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={goToPreviousMonth}
+                    disabled={loadingCumpleanos}
+                    className="p-1 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <span className="text-sm font-medium text-gray-700 min-w-[120px] text-center capitalize">
+                    {cumpleanosMes?.mesNombre || new Date(selectedYear, selectedMonth - 1).toLocaleDateString('es-PE', { month: 'long' })} {selectedYear}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={goToNextMonth}
+                    disabled={loadingCumpleanos}
+                    className="p-1 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingCumpleanos ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-7 gap-1 mb-3">
+                    {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, i) => (
+                      <div key={i} className="text-center text-xs font-medium text-gray-400 py-1">
+                        {day}
+                      </div>
+                    ))}
+                    {(() => {
+                      const year = selectedYear;
+                      const month = selectedMonth - 1;
+                      const firstDay = new Date(year, month, 1).getDay();
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const today = new Date();
+                      const currentDay = today.getMonth() === month && today.getFullYear() === year ? today.getDate() : null;
+
+                      const birthdayDays = new Set(cumpleanosMes?.cumpleaneros.map(c => c.dia) || []);
+
+                      const cells = [];
+                      // Empty cells for days before first day of month
+                      for (let i = 0; i < firstDay; i++) {
+                        cells.push(<div key={`empty-${i}`} className="h-7" />);
+                      }
+                      // Days of the month
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        const isBirthday = birthdayDays.has(day);
+                        const isToday = day === currentDay;
+                        cells.push(
+                          <div
+                            key={day}
+                            className={`h-7 flex items-center justify-center text-xs rounded-full relative
+                              ${isToday ? 'bg-blue-500 text-white font-bold' : ''}
+                              ${isBirthday && !isToday ? 'bg-pink-100 text-pink-700 font-semibold' : ''}
+                              ${!isBirthday && !isToday ? 'text-gray-600' : ''}
+                            `}
+                            title={isBirthday ? cumpleanosMes?.cumpleaneros.filter(c => c.dia === day).map(c => c.nombre).join(', ') : undefined}
+                          >
+                            {day}
+                            {isBirthday && (
+                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-pink-500 rounded-full" />
+                            )}
+                          </div>
+                        );
+                      }
+                      return cells;
+                    })()}
+                  </div>
+
+                  {/* Lista de cumpleañeros */}
+                  {cumpleanosMes && cumpleanosMes.cumpleaneros.length > 0 ? (
+                    <div className="border-t border-gray-100 pt-3 space-y-2">
+                      {cumpleanosMes.cumpleaneros.map((c) => (
+                        <div key={c.id} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <Cake className="w-3.5 h-3.5 text-pink-400" />
+                            <span className="text-gray-700">{c.nombre}</span>
+                          </div>
+                          <span className="text-gray-500 text-xs">{c.dia} de {cumpleanosMes.mesNombre}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="border-t border-gray-100 pt-3 text-center">
+                      <p className="text-sm text-gray-400">No hay cumpleaños este mes</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Attendance Trend by Month */}
           {estadisticasGenerales?.meses && estadisticasGenerales.meses.length > 0 && (
             <Card className="bg-white border-gray-200 shadow-sm">
@@ -294,6 +460,12 @@ export default function Dashboard() {
         </h2>
         <p className="text-sm text-gray-500">Tu actividad{!isAdminOrLider ? ' y próximas participaciones' : ''}</p>
       </div>
+
+      {/* Registrar Mi Asistencia */}
+      <RegistrarMiAsistencia compact onSuccess={() => {
+        // Recargar mi asistencia al registrar
+        asistenciaApi.getMiAsistencia().then(setMiAsistencia).catch(() => null);
+      }} />
 
       <div className={`grid grid-cols-1 ${!isAdminOrLider ? 'lg:grid-cols-2' : ''} gap-6`}>
         {/* Próximas Asignaciones - Solo para participantes */}

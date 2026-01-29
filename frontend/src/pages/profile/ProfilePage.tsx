@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { User, Mail, Calendar, MapPin, FileText, Save, Camera, Loader2 } from 'lucide-react';
+import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
 
 interface ProfileData {
     id: number;
@@ -208,6 +209,9 @@ export default function ProfilePage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Registrar Mi Asistencia */}
+            <RegistrarMiAsistencia />
 
             {/* Profile Form */}
             <Card className="bg-white border-gray-200 shadow-sm">

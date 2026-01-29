@@ -140,9 +140,12 @@ export class ProgramasController {
   @Roles('admin', 'lider')
   @ApiOperation({
     summary: 'Enviar notificaciones WhatsApp a participantes',
-    description: 'Envía mensajes personalizados a cada participante con sus partes asignadas vía WhatsApp/Chatwoot.',
+    description: 'Envía mensajes personalizados a cada participante con sus partes asignadas vía WhatsApp/Chatwoot. Opcionalmente envía solo a usuarios específicos.',
   })
-  async enviarNotificaciones(@Param('id', ParseIntPipe) id: number) {
-    return this.programasService.enviarNotificaciones(id);
+  async enviarNotificaciones(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body?: { usuarioIds?: number[] },
+  ) {
+    return this.programasService.enviarNotificaciones(id, body?.usuarioIds);
   }
 }

@@ -3,18 +3,24 @@ import {
   NotFoundException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProgramaDto, UpdateProgramaDto } from './dto';
 import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
+import { OpenAIService } from '../whatsapp-bot/openai.service';
 import { nanoid } from 'nanoid';
 
 @Injectable()
 export class ProgramasService {
+  private readonly logger = new Logger(ProgramasService.name);
+
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => WhatsappBotService))
     private whatsappService: WhatsappBotService,
+    @Inject(forwardRef(() => OpenAIService))
+    private openaiService: OpenAIService,
   ) { }
 
   /**
@@ -898,6 +904,268 @@ export class ProgramasService {
   }
 
   /**
+   * Procesar programa usando IA para parsing inteligente
+   * La IA extrae fecha, título y partes con asignaciones del texto libre
+   */
+  async procesarProgramaConIA(texto: string): Promise<{
+    codigo: string;
+    fecha: Date;
+    partesActualizadas: number;
+    asignacionesCreadas: number;
+    errores: string[];
+  }> {
+    const errores: string[] = [];
+    let partesActualizadas = 0;
+    let asignacionesCreadas = 0;
+
+    // Obtener todas las partes disponibles para pasarlas a la IA
+    const partesDisponibles = await this.prisma.parte.findMany({
+      where: { activo: true },
+      select: { nombre: true },
+    });
+    const nombresPartes = partesDisponibles.map(p => p.nombre);
+
+    // Parsear con IA
+    this.logger.debug('Parseando programa con IA...');
+    const parsed = await this.openaiService.parsePrograma(texto, nombresPartes);
+    this.logger.debug(`Resultado del parsing: ${JSON.stringify(parsed)}`);
+
+    // Extraer fecha del resultado de la IA
+    let fecha: Date;
+    if (parsed.fecha) {
+      fecha = this.parsearFechaTexto(parsed.fecha);
+    } else {
+      fecha = new Date();
+      fecha.setHours(0, 0, 0, 0);
+    }
+
+    // Buscar código de programa en el texto original (formato: XXX-XXXXXX)
+    const codigoMatch = texto.match(/([A-Z]{2,3}-[A-Za-z0-9]{6})/i);
+
+    // Buscar programa existente: primero por código, luego por fecha
+    let programa;
+
+    if (codigoMatch) {
+      programa = await this.prisma.programa.findFirst({
+        where: { codigo: { equals: codigoMatch[1], mode: 'insensitive' } },
+      });
+      if (programa) {
+        fecha = programa.fecha;
+      }
+    }
+
+    if (!programa) {
+      programa = await this.prisma.programa.findFirst({
+        where: { fecha },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
+    if (!programa) {
+      // Crear nuevo programa
+      const titulo = parsed.titulo || 'Programa Maranatha Adoración';
+      programa = await this.prisma.programa.create({
+        data: {
+          codigo: this.generarCodigo(titulo),
+          fecha,
+          titulo,
+          estado: 'borrador',
+          creadoPor: 1,
+        },
+      });
+    }
+
+    // Limpiar asignaciones y partes existentes
+    await this.prisma.programaAsignacion.deleteMany({
+      where: { programaId: programa.id },
+    });
+    await this.prisma.programaLink.deleteMany({
+      where: { programaId: programa.id },
+    });
+    await this.prisma.programaParte.deleteMany({
+      where: { programaId: programa.id },
+    });
+
+    // Obtener todos los usuarios activos para el matching inteligente
+    const usuariosActivos = await this.prisma.usuario.findMany({
+      where: { activo: true },
+      select: { id: true, nombre: true },
+    });
+
+    // Extraer todos los nombres de todas las partes para hacer un solo match
+    const todosLosNombres = parsed.partes.flatMap(p => p.asignaciones);
+    const nombresUnicos = [...new Set(todosLosNombres)];
+
+    // Matchear usuarios con IA
+    this.logger.debug(`Matcheando ${nombresUnicos.length} nombres con ${usuariosActivos.length} usuarios...`);
+    const matchesUsuarios = await this.openaiService.matchUsuarios(nombresUnicos, usuariosActivos);
+    this.logger.debug(`Matches encontrados: ${JSON.stringify(Object.fromEntries(matchesUsuarios))}`);
+
+    // Procesar cada parte parseada por la IA
+    let ordenParte = 1;
+    const partesAgregadas = new Set<number>();
+
+    for (const parteParseada of parsed.partes) {
+      // Buscar la parte en la BD (la IA ya debería haber normalizado el nombre)
+      let parte = await this.prisma.parte.findFirst({
+        where: {
+          nombre: { equals: parteParseada.nombre, mode: 'insensitive' },
+          activo: true,
+        },
+      });
+
+      // Si no encuentra exacto, buscar por similitud
+      if (!parte) {
+        const todasPartes = await this.prisma.parte.findMany({
+          where: { activo: true },
+        });
+
+        const nombreBuscadoNorm = parteParseada.nombre.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        for (const p of todasPartes) {
+          const nombreParteNorm = p.nombre.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+          if (nombreParteNorm.includes(nombreBuscadoNorm) ||
+            nombreBuscadoNorm.includes(nombreParteNorm)) {
+            parte = p;
+            break;
+          }
+        }
+      }
+
+      if (!parte) {
+        errores.push(`Parte "${parteParseada.nombre}" no encontrada en el sistema`);
+        continue;
+      }
+
+      // Agregar la parte al programa si no está ya
+      if (!partesAgregadas.has(parte.id)) {
+        await this.prisma.programaParte.create({
+          data: {
+            programaId: programa.id,
+            parteId: parte.id,
+            orden: ordenParte++,
+          },
+        });
+        partesAgregadas.add(parte.id);
+      }
+
+      // Crear asignaciones para cada nombre usando el matching inteligente
+      let orden = 1;
+      for (const nombre of parteParseada.asignaciones) {
+        // Usar el match de la IA
+        const usuarioId = matchesUsuarios.get(nombre) || null;
+
+        await this.prisma.programaAsignacion.create({
+          data: {
+            programaId: programa.id,
+            parteId: parte.id,
+            usuarioId,
+            nombreLibre: usuarioId ? null : nombre,
+            orden: orden++,
+          },
+        });
+        asignacionesCreadas++;
+      }
+
+      // Crear links si la IA los extrajo
+      if (parteParseada.links && parteParseada.links.length > 0) {
+        let ordenLink = 1;
+        for (const link of parteParseada.links) {
+          if (link.url && link.url.startsWith('http')) {
+            await this.prisma.programaLink.create({
+              data: {
+                programaId: programa.id,
+                parteId: parte.id,
+                nombre: link.nombre || 'Link',
+                url: link.url,
+                orden: ordenLink++,
+              },
+            });
+          }
+        }
+      }
+
+      partesActualizadas++;
+    }
+
+    // Auto-asignación: Himno Final hereda de Espacio de Cantos si está vacío
+    const parteEspacioCantos = await this.prisma.parte.findFirst({
+      where: { nombre: { contains: 'Espacio de Cantos', mode: 'insensitive' }, activo: true },
+    });
+    const parteHimnoFinal = await this.prisma.parte.findFirst({
+      where: { nombre: { contains: 'Himno Final', mode: 'insensitive' }, activo: true },
+    });
+
+    if (parteEspacioCantos && parteHimnoFinal) {
+      const asignacionesHimnoFinal = await this.prisma.programaAsignacion.count({
+        where: { programaId: programa.id, parteId: parteHimnoFinal.id },
+      });
+
+      if (asignacionesHimnoFinal === 0) {
+        const asignacionesCantos = await this.prisma.programaAsignacion.findMany({
+          where: { programaId: programa.id, parteId: parteEspacioCantos.id },
+          orderBy: { orden: 'asc' },
+        });
+
+        let ordenHimno = 1;
+        for (const asig of asignacionesCantos) {
+          await this.prisma.programaAsignacion.create({
+            data: {
+              programaId: programa.id,
+              parteId: parteHimnoFinal.id,
+              usuarioId: asig.usuarioId,
+              nombreLibre: asig.nombreLibre,
+              orden: ordenHimno++,
+            },
+          });
+          asignacionesCreadas++;
+        }
+      }
+    }
+
+    return { codigo: programa.codigo, fecha, partesActualizadas, asignacionesCreadas, errores };
+  }
+
+  /**
+   * Parsear fecha desde texto libre (ej: "31 de enero de 2026", "25/01/2026")
+   */
+  private parsearFechaTexto(texto: string): Date {
+    // Intentar formato dd/mm/yyyy o dd-mm-yyyy
+    const matchNumerico = texto.match(/(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?/);
+    if (matchNumerico) {
+      const dia = parseInt(matchNumerico[1], 10);
+      const mes = parseInt(matchNumerico[2], 10) - 1;
+      let anio = matchNumerico[3] ? parseInt(matchNumerico[3], 10) : new Date().getFullYear();
+      if (anio < 100) anio += 2000;
+      return new Date(anio, mes, dia);
+    }
+
+    // Intentar formato "dd de mes de yyyy"
+    const meses: Record<string, number> = {
+      'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
+      'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
+      'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
+    };
+
+    const matchTexto = texto.match(/(\d{1,2})\s+de\s+(\w+)(?:\s+de\s+(\d{4}))?/i);
+    if (matchTexto) {
+      const dia = parseInt(matchTexto[1], 10);
+      const mesNombre = matchTexto[2].toLowerCase();
+      const mes = meses[mesNombre] ?? new Date().getMonth();
+      const anio = matchTexto[3] ? parseInt(matchTexto[3], 10) : new Date().getFullYear();
+      return new Date(anio, mes, dia);
+    }
+
+    // Fallback: fecha actual
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    return hoy;
+  }
+
+  /**
    * Obtener el próximo programa por fecha (>= hoy)
    */
   async getProximoPrograma() {
@@ -1546,17 +1814,32 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
 
   /**
    * Enviar notificaciones WhatsApp a los participantes de un programa
-   * Usa la lógica de previewNotificaciones y envía los mensajes
+   * Usa plantilla aprobada de WhatsApp para poder iniciar conversaciones
+   * @param usuarioIds - Lista opcional de IDs de usuarios a notificar. Si no se proporciona, se notifica a todos.
    */
-  async enviarNotificaciones(programaId: number): Promise<{
+  async enviarNotificaciones(programaId: number, usuarioIds?: number[]): Promise<{
     enviados: number;
     errores: number;
     detalles: { nombre: string; telefono: string; success: boolean; error?: string }[];
   }> {
+    this.logger.debug(`enviarNotificaciones llamado con programaId=${programaId}, usuarioIds=${JSON.stringify(usuarioIds)}`);
+
     // Obtener el preview de notificaciones
     const preview = await this.previewNotificaciones(programaId);
 
-    if (preview.notificaciones.length === 0) {
+    // Filtrar por usuarios específicos si se proporcionan
+    let notificacionesAEnviar = preview.notificaciones;
+    if (usuarioIds && usuarioIds.length > 0) {
+      this.logger.debug(`Filtrando por ${usuarioIds.length} usuarios específicos`);
+      notificacionesAEnviar = preview.notificaciones.filter(
+        (n) => usuarioIds.includes(n.usuario.id),
+      );
+      this.logger.debug(`Después del filtro: ${notificacionesAEnviar.length} notificaciones a enviar`);
+    } else {
+      this.logger.debug(`No se especificaron usuarioIds, enviando a todos (${notificacionesAEnviar.length})`);
+    }
+
+    if (notificacionesAEnviar.length === 0) {
       return {
         enviados: 0,
         errores: 0,
@@ -1568,16 +1851,37 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
     let enviados = 0;
     let errores = 0;
 
-    // Enviar mensaje a cada participante
-    for (const notif of preview.notificaciones) {
+    // Formatear fecha para la plantilla (usar parseLocalDate para evitar problemas de timezone)
+    const fechaPrograma = this.parseLocalDate(preview.programa.fecha);
+    const fechaFormateada = fechaPrograma.toLocaleDateString('es-PE', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+
+    // Enviar plantilla a cada participante
+    for (const notif of notificacionesAEnviar) {
       const telefono = `${notif.usuario.codigoPais}${notif.usuario.telefono}`;
 
       try {
-        const result = await this.whatsappService.sendMessageToPhone(
+        // === MODO PRUEBA: Comentado para probar el frontend ===
+        // Usar plantilla aprobada de WhatsApp
+        // Parámetros: {{1}}=nombre, {{2}}=fecha, {{3}}=partes, {{4}}=código
+        const result = await this.whatsappService.sendTemplateToPhone(
           telefono,
-          notif.usuario.nombre,
-          notif.mensaje,
+          'recordatorio_programa',
+          'es_PE',
+          [
+            notif.usuario.nombre,           // {{1}} nombre
+            fechaFormateada,                // {{2}} fecha
+            notif.partes.join(', '),        // {{3}} partes asignadas
+            preview.programa.codigo,        // {{4}} código del programa
+          ],
         );
+
+        // SIMULACIÓN: Siempre éxito para pruebas
+        // const result = { success: true, error: undefined as string | undefined };
+        // this.logger.log(`[MODO PRUEBA] Simulando envío a ${notif.usuario.nombre} (${telefono}) - Partes: ${notif.partes.join(', ')}`);
 
         if (result.success) {
           enviados++;
@@ -1587,7 +1891,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
             success: true,
           });
 
-          // Marcar las asignaciones como notificadas
+          // NO marcar como notificado en modo prueba
           await this.prisma.programaAsignacion.updateMany({
             where: {
               programaId,
@@ -1608,7 +1912,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         }
 
         // Pequeña pausa para evitar rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
         errores++;
         detalles.push({

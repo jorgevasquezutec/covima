@@ -68,6 +68,21 @@ export class UsuariosController {
     return this.usuariosService.getRoles();
   }
 
+  @Get('cumpleanos-mes')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Obtener cumpleaños de un mes específico' })
+  @ApiQuery({ name: 'mes', required: false, type: Number, description: 'Mes (1-12)' })
+  @ApiQuery({ name: 'anio', required: false, type: Number, description: 'Año' })
+  async getCumpleanosDelMes(
+    @Query('mes') mes?: string,
+    @Query('anio') anio?: string,
+  ) {
+    return this.usuariosService.getCumpleanosDelMes(
+      mes ? parseInt(mes, 10) : undefined,
+      anio ? parseInt(anio, 10) : undefined,
+    );
+  }
+
   @Get('profile/me')
   @ApiOperation({ summary: 'Obtener mi perfil' })
   async getMyProfile(@Request() req: any) {

@@ -63,7 +63,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { asistenciaApi, tiposAsistenciaApi } from '@/services/api';
+import { asistenciaApi, tiposAsistenciaApi, usuariosApi } from '@/services/api';
 import type { QRAsistencia, Asistencia, EstadisticasGenerales, TipoAsistencia } from '@/types';
 import RegistroManualAsistencia from './RegistroManualAsistencia';
 
@@ -148,6 +148,15 @@ export default function AsistenciaPage() {
         descripcion: '',
     });
     const [updatingQR, setUpdatingQR] = useState(false);
+
+    // Registrar usuario desde asistencia
+    const [registerUserOpen, setRegisterUserOpen] = useState(false);
+    const [registeringUser, setRegisteringUser] = useState(false);
+    const [userToRegister, setUserToRegister] = useState<{
+        asistenciaId: number;
+        nombre: string;
+        telefono: string;
+    } | null>(null);
 
     // Load tipos on mount
     useEffect(() => {
@@ -346,6 +355,44 @@ export default function AsistenciaPage() {
             loadData();
         } catch {
             toast.error('Error al procesar');
+        }
+    };
+
+    const handleOpenRegisterUser = (asistencia: Asistencia) => {
+        setUserToRegister({
+            asistenciaId: asistencia.id,
+            nombre: asistencia.nombreRegistro || '',
+            telefono: asistencia.telefonoRegistro?.replace(/^\+?51/, '') || '',
+        });
+        setRegisterUserOpen(true);
+    };
+
+    const handleRegisterUser = async () => {
+        if (!userToRegister || !userToRegister.nombre.trim()) {
+            toast.error('El nombre es requerido');
+            return;
+        }
+
+        try {
+            setRegisteringUser(true);
+            // Crear usuario (rol será participante por defecto en el backend)
+            const nuevoUsuario = await usuariosApi.create({
+                nombre: userToRegister.nombre.trim(),
+                codigoPais: '51',
+                telefono: userToRegister.telefono,
+            });
+
+            // Vincular la asistencia al nuevo usuario
+            await asistenciaApi.vincularUsuario(userToRegister.asistenciaId, nuevoUsuario.id);
+
+            toast.success(`Usuario "${nuevoUsuario.nombre}" creado y vinculado a la asistencia`);
+            setRegisterUserOpen(false);
+            setUserToRegister(null);
+            loadData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al crear usuario');
+        } finally {
+            setRegisteringUser(false);
         }
     };
 
@@ -1080,12 +1127,27 @@ export default function AsistenciaPage() {
                                                     />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <p className="font-medium text-gray-900">
-                                                        {asistencia.usuario?.nombre || asistencia.nombreRegistro || 'Sin nombre'}
-                                                    </p>
-                                                    {!asistencia.usuario && asistencia.telefonoRegistro && (
-                                                        <p className="text-xs text-gray-500">{asistencia.telefonoRegistro}</p>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        <div>
+                                                            <p className="font-medium text-gray-900">
+                                                                {asistencia.usuario?.nombre || asistencia.nombreRegistro || 'Sin nombre'}
+                                                            </p>
+                                                            {!asistencia.usuario && asistencia.telefonoRegistro && (
+                                                                <p className="text-xs text-gray-500">{asistencia.telefonoRegistro}</p>
+                                                            )}
+                                                        </div>
+                                                        {!asistencia.usuario && asistencia.telefonoRegistro && (
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                onClick={() => handleOpenRegisterUser(asistencia)}
+                                                                className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                                                                title="Registrar como usuario"
+                                                            >
+                                                                <UserPlus className="w-4 h-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-gray-700">
                                                     {new Date(asistencia.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
@@ -1418,6 +1480,68 @@ export default function AsistenciaPage() {
                             disabled={updatingQR}
                         >
                             {updatingQR ? 'Guardando...' : 'Guardar cambios'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Register User Dialog */}
+            <Dialog open={registerUserOpen} onOpenChange={setRegisterUserOpen}>
+                <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-gray-900 flex items-center gap-2">
+                            <UserPlus className="w-5 h-5 text-blue-600" />
+                            Registrar Usuario
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-500">
+                            Crea un nuevo usuario a partir de este registro de asistencia
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label className="text-gray-700">Nombre</Label>
+                            <Input
+                                value={userToRegister?.nombre || ''}
+                                onChange={(e) => setUserToRegister(prev => prev ? { ...prev, nombre: e.target.value } : null)}
+                                placeholder="Nombre completo"
+                                className="bg-white border-gray-300 text-gray-900"
+                            />
+                            <p className="text-xs text-gray-500">Puedes editar el nombre antes de registrar</p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-gray-700">Teléfono</Label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-500">+51</span>
+                                <Input
+                                    value={userToRegister?.telefono || ''}
+                                    onChange={(e) => setUserToRegister(prev => prev ? { ...prev, telefono: e.target.value } : null)}
+                                    placeholder="987654321"
+                                    className="bg-white border-gray-300 text-gray-900"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setRegisterUserOpen(false);
+                                setUserToRegister(null);
+                            }}
+                            className="border-gray-300"
+                            disabled={registeringUser}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleRegisterUser}
+                            className="bg-blue-600 hover:bg-blue-700"
+                            disabled={registeringUser || !userToRegister?.nombre.trim()}
+                        >
+                            {registeringUser ? 'Registrando...' : 'Registrar Usuario'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

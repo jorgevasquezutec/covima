@@ -68,6 +68,12 @@ export class AsistenciaController {
         });
     }
 
+    @Get('qrs-disponibles')
+    @ApiOperation({ summary: 'Obtener QRs disponibles para registro (activos, en horario y no registrados aún)' })
+    async getQRsDisponibles(@Request() req: any) {
+        return this.asistenciaService.getQRsDisponibles(this.getUserId(req));
+    }
+
     @Get('qr/:codigo')
     @ApiOperation({ summary: 'Obtener QR por código' })
     async findQRByCodigo(@Param('codigo') codigo: string) {
@@ -197,6 +203,16 @@ export class AsistenciaController {
         @Request() req: any,
     ) {
         return this.asistenciaService.confirmarMultiples(body.ids, body.estado, this.getUserId(req));
+    }
+
+    @Patch(':id/vincular-usuario')
+    @Roles('admin', 'lider')
+    @ApiOperation({ summary: 'Vincular asistencia a un usuario' })
+    async vincularUsuario(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() body: { usuarioId: number },
+    ) {
+        return this.asistenciaService.vincularUsuario(id, body.usuarioId);
     }
 
     // ==================== ESTADÍSTICAS ENDPOINTS ====================

@@ -7,7 +7,9 @@ import {
   MaxLength,
   IsEmail,
   Matches,
+  ValidateIf,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUsuarioDto {
@@ -58,10 +60,12 @@ export class CreateUsuarioDto {
   @IsBoolean()
   activo?: boolean;
 
-  @ApiPropertyOptional({ example: '1990-01-15' })
+  @ApiPropertyOptional({ example: '1990-01-15', nullable: true })
   @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Transform(({ value }) => (value === null ? null : value))
   @IsString()
-  fechaNacimiento?: string;
+  fechaNacimiento?: string | null;
 
   @ApiPropertyOptional({ example: 'Av. Principal 123' })
   @IsOptional()
