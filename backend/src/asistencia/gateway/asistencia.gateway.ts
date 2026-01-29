@@ -13,7 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { RedisService } from '../../redis/redis.service';
 
 interface RoomUser {
-  odId: number;
+  userId: number;
   nombre: string;
   joinedAt: Date;
 }
@@ -88,7 +88,7 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
       if (users.has(client.id)) {
         users.delete(client.id);
         this.server.to(`qr:${roomCode}`).emit('usuarioSalio', {
-          odId: client.data.user?.sub,
+          userId: client.data.user?.id,
           totalEnRoom: users.size,
         });
         this.logger.log(`User left room ${roomCode}, ${users.size} remaining`);
@@ -115,20 +115,20 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
 
     const roomUsers = this.rooms.get(data.qrCode)!;
     roomUsers.set(client.id, {
-      odId: client.data.user.sub,
+      userId: client.data.user.id,
       nombre: client.data.user.nombre,
       joinedAt: new Date(),
     });
 
     // Notificar a todos en el room
     this.server.to(roomName).emit('usuarioEntro', {
-      usuario: { id: client.data.user.sub, nombre: client.data.user.nombre },
+      usuario: { id: client.data.user.id, nombre: client.data.user.nombre },
       totalEnRoom: roomUsers.size,
     });
 
     // Enviar lista de usuarios actuales al que se une
     const usuarios = Array.from(roomUsers.values()).map((u) => ({
-      id: u.odId,
+      id: u.userId,
       nombre: u.nombre,
       joinedAt: u.joinedAt,
     }));
@@ -159,7 +159,7 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
     if (roomUsers) {
       roomUsers.delete(client.id);
       this.server.to(roomName).emit('usuarioSalio', {
-        odId: client.data.user?.sub,
+        odId: client.data.user?.id,
         totalEnRoom: roomUsers.size,
       });
     }
@@ -194,7 +194,7 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
     return {
       totalEnRoom: roomUsers.size,
       usuarios: Array.from(roomUsers.values()).map((u) => ({
-        id: u.odId,
+        id: u.userId,
         nombre: u.nombre,
         joinedAt: u.joinedAt,
       })),

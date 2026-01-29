@@ -118,8 +118,8 @@ export class ProgramasHandler {
         entities: Record<string, any>,
         message: string,
     ): Promise<void> {
-        // Primero intentar buscar por código (formato: XXX-XXXXXX)
-        const codigoMatch = message.match(/([A-Z]{2,3}-[A-Za-z0-9]{6})/i);
+        // Primero intentar buscar por código (formato: XXXXXXXXX sin guión)
+        const codigoMatch = message.match(/([A-Z]{2,3}[A-Z0-9]{6})/i);
         let fecha = this.parseFecha(entities.fecha || message);
         let programa;
 
@@ -268,8 +268,8 @@ export class ProgramasHandler {
         }
 
         try {
-            // Buscar código de programa en el mensaje
-            const codigoMatch = message.match(/([A-Z]{2,3}-[A-Za-z0-9]{6})/i);
+            // Buscar código de programa en el mensaje (formato sin guión)
+            const codigoMatch = message.match(/([A-Z]{2,3}[A-Z0-9]{6})/i);
             let programa;
 
             if (codigoMatch) {

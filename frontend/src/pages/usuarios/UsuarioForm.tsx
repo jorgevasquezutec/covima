@@ -101,7 +101,7 @@ export default function UsuarioForm({
           email: updateData.email || undefined,
           nombreWhatsapp: updateData.nombreWhatsapp || undefined,
           roles: updateData.roles,
-          fechaNacimiento: updateData.fechaNacimiento || null,
+          fechaNacimiento: updateData.fechaNacimiento || undefined,
           direccion: updateData.direccion || undefined,
           biografia: updateData.biografia || undefined,
         });

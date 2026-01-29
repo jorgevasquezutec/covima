@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { User, Mail, Calendar, MapPin, FileText, Save, Camera, Loader2 } from 'lucide-react';
+import { User, Mail, Calendar, MapPin, FileText, Save, Camera, Loader2, Bell, MessageSquare } from 'lucide-react';
 import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
 
 interface ProfileData {
@@ -20,7 +21,11 @@ interface ProfileData {
     direccion: string | null;
     biografia: string | null;
     roles: string[];
+    notificarNuevasConversaciones: boolean;
+    modoHandoffDefault: 'WEB' | 'WHATSAPP' | 'AMBOS';
 }
+
+type ModoHandoff = 'WEB' | 'WHATSAPP' | 'AMBOS';
 
 export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
@@ -36,6 +41,11 @@ export default function ProfilePage() {
     const [direccion, setDireccion] = useState('');
     const [biografia, setBiografia] = useState('');
 
+    // Notification preferences
+    const [notificarNuevasConversaciones, setNotificarNuevasConversaciones] = useState(false);
+    const [modoHandoffDefault, setModoHandoffDefault] = useState<ModoHandoff>('AMBOS');
+    const [savingNotifications, setSavingNotifications] = useState(false);
+
     useEffect(() => {
         loadProfile();
     }, []);
@@ -50,6 +60,8 @@ export default function ProfilePage() {
             setFechaNacimiento(data.fechaNacimiento ? data.fechaNacimiento.split('T')[0] : '');
             setDireccion(data.direccion || '');
             setBiografia(data.biografia || '');
+            setNotificarNuevasConversaciones(data.notificarNuevasConversaciones ?? false);
+            setModoHandoffDefault(data.modoHandoffDefault ?? 'AMBOS');
         } catch {
             toast.error('Error al cargar el perfil');
         } finally {
@@ -73,6 +85,21 @@ export default function ProfilePage() {
             toast.error('Error al guardar el perfil');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleSaveNotifications = async () => {
+        try {
+            setSavingNotifications(true);
+            await usuariosApi.updateMyProfile({
+                notificarNuevasConversaciones,
+                modoHandoffDefault,
+            });
+            toast.success('Preferencias de notificación actualizadas');
+        } catch {
+            toast.error('Error al guardar preferencias');
+        } finally {
+            setSavingNotifications(false);
         }
     };
 
@@ -315,6 +342,103 @@ export default function ProfilePage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Notification Preferences - Solo para admin/lider */}
+            {profile?.roles.some((rol) => ['admin', 'lider'].includes(rol)) && (
+                <Card className="bg-white border-gray-200 shadow-sm">
+                    <CardHeader>
+                        <CardTitle className="text-gray-900 flex items-center gap-2">
+                            <Bell className="w-5 h-5 text-blue-600" />
+                            Notificaciones del Inbox
+                        </CardTitle>
+                        <CardDescription className="text-gray-500">
+                            Configura cómo recibir notificaciones de las conversaciones
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* Notificar nuevas conversaciones */}
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label className="flex items-center gap-2 text-gray-700">
+                                    <Bell className="w-4 h-4" />
+                                    Notificar nuevas conversaciones
+                                </Label>
+                                <p className="text-sm text-gray-500">
+                                    Recibe una alerta cuando llegue una nueva conversación al sistema
+                                </p>
+                            </div>
+                            <Switch
+                                checked={notificarNuevasConversaciones}
+                                onCheckedChange={setNotificarNuevasConversaciones}
+                            />
+                        </div>
+
+                        {/* Modo de respuesta handoff */}
+                        <div className="space-y-3">
+                            <div className="space-y-0.5">
+                                <Label className="flex items-center gap-2 text-gray-700">
+                                    <MessageSquare className="w-4 h-4" />
+                                    Modo de respuesta por defecto
+                                </Label>
+                                <p className="text-sm text-gray-500">
+                                    Elige cómo prefieres responder a los usuarios durante el handoff
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant={modoHandoffDefault === 'WEB' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setModoHandoffDefault('WEB')}
+                                    className={modoHandoffDefault === 'WEB' ? 'bg-blue-600' : ''}
+                                >
+                                    🖥️ Solo Web
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={modoHandoffDefault === 'WHATSAPP' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setModoHandoffDefault('WHATSAPP')}
+                                    className={modoHandoffDefault === 'WHATSAPP' ? 'bg-green-600' : ''}
+                                >
+                                    📱 Solo WhatsApp
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={modoHandoffDefault === 'AMBOS' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setModoHandoffDefault('AMBOS')}
+                                    className={modoHandoffDefault === 'AMBOS' ? 'bg-purple-600' : ''}
+                                >
+                                    🔄 Ambos
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-400">
+                                {modoHandoffDefault === 'WEB' && 'Responderás solo desde el panel web. No recibirás notificaciones en WhatsApp.'}
+                                {modoHandoffDefault === 'WHATSAPP' && 'Responderás con >> desde WhatsApp. No podrás responder desde el panel web.'}
+                                {modoHandoffDefault === 'AMBOS' && 'Puedes responder desde el panel web o con >> desde WhatsApp.'}
+                            </p>
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="pt-2">
+                            <Button
+                                onClick={handleSaveNotifications}
+                                disabled={savingNotifications}
+                                variant="outline"
+                                className="w-full"
+                            >
+                                {savingNotifications ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Save className="w-4 h-4 mr-2" />
+                                )}
+                                {savingNotifications ? 'Guardando...' : 'Guardar preferencias'}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

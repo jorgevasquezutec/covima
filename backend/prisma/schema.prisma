@@ -9,6 +9,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==================== ENUMS INBOX/HANDOFF ====================
+
+enum ModoConversacion {
+  BOT       // Bot responde automáticamente
+  HANDOFF   // Admin atendiendo
+  PAUSADO   // En espera de asignación
+}
+
+enum DireccionMensaje {
+  ENTRANTE  // Usuario → Sistema
+  SALIENTE  // Sistema → Usuario
+}
+
+enum EstadoMensaje {
+  PENDIENTE
+  ENVIADO
+  ENTREGADO
+  LEIDO
+  FALLIDO
+}
+
+enum ModoRespuestaHandoff {
+  WEB       // Solo desde el Inbox web
+  WHATSAPP  // Solo desde WhatsApp con >>
+  AMBOS     // Puede usar cualquiera
+}
+
 model Rol {
   id          Int           @id @default(autoincrement())
   nombre      String        @unique @db.VarChar(50)
@@ -40,6 +67,11 @@ model Usuario {
   // Índice único compuesto: código de país + teléfono
   @@unique([codigoPais, telefono])
 
+  // === PREFERENCIAS INBOX/HANDOFF ===
+  recibirNotificacionesWhatsApp  Boolean              @default(true) @map("recibir_notificaciones_whatsapp")
+  notificarNuevasConversaciones  Boolean              @default(true) @map("notificar_nuevas_conversaciones")
+  modoHandoffDefault             ModoRespuestaHandoff @default(AMBOS) @map("modo_handoff_default")
+
   roles                UsuarioRol[]
   usuarioPartes        UsuarioParte[]
   programasCreados     Programa[]       @relation("ProgramaCreador")
@@ -51,6 +83,10 @@ model Usuario {
   qrsCreados           QRAsistencia[]
   linksAgregados       ProgramaLink[]
   rolesAsignados       UsuarioRol[]     @relation("AsignadoPor")
+
+  // === RELACIONES INBOX/HANDOFF ===
+  conversacionesDerivadas Conversacion[] @relation("ConversacionesDerivadas")
+  mensajesEnviados        Mensaje[]      @relation("MensajesEnviados")
 
   @@map("usuarios")
 }
@@ -269,35 +305,56 @@ model FormularioCampo {
 }
 
 model Conversacion {
-  id                Int       @id @default(autoincrement())
-  usuarioId         Int?      @map("usuario_id")
-  telefono          String    @db.VarChar(20)
-  estado            String    @default("inicio") @db.VarChar(50)
-  contexto          Json      @default("{}")
-  moduloActivo      String?   @map("modulo_activo") @db.VarChar(50)
-  programaEnEdicion Int?      @map("programa_en_edicion")
-  ultimoMensajeAt   DateTime  @default(now()) @map("ultimo_mensaje_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  id                Int               @id @default(autoincrement())
+  usuarioId         Int?              @map("usuario_id")
+  telefono          String            @unique @db.VarChar(20)
+  estado            String            @default("inicio") @db.VarChar(50)
+  contexto          Json              @default("{}")
+  moduloActivo      String?           @map("modulo_activo") @db.VarChar(50)
+  programaEnEdicion Int?              @map("programa_en_edicion")
+  ultimoMensajeAt   DateTime          @default(now()) @map("ultimo_mensaje_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
-  usuario           Usuario?  @relation(fields: [usuarioId], references: [id])
-  programa          Programa? @relation(fields: [programaEnEdicion], references: [id])
+  // === CAMPOS PARA INBOX/HANDOFF ===
+  modo              ModoConversacion      @default(BOT)
+  derivadaAId       Int?                  @map("derivada_a_id")
+  derivadaAt        DateTime?             @map("derivada_at")
+  ultimoMensaje     String?               @map("ultimo_mensaje") @db.VarChar(500)
+  mensajesNoLeidos  Int                   @default(0) @map("mensajes_no_leidos")
+  modoRespuesta     ModoRespuestaHandoff? @map("modo_respuesta") // Override del default del admin
+
+  usuario           Usuario?          @relation(fields: [usuarioId], references: [id])
+  programa          Programa?         @relation(fields: [programaEnEdicion], references: [id])
+  derivadaA         Usuario?          @relation("ConversacionesDerivadas", fields: [derivadaAId], references: [id])
   mensajes          Mensaje[]
 
+  // Índices para performance del inbox
+  @@index([modo, updatedAt(sort: Desc)])
+  @@index([derivadaAId, modo])
   @@map("conversaciones")
 }
 
 model Mensaje {
-  id             Int          @id @default(autoincrement())
-  conversacionId Int          @map("conversacion_id")
-  direccion      String       @db.VarChar(10)
-  contenido      String
-  tipo           String       @default("texto") @db.VarChar(20)
-  metadata       Json         @default("{}")
-  createdAt      DateTime     @default(now()) @map("created_at")
+  id             Int              @id @default(autoincrement())
+  conversacionId Int              @map("conversacion_id")
+  direccion      DireccionMensaje
+  contenido      String           @db.Text
+  tipo           String           @default("texto") @db.VarChar(20)
+  metadata       Json             @default("{}")
+  createdAt      DateTime         @default(now()) @map("created_at")
 
-  conversacion   Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  // === CAMPOS PARA INBOX/HANDOFF ===
+  enviadoPorId   Int?             @map("enviado_por_id")  // null = bot automático
+  whatsappMsgId  String?          @unique @map("whatsapp_msg_id") @db.VarChar(100)
+  estado         EstadoMensaje    @default(ENVIADO)
+  leidoAt        DateTime?        @map("leido_at")
 
+  conversacion   Conversacion     @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  enviadoPor     Usuario?         @relation("MensajesEnviados", fields: [enviadoPorId], references: [id])
+
+  // Índice para paginación eficiente
+  @@index([conversacionId, createdAt(sort: Desc)])
   @@map("mensajes")
 }
 

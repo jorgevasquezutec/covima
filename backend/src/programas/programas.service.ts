@@ -9,7 +9,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProgramaDto, UpdateProgramaDto } from './dto';
 import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
 import { OpenAIService } from '../whatsapp-bot/openai.service';
-import { nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
+
+// Alfabeto para códigos: solo mayúsculas y números, sin caracteres confusos (0/O, 1/I/L)
+const CODIGO_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const generarCodigoUnico = customAlphabet(CODIGO_ALPHABET, 6);
 
 @Injectable()
 export class ProgramasService {
@@ -25,7 +29,7 @@ export class ProgramasService {
 
   /**
    * Genera un código único para el programa
-   * Formato: INICIALES-XXXXXX (ej: MA-X3kP9m)
+   * Formato: INICIALESXXXXXX (ej: PMA3K9PM) - todo mayúsculas, sin guiones
    */
   private generarCodigo(titulo: string): string {
     // Extraer iniciales del título (máximo 3 letras)
@@ -48,10 +52,11 @@ export class ProgramasService {
       iniciales = 'PRG';
     }
 
-    // Generar nanoid de 6 caracteres
-    const uniqueId = nanoid(6);
+    // Generar código de 6 caracteres (solo mayúsculas y números)
+    const uniqueId = generarCodigoUnico();
 
-    return `${iniciales}-${uniqueId}`;
+    // Sin guión para facilitar búsqueda en WhatsApp
+    return `${iniciales}${uniqueId}`;
   }
 
   async findAll(options?: { page?: number; limit?: number; estado?: string }) {
@@ -606,10 +611,10 @@ export class ProgramasService {
     let partesActualizadas = 0;
     let asignacionesCreadas = 0;
 
-    // 1. Primero buscar código de programa en las primeras 3 líneas (formato: XXX-XXXXXX)
+    // 1. Primero buscar código de programa en las primeras 3 líneas (formato: XXXXXXXXX sin guión)
     let codigoMatch: RegExpMatchArray | null = null;
     for (let i = 0; i < Math.min(3, lineas.length); i++) {
-      codigoMatch = lineas[i].match(/([A-Z]{2,3}-[A-Za-z0-9]{6})/i);
+      codigoMatch = lineas[i].match(/([A-Z]{2,3}[A-Z0-9]{6})/i);
       if (codigoMatch) break;
     }
 
@@ -939,8 +944,8 @@ export class ProgramasService {
       fecha.setHours(0, 0, 0, 0);
     }
 
-    // Buscar código de programa en el texto original (formato: XXX-XXXXXX)
-    const codigoMatch = texto.match(/([A-Z]{2,3}-[A-Za-z0-9]{6})/i);
+    // Buscar código de programa en el texto original (formato: XXXXXXXXX sin guión)
+    const codigoMatch = texto.match(/([A-Z]{2,3}[A-Z0-9]{6})/i);
 
     // Buscar programa existente: primero por código, luego por fecha
     let programa;

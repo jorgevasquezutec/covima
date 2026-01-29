@@ -7,6 +7,8 @@ import { UsuariosHandler } from './handlers/usuarios.handler';
 import { ProgramasHandler } from './handlers/programas.handler';
 import { NotificacionesHandler } from './handlers/notificaciones.handler';
 import { ConversationContext, IntentResult } from './dto';
+import { InboxService } from '../inbox/inbox.service';
+import { DireccionMensaje, ModoConversacion } from '@prisma/client';
 
 @Injectable()
 export class IntentRouterService {
@@ -20,6 +22,7 @@ export class IntentRouterService {
         private readonly usuariosHandler: UsuariosHandler,
         private readonly programasHandler: ProgramasHandler,
         private readonly notificacionesHandler: NotificacionesHandler,
+        private readonly inboxService: InboxService,
     ) { }
 
     /**
@@ -35,11 +38,59 @@ export class IntentRouterService {
         // Registrar teléfono y messageId para poder enviar respuestas y typing indicator
         this.whatsappService.registerConversation(conversationId, telefono, messageId);
 
-        // Mostrar typing indicator mientras procesamos
+        // Obtener o crear conversación en BD usando InboxService
+        const { conversacion } = await this.inboxService.getOrCreateConversacion(telefono, nombreWhatsapp);
+
+        // Guardar mensaje entrante SIEMPRE
+        await this.inboxService.guardarMensaje({
+            conversacionId: conversacion.id,
+            contenido: message,
+            direccion: DireccionMensaje.ENTRANTE,
+            tipo: 'texto',
+            whatsappMsgId: messageId,
+        });
+
+        // Verificar si es un admin enviando mensaje
+        const { esAdmin, usuario: adminUsuario } = await this.inboxService.esAdmin(telefono);
+
+        // Si es admin, verificar comandos especiales
+        if (esAdmin && adminUsuario) {
+            const comandoProcesado = await this.procesarComandoAdmin(
+                conversacion.id,
+                message,
+                adminUsuario,
+                telefono,
+            );
+            if (comandoProcesado) {
+                return;
+            }
+        }
+
+        // Verificar modo de la conversación
+        if (conversacion.modo === ModoConversacion.HANDOFF) {
+            // En modo HANDOFF, no procesar con bot
+            this.logger.debug(`Conversación ${conversacion.id} en modo HANDOFF, no procesando con bot`);
+
+            // Si el admin tiene notificaciones activas, reenviar a su WhatsApp
+            if (conversacion.derivadaA) {
+                await this.notificarAdminHandoff(conversacion, message, nombreWhatsapp);
+            }
+            return;
+        }
+
+        if (conversacion.modo === ModoConversacion.PAUSADO) {
+            // En modo PAUSADO, informar al usuario
+            await this.whatsappService.sendMessage(conversationId, {
+                content: '⏳ Tu conversación está en espera. Un administrador te atenderá pronto.',
+            });
+            return;
+        }
+
+        // Modo BOT - procesar normalmente
         await this.whatsappService.toggleTypingStatus(conversationId, true);
 
-        // Obtener o crear contexto de conversación
-        const context = await this.getOrCreateContext(conversationId, telefono, nombreWhatsapp);
+        // Obtener contexto de conversación
+        const context = await this.getOrCreateContext(conversationId, telefono, nombreWhatsapp, conversacion);
 
         // Si hay un módulo activo con flujo pendiente, continuar ese flujo
         if (context.moduloActivo && context.estado !== 'inicio') {
@@ -71,6 +122,256 @@ export class IntentRouterService {
 
         // Enrutar al handler correspondiente
         await this.routeToHandler(context, intentResult, message);
+    }
+
+    /**
+     * Procesar comandos especiales de admin
+     * Retorna true si el comando fue procesado
+     */
+    private async procesarComandoAdmin(
+        conversacionIdBD: number,
+        message: string,
+        admin: { id: number; nombre: string; telefono: string },
+        telefonoAdmin: string,
+    ): Promise<boolean> {
+        const msgLower = message.toLowerCase().trim();
+
+        // Comando: /cerrar - cerrar handoff de una conversación asignada
+        if (msgLower === '/cerrar') {
+            const conversaciones = await this.inboxService.getConversacionesHandoffDeAdmin(admin.id);
+
+            if (conversaciones.length === 0) {
+                await this.whatsappService.sendMessageToPhone(
+                    telefonoAdmin,
+                    admin.nombre,
+                    '📭 No tienes conversaciones en handoff activas.',
+                );
+                return true;
+            }
+
+            if (conversaciones.length === 1) {
+                // Cerrar la única conversación
+                await this.inboxService.cerrarHandoff(conversaciones[0].id, admin.id, {});
+                await this.whatsappService.sendMessageToPhone(
+                    telefonoAdmin,
+                    admin.nombre,
+                    `✅ Handoff cerrado para la conversación con ${conversaciones[0].usuario?.nombre || conversaciones[0].telefono}`,
+                );
+                return true;
+            }
+
+            // Múltiples conversaciones, listar
+            let lista = '📋 *Conversaciones en handoff:*\n\n';
+            conversaciones.forEach((c, i) => {
+                lista += `${i + 1}. ${c.usuario?.nombre || c.telefono}\n`;
+            });
+            lista += '\nResponde con el número para cerrar esa conversación.';
+            await this.whatsappService.sendMessageToPhone(telefonoAdmin, admin.nombre, lista);
+            return true;
+        }
+
+        // Comando: /pendientes - ver conversaciones pendientes
+        if (msgLower === '/pendientes') {
+            const pendientes = await this.inboxService.contarPendientes();
+            await this.whatsappService.sendMessageToPhone(
+                telefonoAdmin,
+                admin.nombre,
+                `📊 *Conversaciones:*\n• Sin asignar: ${pendientes.sinAsignar}\n• En handoff: ${pendientes.enHandoff}\n• Total: ${pendientes.total}`,
+            );
+            return true;
+        }
+
+        // Comando: /ayuda - comandos de admin
+        if (msgLower === '/ayuda' || msgLower === '/help') {
+            const ayuda = `🔧 *Comandos de Admin:*
+
+/pendientes - Ver conversaciones pendientes
+/cerrar - Cerrar handoff activo
+/mis - Ver mis conversaciones en handoff
+
+*Responder a usuario:*
+>> mensaje - Enviar mensaje (si tienes 1 conversación)
+>>1 mensaje - Enviar a conversación #1 (si tienes varias)
+
+*Ejemplo:*
+>> Hola, ¿en qué puedo ayudarte?
+>>2 Te ayudo en un momento`;
+            await this.whatsappService.sendMessageToPhone(telefonoAdmin, admin.nombre, ayuda);
+            return true;
+        }
+
+        // Comando: /mis - ver mis conversaciones en handoff
+        if (msgLower === '/mis') {
+            const conversaciones = await this.inboxService.getConversacionesHandoffDeAdmin(admin.id);
+
+            if (conversaciones.length === 0) {
+                await this.whatsappService.sendMessageToPhone(
+                    telefonoAdmin,
+                    admin.nombre,
+                    '📭 No tienes conversaciones en handoff.',
+                );
+                return true;
+            }
+
+            let lista = '📋 *Mis conversaciones en handoff:*\n\n';
+            conversaciones.forEach((c, i) => {
+                lista += `${i + 1}. ${c.usuario?.nombre || c.usuario?.nombreWhatsapp || c.telefono}\n`;
+                lista += `   📱 ${c.telefono}\n`;
+                if (c.ultimoMensaje) {
+                    lista += `   💬 "${c.ultimoMensaje.substring(0, 30)}..."\n`;
+                }
+                lista += '\n';
+            });
+            await this.whatsappService.sendMessageToPhone(telefonoAdmin, admin.nombre, lista);
+            return true;
+        }
+
+        // Prefijo: >> mensaje - responder a usuario en handoff
+        // Soporta: >> mensaje (una conv) o >>1 mensaje (especificar número)
+        if (message.startsWith('>>')) {
+            let resto = message.substring(2).trim();
+            if (!resto) {
+                return false; // No hay contenido, procesar normalmente
+            }
+
+            // Buscar conversación en handoff del admin
+            const conversaciones = await this.inboxService.getConversacionesHandoffDeAdmin(admin.id);
+
+            if (conversaciones.length === 0) {
+                await this.whatsappService.sendMessageToPhone(
+                    telefonoAdmin,
+                    admin.nombre,
+                    '⚠️ No tienes conversaciones en handoff. Primero toma una conversación desde el panel.',
+                );
+                return true;
+            }
+
+            // Filtrar solo las que permiten respuesta por WhatsApp
+            const conversacionesWhatsApp = conversaciones.filter((conv) => {
+                const modo = conv.modoRespuesta || conv.derivadaA?.modoHandoffDefault || 'AMBOS';
+                return modo === 'WHATSAPP' || modo === 'AMBOS';
+            });
+
+            if (conversacionesWhatsApp.length === 0) {
+                await this.whatsappService.sendMessageToPhone(
+                    telefonoAdmin,
+                    admin.nombre,
+                    '⚠️ Todas tus conversaciones están configuradas para responder solo desde la Web.\nCambia la configuración en el panel si quieres responder por WhatsApp.',
+                );
+                return true;
+            }
+
+            let convDestino: any;
+            let contenido: string;
+
+            // Verificar si empieza con un número (>>1 mensaje, >>2 mensaje, etc.)
+            const matchNumero = resto.match(/^(\d+)\s+(.+)/);
+
+            if (conversacionesWhatsApp.length === 1) {
+                // Solo una conversación disponible para WhatsApp
+                convDestino = conversacionesWhatsApp[0];
+                contenido = resto;
+            } else if (matchNumero) {
+                // Múltiples conversaciones y especificó número
+                const numero = parseInt(matchNumero[1], 10);
+                contenido = matchNumero[2];
+
+                if (numero < 1 || numero > conversacionesWhatsApp.length) {
+                    await this.whatsappService.sendMessageToPhone(
+                        telefonoAdmin,
+                        admin.nombre,
+                        `⚠️ Número inválido. Tienes ${conversacionesWhatsApp.length} conversaciones para WhatsApp.\nUsa >>1, >>2, etc. hasta >>${conversacionesWhatsApp.length}`,
+                    );
+                    return true;
+                }
+                convDestino = conversacionesWhatsApp[numero - 1];
+            } else {
+                // Múltiples conversaciones y no especificó número - mostrar lista
+                let lista = `📋 *Tienes ${conversacionesWhatsApp.length} conversaciones para responder por WhatsApp:*\n\n`;
+                conversacionesWhatsApp.forEach((conv, idx) => {
+                    const nombre = conv.usuario?.nombre || conv.usuario?.nombreWhatsapp || conv.telefono;
+                    lista += `*${idx + 1}.* ${nombre}\n`;
+                });
+                lista += `\n💡 Usa *>>${1} tu mensaje* para responder a la primera, *>>${2} tu mensaje* para la segunda, etc.`;
+
+                if (conversaciones.length > conversacionesWhatsApp.length) {
+                    lista += `\n\n_Nota: ${conversaciones.length - conversacionesWhatsApp.length} conversación(es) solo se pueden responder desde la Web._`;
+                }
+
+                await this.whatsappService.sendMessageToPhone(telefonoAdmin, admin.nombre, lista);
+                return true;
+            }
+
+            // Guardar mensaje saliente
+            await this.inboxService.guardarMensaje({
+                conversacionId: convDestino.id,
+                contenido,
+                direccion: DireccionMensaje.SALIENTE,
+                tipo: 'texto',
+                enviadoPorId: admin.id,
+            });
+
+            // Enviar a WhatsApp del usuario
+            await this.whatsappService.sendMessageToPhone(
+                convDestino.telefono,
+                convDestino.usuario?.nombre || 'Usuario',
+                contenido,
+            );
+
+            // Confirmar al admin
+            const nombreDestino = convDestino.usuario?.nombre || convDestino.usuario?.nombreWhatsapp || convDestino.telefono;
+            await this.whatsappService.sendMessageToPhone(
+                telefonoAdmin,
+                admin.nombre,
+                `✅ Mensaje enviado a ${nombreDestino}`,
+            );
+            return true;
+        }
+
+        return false; // No fue un comando de admin
+    }
+
+    /**
+     * Notificar al admin cuando recibe mensaje en modo HANDOFF
+     */
+    private async notificarAdminHandoff(
+        conversacion: any,
+        mensaje: string,
+        nombreRemitente: string,
+    ): Promise<void> {
+        if (!conversacion.derivadaA?.id) return;
+
+        // Obtener preferencias del admin
+        const admin = await this.prisma.usuario.findUnique({
+            where: { id: conversacion.derivadaA.id },
+            select: {
+                id: true,
+                nombre: true,
+                telefono: true,
+                codigoPais: true,
+                modoHandoffDefault: true,
+            },
+        });
+
+        if (!admin) {
+            this.logger.debug(`Admin ${conversacion.derivadaA.id} no encontrado`);
+            return;
+        }
+
+        // Determinar modo de respuesta: override de la conv o default del admin
+        const modoRespuesta = conversacion.modoRespuesta || admin.modoHandoffDefault || 'AMBOS';
+
+        // Solo notificar por WhatsApp si el modo es WHATSAPP o AMBOS
+        if (modoRespuesta === 'WEB') {
+            this.logger.debug(`Admin ${admin.id} tiene modo WEB para esta conversación, no se envía notificación WhatsApp`);
+            return;
+        }
+
+        // Enviar notificación al admin
+        const telefonoAdmin = `${admin.codigoPais}${admin.telefono}`;
+        const notificacion = `📩 *Nuevo mensaje de ${nombreRemitente}:*\n\n"${mensaje.substring(0, 200)}${mensaje.length > 200 ? '...' : ''}"\n\nResponde con >> tu mensaje`;
+
+        await this.whatsappService.sendMessageToPhone(telefonoAdmin, admin.nombre, notificacion);
     }
 
     /**
@@ -146,6 +447,7 @@ export class IntentRouterService {
         conversationId: number,
         telefono: string,
         nombreWhatsapp: string,
+        conversacionDB: any,
     ): Promise<ConversationContext> {
         // Normalizar teléfono
         const telefonoLimpio = telefono.replace(/\D/g, '');
@@ -160,22 +462,10 @@ export class IntentRouterService {
             },
         });
 
-        // Buscar o crear conversación en BD
-        let conversacion = await this.prisma.conversacion.findFirst({
-            where: { telefono: telefonoLimpio },
-            orderBy: { updatedAt: 'desc' },
+        // Obtener datos de la conversación
+        const conversacion = await this.prisma.conversacion.findUnique({
+            where: { id: conversacionDB.id },
         });
-
-        if (!conversacion) {
-            conversacion = await this.prisma.conversacion.create({
-                data: {
-                    telefono: telefonoLimpio,
-                    usuarioId: usuario?.id,
-                    estado: 'inicio',
-                    contexto: {},
-                },
-            });
-        }
 
         return {
             conversationId,
@@ -183,9 +473,9 @@ export class IntentRouterService {
             nombreWhatsapp,
             usuarioId: usuario?.id,
             roles: usuario?.roles?.map(r => r.rol.nombre) || [],
-            estado: conversacion.estado,
-            moduloActivo: conversacion.moduloActivo || undefined,
-            datos: (conversacion.contexto as Record<string, any>) || {},
+            estado: conversacion?.estado || 'inicio',
+            moduloActivo: conversacion?.moduloActivo || undefined,
+            datos: (conversacion?.contexto as Record<string, any>) || {},
         };
     }
 
@@ -209,8 +499,6 @@ export class IntentRouterService {
      * Resetear contexto
      */
     async resetContext(conversationId: number): Promise<void> {
-        // Usamos el conversationId para buscar por teléfono en la práctica
-        // Por ahora solo logueamos
         this.logger.debug(`Reset context for conversation ${conversationId}`);
     }
 
@@ -234,6 +522,10 @@ export class IntentRouterService {
             helpText += `   • "asignar bienvenida a María"\n`;
             helpText += `   • "asignar oración a Juan en PMA-X3kP9m"\n`;
             helpText += `   • "enviar programa a participantes"\n\n`;
+            helpText += `🔧 *Admin:*\n`;
+            helpText += `   • /pendientes - ver pendientes\n`;
+            helpText += `   • /mis - mis conversaciones\n`;
+            helpText += `   • >> mensaje - responder en handoff\n\n`;
         }
 
         if (context.roles.includes('admin')) {

@@ -8,6 +8,7 @@ import {
   Users,
   ClipboardCheck,
   ClipboardList,
+  Inbox,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/' }, // Todos ven el dashboard
   { label: 'Programas', icon: Calendar, href: '/programas', roles: ['admin', 'lider'] },
   { label: 'Asistencia', icon: ClipboardCheck, href: '/asistencias', roles: ['admin', 'lider'] },
+  { label: 'Inbox', icon: Inbox, href: '/inbox', roles: ['admin', 'lider'] },
   { label: 'Tipos Asistencia', icon: ClipboardList, href: '/tipos-asistencia', roles: ['admin'] },
   { label: 'Usuarios', icon: Users, href: '/usuarios', roles: ['admin'] },
   // { label: 'Configuración', icon: Settings, href: '/configuracion', roles: ['admin'] },

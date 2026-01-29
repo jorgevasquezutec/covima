@@ -14,6 +14,7 @@ import AsistenciaRoom from '@/pages/asistencia/AsistenciaRoom';
 import RegistrarAsistencia from '@/pages/asistencia/RegistrarAsistencia';
 import TiposAsistenciaPage from '@/pages/asistencia/TiposAsistenciaPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
+import InboxPage from '@/pages/inbox/InboxPage';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -98,6 +99,16 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <UsuariosPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inbox"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <InboxPage />
               </MainLayout>
             </ProtectedRoute>
           }

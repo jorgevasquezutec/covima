@@ -242,6 +242,8 @@ export class UsuariosService {
     fechaNacimiento?: Date;
     direccion?: string;
     biografia?: string;
+    notificarNuevasConversaciones?: boolean;
+    modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
   }) {
     const usuario = await this.prisma.usuario.findUnique({ where: { id } });
 
@@ -258,10 +260,12 @@ export class UsuariosService {
         fechaNacimiento: data.fechaNacimiento,
         direccion: data.direccion,
         biografia: data.biografia,
+        notificarNuevasConversaciones: data.notificarNuevasConversaciones,
+        modoHandoffDefault: data.modoHandoffDefault,
       },
     });
 
-    return this.findOne(id);
+    return this.getProfile(id);
   }
 
   /**
@@ -292,6 +296,8 @@ export class UsuariosService {
       fechaNacimiento: usuario.fechaNacimiento,
       direccion: usuario.direccion,
       biografia: usuario.biografia,
+      notificarNuevasConversaciones: usuario.notificarNuevasConversaciones,
+      modoHandoffDefault: usuario.modoHandoffDefault,
     };
   }
 

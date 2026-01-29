@@ -100,6 +100,8 @@ export class UsuariosController {
       fechaNacimiento?: string;
       direccion?: string;
       biografia?: string;
+      notificarNuevasConversaciones?: boolean;
+      modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
     },
   ) {
     return this.usuariosService.updateProfile(req.user.id, {

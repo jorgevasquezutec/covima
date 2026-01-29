@@ -12,6 +12,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AsistenciaModule } from '../asistencia/asistencia.module';
 import { UsuariosModule } from '../usuarios/usuarios.module';
 import { ProgramasModule } from '../programas/programas.module';
+import { InboxModule } from '../inbox/inbox.module';
 
 @Module({
     imports: [
@@ -20,6 +21,7 @@ import { ProgramasModule } from '../programas/programas.module';
         AsistenciaModule,
         UsuariosModule,
         forwardRef(() => ProgramasModule),
+        forwardRef(() => InboxModule),
     ],
     controllers: [WhatsappBotController],
     providers: [

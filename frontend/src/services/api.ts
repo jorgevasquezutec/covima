@@ -122,6 +122,8 @@ export const usuariosApi = {
     fechaNacimiento?: string;
     direccion?: string;
     biografia?: string;
+    notificarNuevasConversaciones?: boolean;
+    modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
   }): Promise<any> => {
     const response = await api.patch('/usuarios/profile/me', data);
     return response.data;
@@ -446,6 +448,122 @@ export const asistenciaApi = {
       params,
       responseType: 'blob',
     });
+    return response.data;
+  },
+};
+
+// ==================== INBOX API ====================
+
+import type {
+  Conversacion,
+  ConversacionesResponse,
+  MensajesResponse,
+  EnviarMensajeResponse,
+  TomarConversacionResponse,
+  AdminDisponible,
+  ModoFiltro,
+} from '@/pages/inbox/types/inbox.types';
+
+export const inboxApi = {
+  // Conversaciones
+  getConversaciones: async (params?: {
+    cursor?: string;
+    limit?: number;
+    modo?: ModoFiltro;
+    misConversaciones?: string;
+    search?: string;
+  }): Promise<ConversacionesResponse> => {
+    const response = await api.get<ConversacionesResponse>('/inbox/conversaciones', { params });
+    return response.data;
+  },
+
+  getConversacion: async (id: number): Promise<Conversacion> => {
+    const response = await api.get<Conversacion>(`/inbox/conversaciones/${id}`);
+    return response.data;
+  },
+
+  // Mensajes
+  getMensajes: async (
+    conversacionId: number,
+    params?: {
+      cursor?: string;
+      limit?: number;
+      direccion?: 'antes' | 'despues';
+    }
+  ): Promise<MensajesResponse> => {
+    const response = await api.get<MensajesResponse>(
+      `/inbox/conversaciones/${conversacionId}/mensajes`,
+      { params }
+    );
+    return response.data;
+  },
+
+  enviarMensaje: async (
+    conversacionId: number,
+    data: { contenido: string; tipo?: string }
+  ): Promise<EnviarMensajeResponse> => {
+    const response = await api.post<EnviarMensajeResponse>(
+      `/inbox/conversaciones/${conversacionId}/mensajes`,
+      data
+    );
+    return response.data;
+  },
+
+  // Handoff
+  tomarConversacion: async (conversacionId: number): Promise<TomarConversacionResponse> => {
+    const response = await api.post<TomarConversacionResponse>(
+      `/inbox/conversaciones/${conversacionId}/tomar`
+    );
+    return response.data;
+  },
+
+  cerrarHandoff: async (
+    conversacionId: number,
+    data?: { mensajeDespedida?: string }
+  ): Promise<{ success: boolean }> => {
+    const response = await api.post<{ success: boolean }>(
+      `/inbox/conversaciones/${conversacionId}/cerrar`,
+      data || {}
+    );
+    return response.data;
+  },
+
+  transferirConversacion: async (
+    conversacionId: number,
+    data: { adminId: number; mensajeContexto?: string }
+  ): Promise<{ success: boolean }> => {
+    const response = await api.post<{ success: boolean }>(
+      `/inbox/conversaciones/${conversacionId}/transferir`,
+      data
+    );
+    return response.data;
+  },
+
+  marcarComoLeido: async (
+    conversacionId: number,
+    data?: { hastaMessageId?: string }
+  ): Promise<{ success: boolean }> => {
+    const response = await api.post<{ success: boolean }>(
+      `/inbox/conversaciones/${conversacionId}/leer`,
+      data || {}
+    );
+    return response.data;
+  },
+
+  actualizarModoRespuesta: async (
+    conversacionId: number,
+    modoRespuesta: 'WEB' | 'WHATSAPP' | 'AMBOS' | null
+  ): Promise<Conversacion> => {
+    const response = await api.post<Conversacion>(
+      `/inbox/conversaciones/${conversacionId}/modo-respuesta`,
+      { modoRespuesta }
+    );
+    return response.data;
+  },
+
+  // Utilidades
+  getAdminsDisponibles: async (): Promise<AdminDisponible[]> => {
+    const response = await api.get<AdminDisponible[]>('/inbox/admins-disponibles');
     return response.data;
   },
 };
