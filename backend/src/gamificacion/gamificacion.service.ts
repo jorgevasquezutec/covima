@@ -52,10 +52,21 @@ export class GamificacionService {
     });
 
     if (!perfil) {
+      // Buscar el nivel inicial (Discípulo, numero = 1)
+      const nivelInicial = await this.prisma.nivelBiblico.findFirst({
+        where: { numero: 1 },
+      });
+
+      if (!nivelInicial) {
+        throw new Error(
+          'No se encontró el nivel inicial. Ejecuta el seeder de gamificación.',
+        );
+      }
+
       perfil = await this.prisma.usuarioGamificacion.create({
         data: {
           usuarioId,
-          nivelId: 1, // Nivel Discípulo
+          nivelId: nivelInicial.id,
         },
         include: {
           nivel: true,
