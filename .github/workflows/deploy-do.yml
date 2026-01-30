@@ -1,7 +1,8 @@
 name: Deploy to Digital Ocean
 
 on:
-  # Solo manual por ahora - cuando esté listo, puedes agregar push a main
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
