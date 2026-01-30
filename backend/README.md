@@ -1,98 +1,236 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Backend - Covima JA
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST y Bot de WhatsApp para el sistema de gestión de Programa JA y Asistencia.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack Tecnológico
 
-## Description
+| Tecnología | Versión | Uso |
+|------------|---------|-----|
+| NestJS | 10.x | Framework principal |
+| Prisma | 5.x | ORM |
+| PostgreSQL | 15+ | Base de datos |
+| Redis | 7.x | Cache y pub/sub (WebSocket) |
+| Socket.io | 4.x | Tiempo real (Inbox, Asistencia) |
+| OpenAI | GPT-4o | Clasificación de intents del bot |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Estructura de Módulos
 
-```bash
-$ npm install
+```
+src/
+├── auth/                 # Autenticación JWT
+│   ├── guards/           # JwtAuthGuard, RolesGuard
+│   └── strategies/       # JWT Strategy
+├── usuarios/             # CRUD de usuarios y roles
+├── programas/            # Gestión de programas JA
+├── asistencia/           # QR, registro, confirmación
+│   └── gateway/          # WebSocket para registro en vivo
+├── tipos-asistencia/     # Catálogo de tipos (JA, ES, etc.)
+├── gamificacion/         # Puntos, niveles, insignias, rankings
+├── inbox/                # Conversaciones y handoff
+│   └── gateway/          # WebSocket para chat en tiempo real
+├── whatsapp-bot/         # Bot de WhatsApp
+│   └── handlers/         # Handlers por módulo
+├── prisma/               # Cliente Prisma
+├── redis/                # Servicio Redis
+└── common/               # Utilidades compartidas
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## Módulos Principales
 
-# watch mode
-$ npm run start:dev
+### Auth (`/api/auth`)
+- `POST /login` - Login con teléfono + contraseña
+- `GET /me` - Usuario actual
+- `POST /change-password` - Cambiar contraseña
 
-# production mode
-$ npm run start:prod
+### Usuarios (`/api/usuarios`)
+- CRUD completo de usuarios
+- Gestión de roles (admin, líder, participante)
+- Reset de contraseña por admin
+
+### Programas (`/api/programas`)
+- CRUD de programas semanales
+- Asignación de participantes a partes
+- Generación de texto para WhatsApp
+- Parsing de programa con IA
+
+### Asistencia (`/api/asistencia`)
+- Generación de códigos QR (formato: `JAXXXXXXXX`)
+- Registro de asistencia vía web o bot
+- Confirmación/rechazo por admin
+- **Validación**: Un usuario solo puede registrar una vez por código QR
+- WebSocket para registro en tiempo real
+
+### Gamificación (`/api/gamificacion`)
+- **Puntos**: Por asistencia (temprana/normal/tardía) y participación
+- **XP y Niveles**: 10 niveles bíblicos (Discípulo → Serafín)
+- **Racha**: Semanas consecutivas de asistencia
+- **Insignias**: Logros permanentes desbloqueables
+- **Rankings**: Trimestrales con filtros
+
+### Inbox (`/api/inbox`)
+- Conversaciones de WhatsApp
+- Handoff: Bot → Admin → Bot
+- Respuestas desde la plataforma
+- WebSocket para mensajes en tiempo real
+
+### WhatsApp Bot (`/whatsapp/webhook`)
+- Webhook de Meta Cloud API
+- Clasificación de intents con OpenAI
+- Handlers: asistencia, usuarios, programas, notificaciones
+- Comandos admin: `/cerrar`, `/pendientes`, `>>`
+
+---
+
+## API Endpoints
+
+### Gamificación
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/gamificacion/mi-progreso` | Perfil del usuario actual |
+| GET | `/gamificacion/ranking` | Ranking con filtros |
+| GET | `/gamificacion/niveles` | Lista de niveles |
+| GET | `/gamificacion/mis-insignias` | Insignias del usuario |
+| GET | `/gamificacion/config-puntajes` | [Admin] Configuración de puntos |
+| PUT | `/gamificacion/config-puntajes/:id` | [Admin] Editar puntos |
+
+### Asistencia
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/asistencia` | Listar asistencias |
+| GET | `/asistencia/qr` | Listar códigos QR |
+| POST | `/asistencia/qr` | Crear código QR |
+| DELETE | `/asistencia/qr/:id` | Eliminar QR (cascade) |
+| POST | `/asistencia/registrar` | Registrar asistencia |
+| POST | `/asistencia/confirmar` | Confirmar asistencias |
+
+### Inbox
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/inbox/conversaciones` | Listar conversaciones |
+| GET | `/inbox/conversaciones/:id/mensajes` | Mensajes de una conversación |
+| POST | `/inbox/conversaciones/:id/mensajes` | Enviar mensaje |
+| POST | `/inbox/conversaciones/:id/tomar` | Tomar conversación (handoff) |
+| POST | `/inbox/conversaciones/:id/cerrar` | Devolver al bot |
+
+---
+
+## Base de Datos
+
+### Tablas Principales
+
+```
+usuarios              # Usuarios del sistema
+usuarios_roles        # Relación usuario-rol
+roles                 # admin, lider, participante
+
+programas             # Programas semanales
+programa_asignaciones # Participantes asignados
+partes                # Catálogo de partes del programa
+
+qr_asistencia         # Códigos QR generados
+asistencias           # Registros de asistencia
+tipos_asistencia      # JA, Escuela Sabática, etc.
+
+conversaciones        # Conversaciones WhatsApp
+mensajes              # Mensajes de conversaciones
+
+usuarios_gamificacion # Perfil de gamificación
+historial_puntos      # Registro de puntos asignados
+config_puntaje        # Valores de puntos configurables
+niveles_biblicos      # Definición de niveles
+insignias             # Definición de badges
+usuarios_insignias    # Badges desbloqueados
 ```
 
-## Run tests
+### Formato de Códigos QR
 
-```bash
-# unit tests
-$ npm run test
+```
+JAXXXXXXXX
+│ └────────── 8 caracteres alfanuméricos (sin ambiguos: 0,1,I,L,O)
+└──────────── Prefijo fijo "JA"
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+Ejemplo: JA7K9M2PQR
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Variables de Entorno
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```env
+# Base de datos
+DATABASE_URL=postgresql://user:pass@localhost:5432/covima_ja
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# JWT
+JWT_SECRET=tu_secret_muy_largo_y_seguro
+
+# WhatsApp Meta Cloud API
+WHATSAPP_TOKEN=EAAxxxxxxx
+WHATSAPP_PHONE_NUMBER_ID=123456789
+WHATSAPP_VERIFY_TOKEN=tu_verify_token
+WHATSAPP_BOT_NUMBER=51999888777
+
+# OpenAI
+OPENAI_API_KEY=sk-xxxxxxx
+
+# URLs
+FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:3000
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## Comandos
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+# Instalar dependencias
+pnpm install
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# Desarrollo
+pnpm start:dev
 
-## Support
+# Base de datos
+pnpm db:generate   # Genera cliente Prisma
+pnpm db:migrate    # Aplica migraciones + seed
+pnpm db:push       # Push rápido (desarrollo)
+pnpm db:seed       # Ejecuta seed
+pnpm db:studio     # GUI de Prisma
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Tests
+pnpm test          # Tests unitarios
+pnpm test:e2e      # Tests E2E
 
-## Stay in touch
+# Build
+pnpm build
+pnpm start:prod
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
-## License
+## WebSockets
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Namespace: `/asistencia`
+- `join-room`: Unirse a sala de QR para ver registros en vivo
+- `nueva-asistencia`: Evento cuando alguien registra asistencia
+
+### Namespace: `/inbox`
+- `inbox:mensaje:nuevo`: Nuevo mensaje en conversación
+- `inbox:conversacion:actualizada`: Cambio de estado
+- `inbox:typing`: Indicador de escritura
+
+---
+
+## Documentación Adicional
+
+- [Gamificación detallada](../docs/GAMIFICACION.md)
+- [Sistema de Inbox](../docs/INBOX-HANDOFF.md)
+- [Insignias](../frontend/docs/INSIGNIAS-SISTEMA.md)
