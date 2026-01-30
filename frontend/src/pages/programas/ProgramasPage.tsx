@@ -407,7 +407,7 @@ export default function ProgramasPage() {
                                                     >
                                                         <MessageCircle className="h-4 w-4" />
                                                     </Button>
-                                                    {programa.estado === 'enviado' && (
+                                                    {['borrador', 'completo', 'enviado'].includes(programa.estado) && (
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
