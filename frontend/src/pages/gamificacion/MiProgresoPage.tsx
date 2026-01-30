@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trophy, Flame, Star, Calendar, CheckCircle, History, Lock, ChevronRight, Check, ChevronLeft, Medal, TrendingUp, ChevronUp } from 'lucide-react';
+import { Trophy, Flame, Star, Calendar, CheckCircle, History, Lock, ChevronRight, ChevronLeft, Medal, TrendingUp, ChevronUp } from 'lucide-react';
 import { gamificacionApi } from '@/services/api';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
