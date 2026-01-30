@@ -1,9 +1,17 @@
-name: Deploy to Azure VM
+name: Deploy to Digital Ocean
 
 on:
-  push:
-    branches: [main]
+  # Solo manual por ahora - cuando esté listo, puedes agregar push a main
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
 
 env:
   DOMAIN: jvasquez.me
@@ -19,9 +27,9 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.AZURE_VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.AZURE_VM_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
 
       - name: Create .env file
         run: |
@@ -45,13 +53,14 @@ jobs:
             --exclude '.git' \
             --exclude '.env.local' \
             --exclude 'backend/.env' \
+            --exclude 'backups' \
             -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ./ ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }}:~/covima-ja/
+            ./ root@${{ secrets.DO_HOST }}:~/covima-ja/
 
       - name: Deploy with Docker Compose
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'ENDSSH'
+            root@${{ secrets.DO_HOST }} << 'ENDSSH'
           cd ~/covima-ja
 
           # Detener contenedores existentes
@@ -62,7 +71,7 @@ jobs:
           docker compose -f docker-compose.prod.yml up -d
 
           # Esperar a que los servicios esten listos
-          sleep 10
+          sleep 15
 
           # Limpiar imagenes antiguas
           docker image prune -f
@@ -73,5 +82,7 @@ jobs:
 
       - name: Health check
         run: |
+          echo "Waiting for services to be ready..."
           sleep 30
-          curl -f https://covima-api.${{ env.DOMAIN }}/api/health || echo "Health check pending - SSL may take a moment"
+          # Por ahora usamos IP directa hasta que hagamos el switch de DNS
+          curl -f http://${{ secrets.DO_HOST }}:3000/api/health || echo "Health check - services starting..."

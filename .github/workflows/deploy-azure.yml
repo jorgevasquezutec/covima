@@ -1,0 +1,78 @@
+name: Deploy to Azure VM
+
+on:
+  # Push desactivado temporalmente - solo manual
+  # push:
+  #   branches: [main]
+  workflow_dispatch:
+
+env:
+  DOMAIN: jvasquez.me
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AZURE_VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.AZURE_VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          FRONTEND_URL=https://covima.${{ env.DOMAIN }}
+          BACKEND_URL=https://covima-api.${{ env.DOMAIN }}
+          WHATSAPP_TOKEN=${{ secrets.WHATSAPP_TOKEN }}
+          WHATSAPP_PHONE_NUMBER_ID=${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+          WHATSAPP_VERIFY_TOKEN=${{ secrets.WHATSAPP_VERIFY_TOKEN }}
+          WHATSAPP_BOT_NUMBER=${{ secrets.WHATSAPP_BOT_NUMBER }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          EOF
+
+      - name: Copy files to server
+        run: |
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude '.env.local' \
+            --exclude 'backend/.env' \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }}:~/covima-ja/
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'ENDSSH'
+          cd ~/covima-ja
+
+          # Detener contenedores existentes
+          docker compose -f docker-compose.prod.yml down || true
+
+          # Construir y levantar
+          docker compose -f docker-compose.prod.yml build --no-cache
+          docker compose -f docker-compose.prod.yml up -d
+
+          # Esperar a que los servicios esten listos
+          sleep 10
+
+          # Limpiar imagenes antiguas
+          docker image prune -f
+
+          # Mostrar estado
+          docker compose -f docker-compose.prod.yml ps
+          ENDSSH
+
+      - name: Health check
+        run: |
+          sleep 30
+          curl -f https://covima-api.${{ env.DOMAIN }}/api/health || echo "Health check pending - SSL may take a moment"
