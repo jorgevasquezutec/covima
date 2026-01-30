@@ -535,6 +535,9 @@ import type {
   PosicionGrupo,
   HistorialPuntosResponse,
   ResumenPeriodo,
+  CrearNivelRequest,
+  ActualizarNivelRequest,
+  HistorialAdminResponse,
 } from '@/types';
 
 export const gamificacionApi = {
@@ -567,8 +570,40 @@ export const gamificacionApi = {
     return response.data;
   },
 
-  getNiveles: async (): Promise<NivelBiblico[]> => {
-    const response = await api.get<NivelBiblico[]>('/gamificacion/niveles');
+  getNiveles: async (incluirInactivos = false): Promise<NivelBiblico[]> => {
+    const response = await api.get<NivelBiblico[]>('/gamificacion/niveles', {
+      params: { incluirInactivos },
+    });
+    return response.data;
+  },
+
+  // [Admin] Obtener nivel por ID
+  getNivel: async (id: number): Promise<NivelBiblico> => {
+    const response = await api.get<NivelBiblico>(`/gamificacion/niveles/${id}`);
+    return response.data;
+  },
+
+  // [Admin] Crear nivel
+  crearNivel: async (data: CrearNivelRequest): Promise<NivelBiblico> => {
+    const response = await api.post<NivelBiblico>('/gamificacion/niveles', data);
+    return response.data;
+  },
+
+  // [Admin] Actualizar nivel
+  actualizarNivel: async (id: number, data: ActualizarNivelRequest): Promise<NivelBiblico> => {
+    const response = await api.put<NivelBiblico>(`/gamificacion/niveles/${id}`, data);
+    return response.data;
+  },
+
+  // [Admin] Eliminar nivel
+  eliminarNivel: async (id: number): Promise<{ mensaje: string }> => {
+    const response = await api.delete(`/gamificacion/niveles/${id}`);
+    return response.data;
+  },
+
+  // [Admin] Recalcular XP de todos los niveles
+  recalcularXpNiveles: async (): Promise<{ mensaje: string }> => {
+    const response = await api.post('/gamificacion/niveles/recalcular-xp');
     return response.data;
   },
 
@@ -782,6 +817,40 @@ export const gamificacionApi = {
   // [Admin] Cambiar participación de un usuario en rankings
   setParticipaEnRanking: async (usuarioId: number, participa: boolean): Promise<{ participaEnRanking: boolean }> => {
     const response = await api.put(`/gamificacion/grupos-ranking/usuarios/${usuarioId}/participacion`, { participa });
+    return response.data;
+  },
+
+  // === ADMIN: HISTORIAL DE PUNTOS ===
+
+  // [Admin] Obtener historial de todos los usuarios
+  getHistorialAdmin: async (params: {
+    usuarioId?: number;
+    periodoId?: number;
+    categoria?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<HistorialAdminResponse> => {
+    const response = await api.get<HistorialAdminResponse>('/gamificacion/admin/historial', { params });
+    return response.data;
+  },
+
+  // [Admin] Obtener una entrada del historial
+  getHistorialEntry: async (id: number) => {
+    const response = await api.get(`/gamificacion/admin/historial/${id}`);
+    return response.data;
+  },
+
+  // [Admin] Actualizar una entrada del historial
+  updateHistorialEntry: async (id: number, data: { puntos?: number; xp?: number; descripcion?: string }): Promise<{ mensaje: string }> => {
+    const response = await api.put(`/gamificacion/admin/historial/${id}`, data);
+    return response.data;
+  },
+
+  // [Admin] Eliminar una entrada del historial
+  deleteHistorialEntry: async (id: number): Promise<{ mensaje: string }> => {
+    const response = await api.delete(`/gamificacion/admin/historial/${id}`);
     return response.data;
   },
 };

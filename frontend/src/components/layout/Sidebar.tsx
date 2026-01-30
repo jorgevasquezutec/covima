@@ -21,6 +21,8 @@ import {
   Gift,
   CalendarPlus,
   LayoutList,
+  Medal,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -72,6 +74,8 @@ const navSections: NavSection[] = [
       { label: 'Registrar Evento', icon: CalendarPlus, href: '/admin/gamificacion/registrar' },
       { label: 'Eventos', icon: Gift, href: '/admin/gamificacion/eventos', roles: ['admin', 'lider'] },
       { label: 'Config Puntos', icon: Settings, href: '/admin/gamificacion/puntajes', roles: ['admin'] },
+      { label: 'Niveles', icon: Medal, href: '/admin/gamificacion/niveles', roles: ['admin'] },
+      { label: 'Historial Puntos', icon: History, href: '/admin/gamificacion/historial', roles: ['admin'] },
     ],
   },
   {

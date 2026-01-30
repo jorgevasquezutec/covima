@@ -16,7 +16,7 @@ import TiposAsistenciaPage from '@/pages/asistencia/TiposAsistenciaPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
 import InboxPage from '@/pages/inbox/InboxPage';
 import { RankingPage, MiProgresoPage } from '@/pages/gamificacion';
-import { ConfigPuntajesPage, RegistroEventoPage, EventosPage, PeriodosRankingPage, GruposRankingPage } from '@/pages/admin/gamificacion';
+import { ConfigPuntajesPage, RegistroEventoPage, EventosPage, PeriodosRankingPage, GruposRankingPage, NivelesPage, HistorialPuntosPage } from '@/pages/admin/gamificacion';
 import { PartesProgramaPage } from '@/pages/admin/partes';
 
 function App() {
@@ -184,6 +184,26 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <GruposRankingPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/gamificacion/niveles"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <NivelesPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/gamificacion/historial"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <HistorialPuntosPage />
               </MainLayout>
             </ProtectedRoute>
           }

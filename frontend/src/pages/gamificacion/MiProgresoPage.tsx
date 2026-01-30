@@ -36,7 +36,7 @@ export default function MiProgresoPage() {
 
   const { data: niveles } = useQuery({
     queryKey: ['niveles'],
-    queryFn: gamificacionApi.getNiveles,
+    queryFn: () => gamificacionApi.getNiveles(),
   });
 
   const { data: posiciones } = useQuery({
@@ -231,7 +231,7 @@ export default function MiProgresoPage() {
               {posiciones.map((pos) => (
                 <Link
                   key={pos.grupoId}
-                  to="/ranking"
+                  to={`/ranking?grupo=${pos.grupoId}`}
                   className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-100 hover:shadow-md transition-shadow"
                 >
                   <span className="text-2xl">{pos.icono || '📊'}</span>

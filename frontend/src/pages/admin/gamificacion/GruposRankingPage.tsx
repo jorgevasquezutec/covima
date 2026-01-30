@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, Plus, Edit2, Trash2, UserPlus, Crown, Search, Eye, RefreshCw } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, UserPlus, Crown, Search, Eye } from 'lucide-react';
 import { gamificacionApi, usuariosApi } from '@/services/api';
 import type { GrupoRanking, CrearGrupoRankingRequest } from '@/types';
 import { toast } from 'sonner';
@@ -41,8 +41,9 @@ export default function GruposRankingPage() {
   const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [grupoToDelete, setGrupoToDelete] = useState<GrupoRanking | null>(null);
-  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  const [grupoToConvert, setGrupoToConvert] = useState<GrupoRanking | null>(null);
+  // Comentado: Convertir a personalizado ya no es necesario
+  // const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  // const [grupoToConvert, setGrupoToConvert] = useState<GrupoRanking | null>(null);
   const [grupoToEdit, setGrupoToEdit] = useState<GrupoRanking | null>(null);
   const [grupoForMembers, setGrupoForMembers] = useState<GrupoRanking | null>(null);
   const [viewMembersModalOpen, setViewMembersModalOpen] = useState(false);
@@ -157,19 +158,20 @@ export default function GruposRankingPage() {
     },
   });
 
-  const convertirMutation = useMutation({
-    mutationFn: gamificacionApi.convertirGrupoAPersonalizado,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['grupos-ranking-admin'] });
-      queryClient.invalidateQueries({ queryKey: ['grupos-ranking'] });
-      toast.success(data.mensaje);
-      setConvertDialogOpen(false);
-      setGrupoToConvert(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al convertir grupo');
-    },
-  });
+  // Comentado: Convertir a personalizado ya no es necesario
+  // const convertirMutation = useMutation({
+  //   mutationFn: gamificacionApi.convertirGrupoAPersonalizado,
+  //   onSuccess: (data) => {
+  //     queryClient.invalidateQueries({ queryKey: ['grupos-ranking-admin'] });
+  //     queryClient.invalidateQueries({ queryKey: ['grupos-ranking'] });
+  //     toast.success(data.mensaje);
+  //     setConvertDialogOpen(false);
+  //     setGrupoToConvert(null);
+  //   },
+  //   onError: (error: any) => {
+  //     toast.error(error.response?.data?.message || 'Error al convertir grupo');
+  //   },
+  // });
 
   const handleOpenCreate = () => {
     setGrupoToEdit(null);
@@ -361,8 +363,8 @@ export default function GruposRankingPage() {
                         <UserPlus className="w-4 h-4" />
                       </Button>
                     )}
-                    {/* Convertir a personalizado - solo grupos sistema */}
-                    {grupo.tipo === 'SISTEMA' && (
+                    {/* Comentado: Convertir a personalizado ya no es necesario */}
+                    {/* {grupo.tipo === 'SISTEMA' && (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -375,7 +377,7 @@ export default function GruposRankingPage() {
                       >
                         <RefreshCw className="w-4 h-4" />
                       </Button>
-                    )}
+                    )} */}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -799,8 +801,8 @@ export default function GruposRankingPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Alert Dialog Convertir a Personalizado */}
-      <AlertDialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+      {/* Comentado: Convertir a personalizado ya no es necesario */}
+      {/* <AlertDialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Convertir a grupo personalizado?</AlertDialogTitle>
@@ -827,7 +829,7 @@ export default function GruposRankingPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
     </div>
   );
 }

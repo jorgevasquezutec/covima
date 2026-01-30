@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +14,7 @@ import { formatDate } from '@/lib/utils';
 
 export default function RankingPage() {
   const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [periodoId, setPeriodoId] = useState<number | null>(null);
   const [grupoId, setGrupoId] = useState<number | null>(null);
 
@@ -28,13 +30,22 @@ export default function RankingPage() {
     queryFn: () => gamificacionApi.getPeriodos(true),
   });
 
-  // Seleccionar grupo por defecto (General)
+  // Seleccionar grupo por defecto o desde query param
   useEffect(() => {
     if (grupos && grupos.length > 0 && !grupoId) {
+      const grupoParam = searchParams.get('grupo');
+      if (grupoParam) {
+        const grupoFromParam = grupos.find((g) => g.id === Number(grupoParam));
+        if (grupoFromParam) {
+          setGrupoId(grupoFromParam.id);
+          return;
+        }
+      }
+      // Default: grupo general
       const general = grupos.find((g) => g.codigo === 'general');
       setGrupoId(general?.id || grupos[0].id);
     }
-  }, [grupos, grupoId]);
+  }, [grupos, grupoId, searchParams]);
 
   // Seleccionar período activo por defecto
   useEffect(() => {
@@ -163,7 +174,10 @@ export default function RankingPage() {
             {grupos.map((grupo) => (
               <button
                 key={grupo.id}
-                onClick={() => setGrupoId(grupo.id)}
+                onClick={() => {
+                  setGrupoId(grupo.id);
+                  setSearchParams({ grupo: grupo.id.toString() });
+                }}
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
                   ${grupoId === grupo.id

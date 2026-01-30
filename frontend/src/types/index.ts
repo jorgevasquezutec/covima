@@ -456,6 +456,25 @@ export interface NivelBiblico {
   xpRequerido: number;
   icono?: string;
   color?: string;
+  activo?: boolean;
+  _count?: { usuariosEnNivel: number };
+}
+
+export interface CrearNivelRequest {
+  numero: number;
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+}
+
+export interface ActualizarNivelRequest {
+  numero?: number;
+  nombre?: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+  activo?: boolean;
 }
 
 export interface Insignia {
@@ -741,5 +760,27 @@ export interface ResumenPeriodo {
   posicionFinal: number;
   totalParticipantes: number;
   porCategoria: Record<string, { puntos: number; cantidad: number }>;
+}
+
+// Admin: Historial de puntos
+export interface HistorialAdminItem {
+  id: number;
+  usuario: { id: number; nombre: string; fotoUrl?: string };
+  categoria: string;
+  accion: string;
+  descripcion?: string;
+  puntos: number;
+  xp: number;
+  fecha: string;
+  periodo?: { id: number; nombre: string } | null;
+  createdAt: string;
+}
+
+export interface HistorialAdminResponse {
+  items: HistorialAdminItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
