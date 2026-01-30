@@ -9,6 +9,7 @@ import type {
   UpdateUsuarioRequest,
   PaginatedResponse,
   Rol,
+  PeriodoRanking,
 } from '@/types';
 
 // En desarrollo, usar la misma IP/host del navegador para la API
@@ -104,6 +105,11 @@ export const usuariosApi = {
     return response.data;
   },
 
+  toggleRanking: async (id: number): Promise<Usuario> => {
+    const response = await api.patch<Usuario>(`/usuarios/${id}/toggle-ranking`);
+    return response.data;
+  },
+
   getRoles: async (): Promise<Rol[]> => {
     const response = await api.get<Rol[]>('/usuarios/roles');
     return response.data;
@@ -177,6 +183,8 @@ import type {
   Parte,
   CreateProgramaRequest,
   UpdateProgramaRequest,
+  CreateParteRequest,
+  UpdateParteRequest,
   UsuarioSimple,
   PreviewNotificacionesResponse,
 } from '@/types';
@@ -225,6 +233,27 @@ export const programasApi = {
     return response.data;
   },
 
+  // CRUD Partes (Admin)
+  getAllPartes: async (): Promise<Parte[]> => {
+    const response = await api.get<Parte[]>('/programas/partes/all');
+    return response.data;
+  },
+
+  createParte: async (data: CreateParteRequest): Promise<Parte> => {
+    const response = await api.post<Parte>('/programas/partes', data);
+    return response.data;
+  },
+
+  updateParte: async (id: number, data: UpdateParteRequest): Promise<Parte> => {
+    const response = await api.put<Parte>(`/programas/partes/${id}`, data);
+    return response.data;
+  },
+
+  deleteParte: async (id: number): Promise<Parte> => {
+    const response = await api.delete<Parte>(`/programas/partes/${id}`);
+    return response.data;
+  },
+
   getUsuarios: async (): Promise<UsuarioSimple[]> => {
     const response = await api.get<UsuarioSimple[]>('/programas/usuarios');
     return response.data;
@@ -248,6 +277,25 @@ export const programasApi = {
     const response = await api.post(`/programas/${id}/enviar-notificaciones`, {
       usuarioIds,
     });
+    return response.data;
+  },
+
+  previewFinalizarPrograma: async (id: number): Promise<{
+    programa: { id: number; titulo: string; fecha: string; estado: string };
+    resumen: { participantes: number; puntosTotal: number; xpTotal: number };
+    detalles: { usuario: string; usuarioId: number; parte: string; parteId: number; puntos: number; xp: number }[];
+  }> => {
+    const response = await api.get(`/programas/${id}/preview-finalizacion`);
+    return response.data;
+  },
+
+  finalizarPrograma: async (id: number): Promise<{
+    message: string;
+    programa: { id: number; titulo: string; fecha: string; estado: string };
+    resumen: { participantes: number; errores: number; puntosAsignados: number; xpAsignado: number };
+    detalles: { usuario: string; parte: string; puntos: number; xp: number; success: boolean; error?: string }[];
+  }> => {
+    const response = await api.post(`/programas/${id}/finalizar`);
     return response.data;
   },
 
@@ -371,7 +419,7 @@ export const asistenciaApi = {
     return response.data;
   },
 
-  updateQR: async (id: number, data: { semanaInicio?: string; horaInicio?: string; horaFin?: string; descripcion?: string }): Promise<QRAsistencia> => {
+  updateQR: async (id: number, data: { semanaInicio?: string; horaInicio?: string; horaFin?: string; margenTemprana?: number; margenTardia?: number; descripcion?: string }): Promise<QRAsistencia> => {
     const response = await api.patch<QRAsistencia>(`/asistencia/qr/${id}`, data);
     return response.data;
   },
@@ -463,6 +511,280 @@ import type {
   AdminDisponible,
   ModoFiltro,
 } from '@/pages/inbox/types/inbox.types';
+
+// ==================== GAMIFICACIÓN API ====================
+
+import type {
+  MiProgreso,
+  RankingUsuario,
+  RankingFilters,
+  NivelBiblico,
+  Insignia,
+  ConfiguracionPuntaje,
+  EventoEspecialConfig,
+  RegistrarEventoRequest,
+  RegistrarEventoResponse,
+  CrearEventoRequest,
+  ActualizarEventoRequest,
+  GrupoRanking,
+  GrupoRankingDetalle,
+  RankingGrupoUsuario,
+  CrearGrupoRankingRequest,
+  ActualizarGrupoRankingRequest,
+  MiVisibilidadRanking,
+  PosicionGrupo,
+  HistorialPuntosResponse,
+  ResumenPeriodo,
+} from '@/types';
+
+export const gamificacionApi = {
+  getMiProgreso: async (): Promise<MiProgreso> => {
+    const response = await api.get<MiProgreso>('/gamificacion/mi-progreso');
+    return response.data;
+  },
+
+  // Historial completo de puntos con paginación
+  getMiHistorial: async (params?: {
+    periodoId?: number;
+    page?: number;
+    limit?: number;
+  }): Promise<HistorialPuntosResponse> => {
+    const response = await api.get<HistorialPuntosResponse>(
+      '/gamificacion/mi-historial',
+      { params }
+    );
+    return response.data;
+  },
+
+  // Resumen de mis puntos por período
+  getMisPeriodos: async (): Promise<ResumenPeriodo[]> => {
+    const response = await api.get<ResumenPeriodo[]>('/gamificacion/mis-periodos');
+    return response.data;
+  },
+
+  getRanking: async (params?: RankingFilters): Promise<RankingUsuario[]> => {
+    const response = await api.get<RankingUsuario[]>('/gamificacion/ranking', { params });
+    return response.data;
+  },
+
+  getNiveles: async (): Promise<NivelBiblico[]> => {
+    const response = await api.get<NivelBiblico[]>('/gamificacion/niveles');
+    return response.data;
+  },
+
+  getMisInsignias: async (): Promise<Insignia[]> => {
+    const response = await api.get<Insignia[]>('/gamificacion/insignias');
+    return response.data;
+  },
+
+  getEventosEspeciales: async (): Promise<EventoEspecialConfig[]> => {
+    const response = await api.get<EventoEspecialConfig[]>('/gamificacion/eventos-especiales');
+    return response.data;
+  },
+
+  // Admin endpoints
+  getConfigPuntajes: async (): Promise<ConfiguracionPuntaje[]> => {
+    const response = await api.get<ConfiguracionPuntaje[]>('/gamificacion/config-puntajes');
+    return response.data;
+  },
+
+  updateConfigPuntaje: async (
+    id: number,
+    data: { puntos: number; xp?: number; nombre?: string; descripcion?: string }
+  ): Promise<ConfiguracionPuntaje> => {
+    const response = await api.put<ConfiguracionPuntaje>(`/gamificacion/config-puntajes/${id}`, data);
+    return response.data;
+  },
+
+  registrarEvento: async (data: RegistrarEventoRequest): Promise<RegistrarEventoResponse> => {
+    const response = await api.post<RegistrarEventoResponse>('/gamificacion/registrar-evento', data);
+    return response.data;
+  },
+
+  // CRUD Eventos Especiales
+  crearEvento: async (data: CrearEventoRequest): Promise<EventoEspecialConfig> => {
+    const response = await api.post<EventoEspecialConfig>('/gamificacion/eventos-especiales', data);
+    return response.data;
+  },
+
+  actualizarEvento: async (id: number, data: ActualizarEventoRequest): Promise<EventoEspecialConfig> => {
+    const response = await api.put<EventoEspecialConfig>(`/gamificacion/eventos-especiales/${id}`, data);
+    return response.data;
+  },
+
+  eliminarEvento: async (id: number): Promise<EventoEspecialConfig> => {
+    const response = await api.delete<EventoEspecialConfig>(`/gamificacion/eventos-especiales/${id}`);
+    return response.data;
+  },
+
+  // CRUD Períodos de Ranking
+  getPeriodos: async (incluirCerrados = true): Promise<PeriodoRanking[]> => {
+    const response = await api.get<PeriodoRanking[]>('/gamificacion/periodos', {
+      params: { incluirCerrados },
+    });
+    return response.data;
+  },
+
+  getPeriodoActivo: async (): Promise<PeriodoRanking | null> => {
+    const response = await api.get('/gamificacion/periodos/activo');
+    return response.data.id ? response.data : null;
+  },
+
+  getPeriodo: async (id: number): Promise<PeriodoRanking> => {
+    const response = await api.get<PeriodoRanking>(`/gamificacion/periodos/${id}`);
+    return response.data;
+  },
+
+  crearPeriodo: async (data: {
+    nombre: string;
+    descripcion?: string;
+    fechaInicio: string;
+    fechaFin?: string;
+  }): Promise<PeriodoRanking> => {
+    const response = await api.post<PeriodoRanking>('/gamificacion/periodos', data);
+    return response.data;
+  },
+
+  actualizarPeriodo: async (
+    id: number,
+    data: { nombre?: string; descripcion?: string; fechaFin?: string | null }
+  ): Promise<PeriodoRanking> => {
+    const response = await api.put<PeriodoRanking>(`/gamificacion/periodos/${id}`, data);
+    return response.data;
+  },
+
+  cerrarPeriodo: async (id: number): Promise<{
+    periodo: PeriodoRanking;
+    mensaje: string;
+    top3: RankingUsuario[];
+  }> => {
+    const response = await api.post(`/gamificacion/periodos/${id}/cerrar`);
+    return response.data;
+  },
+
+  reactivarPeriodo: async (id: number): Promise<{
+    periodo: PeriodoRanking;
+    mensaje: string;
+  }> => {
+    const response = await api.post(`/gamificacion/periodos/${id}/reactivar`);
+    return response.data;
+  },
+
+  pausarPeriodo: async (id: number): Promise<PeriodoRanking> => {
+    const response = await api.post<PeriodoRanking>(`/gamificacion/periodos/${id}/pausar`);
+    return response.data;
+  },
+
+  reanudarPeriodo: async (id: number): Promise<PeriodoRanking> => {
+    const response = await api.post<PeriodoRanking>(`/gamificacion/periodos/${id}/reanudar`);
+    return response.data;
+  },
+
+  eliminarPeriodo: async (id: number): Promise<{ mensaje: string }> => {
+    const response = await api.delete(`/gamificacion/periodos/${id}`);
+    return response.data;
+  },
+
+  // ==================== GRUPOS DE RANKING ====================
+
+  // Obtener grupos visibles para el usuario actual
+  getGruposRanking: async (): Promise<GrupoRanking[]> => {
+    const response = await api.get<GrupoRanking[]>('/gamificacion/grupos-ranking');
+    return response.data;
+  },
+
+  // [Admin] Obtener todos los grupos
+  getAllGruposRanking: async (): Promise<GrupoRanking[]> => {
+    const response = await api.get<GrupoRanking[]>('/gamificacion/grupos-ranking/admin/todos');
+    return response.data;
+  },
+
+  // Obtener un grupo por ID con detalles
+  getGrupoRanking: async (id: number): Promise<GrupoRankingDetalle> => {
+    const response = await api.get<GrupoRankingDetalle>(`/gamificacion/grupos-ranking/${id}`);
+    return response.data;
+  },
+
+  // Obtener ranking de un grupo
+  getRankingGrupo: async (grupoId: number, periodoId?: number, limit?: number): Promise<RankingGrupoUsuario[]> => {
+    const response = await api.get<RankingGrupoUsuario[]>(`/gamificacion/grupos-ranking/${grupoId}/ranking`, {
+      params: { periodoId, limit },
+    });
+    return response.data;
+  },
+
+  // Obtener miembros de un grupo (funciona para sistema y personalizados)
+  getMiembrosGrupo: async (grupoId: number): Promise<{ id: number; nombre: string; fotoUrl: string | null; activo: boolean; roles: string[] }[]> => {
+    const response = await api.get(`/gamificacion/grupos-ranking/${grupoId}/miembros`);
+    return response.data;
+  },
+
+  // Crear grupo personalizado
+  crearGrupoRanking: async (data: CrearGrupoRankingRequest): Promise<GrupoRanking> => {
+    const response = await api.post<GrupoRanking>('/gamificacion/grupos-ranking', data);
+    return response.data;
+  },
+
+  // Actualizar grupo
+  actualizarGrupoRanking: async (id: number, data: ActualizarGrupoRankingRequest): Promise<GrupoRanking> => {
+    const response = await api.put<GrupoRanking>(`/gamificacion/grupos-ranking/${id}`, data);
+    return response.data;
+  },
+
+  // Eliminar grupo
+  eliminarGrupoRanking: async (id: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/gamificacion/grupos-ranking/${id}`);
+    return response.data;
+  },
+
+  // Convertir grupo sistema a personalizado
+  convertirGrupoAPersonalizado: async (id: number): Promise<{ grupo: GrupoRanking; miembrosAgregados: number; mensaje: string }> => {
+    const response = await api.post(`/gamificacion/grupos-ranking/${id}/convertir`);
+    return response.data;
+  },
+
+  // Agregar miembros a un grupo
+  agregarMiembrosGrupo: async (grupoId: number, usuariosIds: number[]): Promise<{ message: string }> => {
+    const response = await api.post(`/gamificacion/grupos-ranking/${grupoId}/miembros`, { usuariosIds });
+    return response.data;
+  },
+
+  // Quitar miembro de un grupo
+  quitarMiembroGrupo: async (grupoId: number, usuarioId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/gamificacion/grupos-ranking/${grupoId}/miembros/${usuarioId}`);
+    return response.data;
+  },
+
+  // Obtener mi visibilidad en rankings
+  getMiVisibilidadRanking: async (): Promise<MiVisibilidadRanking> => {
+    const response = await api.get<MiVisibilidadRanking>('/gamificacion/grupos-ranking/mi-visibilidad');
+    return response.data;
+  },
+
+  // Obtener mis posiciones en todos los grupos
+  getMisPosicionesRanking: async (): Promise<PosicionGrupo[]> => {
+    const response = await api.get<PosicionGrupo[]>('/gamificacion/grupos-ranking/mis-posiciones');
+    return response.data;
+  },
+
+  // Toggle visibilidad en ranking general
+  toggleOcultoGeneral: async (oculto: boolean): Promise<{ ocultoEnGeneral: boolean }> => {
+    const response = await api.put('/gamificacion/grupos-ranking/mi-visibilidad/general', { oculto });
+    return response.data;
+  },
+
+  // Toggle visibilidad en un grupo específico
+  toggleOcultoGrupo: async (grupoId: number, oculto: boolean): Promise<{ oculto: boolean }> => {
+    const response = await api.put(`/gamificacion/grupos-ranking/mi-visibilidad/${grupoId}`, { oculto });
+    return response.data;
+  },
+
+  // [Admin] Cambiar participación de un usuario en rankings
+  setParticipaEnRanking: async (usuarioId: number, participa: boolean): Promise<{ participaEnRanking: boolean }> => {
+    const response = await api.put(`/gamificacion/grupos-ranking/usuarios/${usuarioId}/participacion`, { participa });
+    return response.data;
+  },
+};
 
 export const inboxApi = {
   // Conversaciones

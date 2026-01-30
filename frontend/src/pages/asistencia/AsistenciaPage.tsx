@@ -66,6 +66,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { asistenciaApi, tiposAsistenciaApi, usuariosApi } from '@/services/api';
 import type { QRAsistencia, Asistencia, EstadisticasGenerales, TipoAsistencia } from '@/types';
 import RegistroManualAsistencia from './RegistroManualAsistencia';
+import { DatePickerString } from '@/components/ui/date-picker';
+import { DateRangePickerString } from '@/components/ui/date-range-picker';
 
 // Helper para parsear fecha evitando problemas de zona horaria
 const parseLocalDate = (fecha: string | Date): Date => {
@@ -130,12 +132,16 @@ export default function AsistenciaPage() {
         descripcion: string;
         horaInicio: string;
         horaFin: string;
+        margenTemprana: number;
+        margenTardia: number;
     }>({
         semanaInicio: '',
         tipoId: null,
         descripcion: '',
         horaInicio: '09:00',
         horaFin: '12:00',
+        margenTemprana: 15,
+        margenTardia: 30,
     });
 
     // Edit QR Dialog state
@@ -146,6 +152,8 @@ export default function AsistenciaPage() {
         horaInicio: '',
         horaFin: '',
         descripcion: '',
+        margenTemprana: 15,
+        margenTardia: 30,
     });
     const [updatingQR, setUpdatingQR] = useState(false);
 
@@ -259,11 +267,13 @@ export default function AsistenciaPage() {
                 tipoId: newQR.tipoId,
                 horaInicio: newQR.horaInicio,
                 horaFin: newQR.horaFin,
+                margenTemprana: newQR.margenTemprana,
+                margenTardia: newQR.margenTardia,
                 descripcion: newQR.descripcion || undefined,
             });
             toast.success('QR creado exitosamente');
             setCreateQROpen(false);
-            setNewQR({ semanaInicio: '', tipoId: tipos[0]?.id || null, descripcion: '', horaInicio: '09:00', horaFin: '12:00' });
+            setNewQR({ semanaInicio: '', tipoId: tipos[0]?.id || null, descripcion: '', horaInicio: '09:00', horaFin: '12:00', margenTemprana: 15, margenTardia: 30 });
             loadData();
         } catch (error: unknown) {
             const axiosError = error as { response?: { data?: { message?: string } } };
@@ -293,6 +303,8 @@ export default function AsistenciaPage() {
             horaInicio: formatHora(qr.horaInicio),
             horaFin: formatHora(qr.horaFin),
             descripcion: qr.descripcion || '',
+            margenTemprana: qr.margenTemprana ?? 15,
+            margenTardia: qr.margenTardia ?? 30,
         });
         setEditQROpen(true);
     };
@@ -306,6 +318,8 @@ export default function AsistenciaPage() {
                 semanaInicio: editQRData.semanaInicio,
                 horaInicio: editQRData.horaInicio,
                 horaFin: editQRData.horaFin,
+                margenTemprana: editQRData.margenTemprana,
+                margenTardia: editQRData.margenTardia,
                 descripcion: editQRData.descripcion || undefined,
             });
             toast.success('QR actualizado correctamente');
@@ -1019,21 +1033,13 @@ export default function AsistenciaPage() {
 
                             {/* Filtro de rango de fechas */}
                             <div className="flex items-center gap-1">
-                                <CalendarDays className="w-4 h-4 text-gray-500" />
-                                <Input
-                                    type="date"
-                                    value={fechaDesde}
-                                    onChange={(e) => { setFechaDesde(e.target.value); setSelectedIds([]); }}
-                                    className="w-[130px] h-9 bg-white border-gray-300 text-sm"
-                                    placeholder="Desde"
-                                />
-                                <span className="text-gray-400 text-sm">-</span>
-                                <Input
-                                    type="date"
-                                    value={fechaHasta}
-                                    onChange={(e) => { setFechaHasta(e.target.value); setSelectedIds([]); }}
-                                    className="w-[130px] h-9 bg-white border-gray-300 text-sm"
-                                    placeholder="Hasta"
+                                <DateRangePickerString
+                                    valueFrom={fechaDesde}
+                                    valueTo={fechaHasta}
+                                    onChange={(from, to) => { setFechaDesde(from); setFechaHasta(to); setSelectedIds([]); }}
+                                    placeholder="Rango de fechas"
+                                    className="w-[280px] h-9"
+                                    numberOfMonths={1}
                                 />
                                 {(fechaDesde || fechaHasta) && (
                                     <Button
@@ -1282,11 +1288,10 @@ export default function AsistenciaPage() {
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label className="text-gray-700">Fecha (sábado)</Label>
-                            <Input
-                                type="date"
+                            <DatePickerString
                                 value={newQR.semanaInicio}
-                                onChange={(e) => setNewQR({ ...newQR, semanaInicio: e.target.value })}
-                                className="bg-white border-gray-300 text-gray-900"
+                                onChange={(value) => setNewQR({ ...newQR, semanaInicio: value })}
+                                placeholder="Seleccionar fecha"
                             />
                         </div>
 
@@ -1330,6 +1335,32 @@ export default function AsistenciaPage() {
                             </div>
                         </div>
                         <p className="text-xs text-gray-500">El QR solo será válido entre estas horas</p>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-gray-700">Margen temprana (min)</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={60}
+                                    value={newQR.margenTemprana}
+                                    onChange={(e) => setNewQR({ ...newQR, margenTemprana: parseInt(e.target.value) || 0 })}
+                                    className="bg-white border-gray-300 text-gray-900"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-gray-700">Margen tardía (min)</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={120}
+                                    value={newQR.margenTardia}
+                                    onChange={(e) => setNewQR({ ...newQR, margenTardia: parseInt(e.target.value) || 0 })}
+                                    className="bg-white border-gray-300 text-gray-900"
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500">Temprana: antes de hora inicio. Tardía: después de hora inicio.</p>
 
                         <div className="space-y-2">
                             <Label className="text-gray-700">Descripción (opcional)</Label>
@@ -1381,15 +1412,11 @@ export default function AsistenciaPage() {
 
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label className="text-gray-700 flex items-center gap-2">
-                                <CalendarDays className="w-4 h-4" />
-                                Fecha
-                            </Label>
-                            <Input
-                                type="date"
+                            <Label className="text-gray-700">Fecha</Label>
+                            <DatePickerString
                                 value={editQRData.semanaInicio}
-                                onChange={(e) => setEditQRData({ ...editQRData, semanaInicio: e.target.value })}
-                                className="bg-white border-gray-300 text-gray-900"
+                                onChange={(value) => setEditQRData({ ...editQRData, semanaInicio: value })}
+                                placeholder="Seleccionar fecha"
                             />
                         </div>
 
@@ -1416,6 +1443,32 @@ export default function AsistenciaPage() {
                                 />
                             </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-gray-700">Margen temprana (min)</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={60}
+                                    value={editQRData.margenTemprana}
+                                    onChange={(e) => setEditQRData({ ...editQRData, margenTemprana: parseInt(e.target.value) || 0 })}
+                                    className="bg-white border-gray-300 text-gray-900"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-gray-700">Margen tardía (min)</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={120}
+                                    value={editQRData.margenTardia}
+                                    onChange={(e) => setEditQRData({ ...editQRData, margenTardia: parseInt(e.target.value) || 0 })}
+                                    className="bg-white border-gray-300 text-gray-900"
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500">Temprana: antes de hora inicio. Tardía: después de hora inicio.</p>
 
                         <div className="space-y-2">
                             <Label className="text-gray-700">Descripción (opcional)</Label>

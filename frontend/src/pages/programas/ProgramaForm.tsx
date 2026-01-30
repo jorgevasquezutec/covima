@@ -46,6 +46,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import UserAutocomplete from '@/components/UserAutocomplete';
 import { programasApi } from '@/services/api';
+import { DatePickerString } from '@/components/ui/date-picker';
 import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto } from '@/types';
 
 interface ParteEnPrograma {
@@ -725,12 +726,10 @@ export default function ProgramaForm() {
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="space-y-2">
                         <Label className="text-gray-700">Fecha del Programa</Label>
-                        <Input
-                            type="date"
+                        <DatePickerString
                             value={fecha}
-                            onChange={(e) => setFecha(e.target.value)}
-                            className="bg-white border-gray-300 text-gray-900"
-                            required
+                            onChange={setFecha}
+                            placeholder="Seleccionar fecha"
                         />
                     </div>
                     <div className="space-y-2">

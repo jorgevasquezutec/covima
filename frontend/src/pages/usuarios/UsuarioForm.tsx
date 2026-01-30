@@ -10,8 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Calendar, MapPin, FileText, Camera, Loader2 } from 'lucide-react';
+import { MapPin, FileText, Camera, Loader2, Bell, MessageSquare } from 'lucide-react';
+import { DatePickerString } from '@/components/ui/date-picker';
 
 const createSchema = z.object({
   phoneNumber: z.string().min(8, 'Número de teléfono inválido'),
@@ -20,9 +23,12 @@ const createSchema = z.object({
   nombreWhatsapp: z.string().optional(),
   password: z.string().min(6, 'Mínimo 6 caracteres').optional().or(z.literal('')),
   roles: z.array(z.string()).min(1, 'Selecciona al menos un rol'),
+  esJA: z.boolean(),
   fechaNacimiento: z.string().optional(),
   direccion: z.string().optional(),
   biografia: z.string().optional(),
+  notificarNuevasConversaciones: z.boolean(),
+  modoHandoffDefault: z.enum(['WEB', 'WHATSAPP', 'AMBOS']),
 });
 
 const updateSchema = z.object({
@@ -30,9 +36,12 @@ const updateSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   nombreWhatsapp: z.string().optional(),
   roles: z.array(z.string()).min(1, 'Selecciona al menos un rol'),
+  esJA: z.boolean(),
   fechaNacimiento: z.string().optional(),
   direccion: z.string().optional(),
   biografia: z.string().optional(),
+  notificarNuevasConversaciones: z.boolean(),
+  modoHandoffDefault: z.enum(['WEB', 'WHATSAPP', 'AMBOS']),
 });
 
 type CreateFormData = z.infer<typeof createSchema>;
@@ -72,9 +81,12 @@ export default function UsuarioForm({
         email: usuario.email || '',
         nombreWhatsapp: usuario.nombreWhatsapp || '',
         roles: usuario.roles,
+        esJA: usuario.esJA ?? true,
         fechaNacimiento: usuario.fechaNacimiento ? usuario.fechaNacimiento.split('T')[0] : '',
         direccion: usuario.direccion || '',
         biografia: usuario.biografia || '',
+        notificarNuevasConversaciones: usuario.notificarNuevasConversaciones ?? false,
+        modoHandoffDefault: usuario.modoHandoffDefault ?? 'AMBOS',
       }
       : {
         phoneNumber: '',
@@ -83,9 +95,12 @@ export default function UsuarioForm({
         nombreWhatsapp: '',
         password: '',
         roles: ['participante'],
+        esJA: true,
         fechaNacimiento: '',
         direccion: '',
         biografia: '',
+        notificarNuevasConversaciones: false,
+        modoHandoffDefault: 'AMBOS' as const,
       },
   });
 
@@ -101,9 +116,12 @@ export default function UsuarioForm({
           email: updateData.email || undefined,
           nombreWhatsapp: updateData.nombreWhatsapp || undefined,
           roles: updateData.roles,
+          esJA: updateData.esJA,
           fechaNacimiento: updateData.fechaNacimiento || undefined,
           direccion: updateData.direccion || undefined,
           biografia: updateData.biografia || undefined,
+          notificarNuevasConversaciones: updateData.notificarNuevasConversaciones,
+          modoHandoffDefault: updateData.modoHandoffDefault,
         });
         toast.success('Usuario actualizado');
       } else {
@@ -122,9 +140,12 @@ export default function UsuarioForm({
           nombreWhatsapp: createData.nombreWhatsapp || undefined,
           password: createData.password || undefined,
           roles: createData.roles,
+          esJA: createData.esJA,
           fechaNacimiento: createData.fechaNacimiento || undefined,
           direccion: createData.direccion || undefined,
           biografia: createData.biografia || undefined,
+          notificarNuevasConversaciones: createData.notificarNuevasConversaciones,
+          modoHandoffDefault: createData.modoHandoffDefault,
         });
         toast.success('Usuario creado');
       }
@@ -366,24 +387,44 @@ export default function UsuarioForm({
         )}
       </div>
 
+      <div className="space-y-2">
+        <Label className="text-gray-700">Membresía</Label>
+        <Controller
+          name="esJA"
+          control={control}
+          render={({ field }) => (
+            <label className="flex items-center gap-2 cursor-pointer pt-2">
+              <Checkbox
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+              />
+              <span className="text-sm text-gray-700">
+                Es miembro JA
+              </span>
+            </label>
+          )}
+        />
+        <p className="text-xs text-gray-500">
+          Los miembros JA aparecen automáticamente en el ranking general
+        </p>
+      </div>
+
       {/* Campos adicionales del perfil (opcional) */}
       <div className="border-t border-gray-200 pt-4 mt-4">
         <p className="text-sm font-medium text-gray-500 mb-4">Información del perfil (opcional)</p>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-gray-700 flex items-center gap-2">
-          <Calendar className="w-4 h-4" />
-          Fecha de nacimiento
-        </Label>
+        <Label className="text-gray-700">Fecha de nacimiento</Label>
         <Controller
           name="fechaNacimiento"
           control={control}
           render={({ field }) => (
-            <Input
-              {...field}
-              type="date"
-              className="bg-white border-gray-300 text-gray-900"
+            <DatePickerString
+              value={field.value || ''}
+              onChange={field.onChange}
+              placeholder="Seleccionar fecha"
             />
           )}
         />
@@ -424,6 +465,70 @@ export default function UsuarioForm({
           )}
         />
       </div>
+
+      {/* Preferencias de Notificación - Solo para admin/lider */}
+      {selectedRoles?.some((rol) => ['admin', 'lider'].includes(rol)) && (
+        <>
+          <div className="border-t border-gray-200 pt-4 mt-4">
+            <p className="text-sm font-medium text-gray-500 mb-4 flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              Preferencias de notificación del Inbox
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-gray-700 flex items-center gap-2">
+                  <Bell className="w-4 h-4" />
+                  Notificar nuevas conversaciones
+                </Label>
+                <p className="text-xs text-gray-500">
+                  Recibe alerta cuando llegue una nueva conversación al inbox
+                </p>
+              </div>
+              <Controller
+                name="notificarNuevasConversaciones"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-gray-700 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Modo de respuesta por defecto
+            </Label>
+            <Controller
+              name="modoHandoffDefault"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                    <SelectValue placeholder="Seleccionar modo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WEB">🖥️ Solo Web</SelectItem>
+                    <SelectItem value="WHATSAPP">📱 Solo WhatsApp</SelectItem>
+                    <SelectItem value="AMBOS">🔄 Ambos</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-gray-500">
+              {watch('modoHandoffDefault') === 'WEB' && 'Responderá solo desde el panel web.'}
+              {watch('modoHandoffDefault') === 'WHATSAPP' && 'Responderá con >> desde WhatsApp.'}
+              {watch('modoHandoffDefault') === 'AMBOS' && 'Puede responder desde el panel web o WhatsApp.'}
+            </p>
+          </div>
+        </>
+      )}
 
       <div className="flex justify-end gap-3 pt-4">
         <Button

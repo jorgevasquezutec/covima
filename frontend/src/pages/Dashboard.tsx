@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import {
   Calendar,
   Users,
@@ -18,9 +21,13 @@ import {
   Cake,
   ChevronLeft,
   ChevronRight,
+  Trophy,
+  Star,
+  Flame,
+  ArrowRight,
 } from 'lucide-react';
-import { programasApi, asistenciaApi, usuariosApi } from '@/services/api';
-import type { EstadisticasGenerales, MiAsistencia } from '@/types';
+import { programasApi, asistenciaApi, usuariosApi, gamificacionApi } from '@/services/api';
+import type { EstadisticasGenerales, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo } from '@/types';
 import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
 
 interface ProximaAsignacion {
@@ -62,6 +69,11 @@ export default function Dashboard() {
   // Personal stats
   const [misAsignaciones, setMisAsignaciones] = useState<ProximaAsignacion[]>([]);
   const [miAsistencia, setMiAsistencia] = useState<MiAsistencia | null>(null);
+
+  // Gamificación
+  const [miProgreso, setMiProgreso] = useState<MiProgreso | null>(null);
+  const [periodoActivo, setPeriodoActivo] = useState<PeriodoRanking | null>(null);
+  const [misPosiciones, setMisPosiciones] = useState<PosicionGrupo[]>([]);
 
   const isAdminOrLider = user?.roles?.some(r => ['admin', 'lider'].includes(r));
 
@@ -112,6 +124,9 @@ export default function Dashboard() {
         const promises: Promise<any>[] = [
           asistenciaApi.getMiAsistencia().catch(() => null),
           programasApi.getMisAsignaciones().catch(() => []),
+          gamificacionApi.getMiProgreso().catch(() => null),
+          gamificacionApi.getPeriodoActivo().catch(() => null),
+          gamificacionApi.getMisPosicionesRanking().catch(() => []),
         ];
 
         // Solo cargar stats de admin si tiene permisos
@@ -126,11 +141,14 @@ export default function Dashboard() {
         const results = await Promise.all(promises);
         setMiAsistencia(results[0]);
         setMisAsignaciones(results[1] || []);
+        setMiProgreso(results[2]);
+        setPeriodoActivo(results[3]);
+        setMisPosiciones(results[4] || []);
 
         if (isAdminOrLider) {
-          setAdminStats(results[2]);
-          setEstadisticasGenerales(results[3]);
-          setCumpleanosMes(results[4]);
+          setAdminStats(results[5]);
+          setEstadisticasGenerales(results[6]);
+          setCumpleanosMes(results[7]);
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -466,6 +484,123 @@ export default function Dashboard() {
         // Recargar mi asistencia al registrar
         asistenciaApi.getMiAsistencia().then(setMiAsistencia).catch(() => null);
       }} />
+
+      {/* Mi Progreso de Gamificación */}
+      {miProgreso && (
+        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-purple-600" />
+                Mi Progreso
+              </CardTitle>
+              <Link to="/mi-progreso">
+                <Button variant="ghost" size="sm" className="text-purple-600 hover:text-purple-700 hover:bg-purple-100">
+                  Ver más <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Nivel y XP */}
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl">
+                    {miProgreso.nivel.actual?.icono || '🌱'}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{miProgreso.nivel.actual?.nombre || 'Discípulo'}</p>
+                    <p className="text-xs text-gray-500">Nivel {miProgreso.nivel.actual?.numero || 1}</p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>XP: {miProgreso.perfil.xpTotal}</span>
+                    {miProgreso.nivel.siguiente && (
+                      <span>{miProgreso.nivel.siguiente.xpRequerido} XP</span>
+                    )}
+                  </div>
+                  <Progress value={miProgreso.nivel.progresoXp} className="h-2" />
+                  {miProgreso.nivel.siguiente && (
+                    <p className="text-xs text-gray-500 text-center">
+                      {miProgreso.nivel.xpParaSiguienteNivel} XP para {miProgreso.nivel.siguiente.nombre}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Puntos del Período */}
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-500" />
+                    <span className="text-sm font-medium text-gray-700">Puntos del Período</span>
+                  </div>
+                </div>
+                <p className="text-3xl font-bold text-purple-600 mb-1">
+                  {miProgreso.perfil.puntosTrimestre}
+                </p>
+                {periodoActivo ? (
+                  <p className="text-xs text-gray-500">{periodoActivo.nombre}</p>
+                ) : (
+                  <p className="text-xs text-yellow-600">Sin período activo</p>
+                )}
+                {/* Posiciones en rankings */}
+                {misPosiciones.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {misPosiciones.slice(0, 2).map((pos) => (
+                      <div key={pos.grupoId} className="flex items-center gap-2 text-sm">
+                        <span className="text-base">{pos.icono || '📊'}</span>
+                        <span className="font-semibold text-amber-600">#{pos.posicion}</span>
+                        <span className="text-xs text-gray-500 truncate">{pos.nombre}</span>
+                      </div>
+                    ))}
+                    {misPosiciones.length > 2 && (
+                      <p className="text-xs text-gray-400">+{misPosiciones.length - 2} más</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Racha y Stats */}
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-5 h-5 text-orange-500" />
+                      <span className="text-sm font-medium text-gray-700">Racha</span>
+                    </div>
+                    <span className="text-xl font-bold text-orange-500">{miProgreso.perfil.rachaActual} sem</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Mejor racha:</span>
+                    <span className="font-medium">{miProgreso.perfil.rachaMejor} semanas</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Asistencias:</span>
+                    <span className="font-medium">{miProgreso.perfil.asistenciasTotales}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Participaciones:</span>
+                    <span className="font-medium">{miProgreso.perfil.participacionesTotales}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Link al Ranking */}
+            <div className="mt-4 pt-4 border-t border-purple-100 flex justify-center">
+              <Link to="/ranking">
+                <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50">
+                  <Trophy className="w-4 h-4 mr-2" />
+                  Ver Ranking Completo
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className={`grid grid-cols-1 ${!isAdminOrLider ? 'lg:grid-cols-2' : ''} gap-6`}>
         {/* Próximas Asignaciones - Solo para participantes */}

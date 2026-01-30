@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { User, Mail, Calendar, MapPin, FileText, Save, Camera, Loader2, Bell, MessageSquare } from 'lucide-react';
-import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
+import { User, Mail, MapPin, FileText, Save, Camera, Loader2, Bell, MessageSquare } from 'lucide-react';
+import { DatePickerString } from '@/components/ui/date-picker';
 
 interface ProfileData {
     id: number;
@@ -237,9 +237,6 @@ export default function ProfilePage() {
                 </CardContent>
             </Card>
 
-            {/* Registrar Mi Asistencia */}
-            <RegistrarMiAsistencia />
-
             {/* Profile Form */}
             <Card className="bg-white border-gray-200 shadow-sm">
                 <CardHeader>
@@ -282,16 +279,13 @@ export default function ProfilePage() {
 
                     {/* Fecha de nacimiento */}
                     <div className="space-y-2">
-                        <Label htmlFor="fechaNacimiento" className="flex items-center gap-2 text-gray-700">
-                            <Calendar className="w-4 h-4" />
+                        <Label htmlFor="fechaNacimiento" className="text-gray-700">
                             Fecha de nacimiento
                         </Label>
-                        <Input
-                            id="fechaNacimiento"
-                            type="date"
+                        <DatePickerString
                             value={fechaNacimiento}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => setFechaNacimiento(e.target.value)}
-                            className="bg-white border-gray-300 text-gray-900"
+                            onChange={setFechaNacimiento}
+                            placeholder="Seleccionar fecha"
                         />
                     </div>
 

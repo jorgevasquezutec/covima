@@ -20,6 +20,7 @@ import {
     AlertTriangle,
     Square,
     CheckSquare,
+    Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,6 +89,19 @@ export default function ProgramasPage() {
         detalles: { nombre: string; telefono: string; success: boolean; error?: string }[];
     } | null>(null);
     const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
+    const [finalizingPrograma, setFinalizingPrograma] = useState<number | null>(null);
+    const [previewFinalizar, setPreviewFinalizar] = useState<{
+        programa: { id: number; titulo: string; fecha: string; estado: string };
+        resumen: { participantes: number; puntosTotal: number; xpTotal: number };
+        detalles: { usuario: string; usuarioId: number; parte: string; parteId: number; puntos: number; xp: number }[];
+    } | null>(null);
+    const [loadingPreviewFinalizar, setLoadingPreviewFinalizar] = useState(false);
+    const [finalizarResult, setFinalizarResult] = useState<{
+        message: string;
+        programa: { id: number; titulo: string; fecha: string; estado: string };
+        resumen: { participantes: number; errores: number; puntosAsignados: number; xpAsignado: number };
+        detalles: { usuario: string; parte: string; puntos: number; xp: number; success: boolean; error?: string }[];
+    } | null>(null);
 
     useEffect(() => {
         loadProgramas();
@@ -176,6 +190,34 @@ export default function ProgramasPage() {
 
     const handleCrearPrograma = () => {
         navigate(`/programas/nuevo`);
+    };
+
+    const handlePreviewFinalizar = async (programa: Programa) => {
+        try {
+            setLoadingPreviewFinalizar(true);
+            const preview = await programasApi.previewFinalizarPrograma(programa.id);
+            setPreviewFinalizar(preview);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al cargar preview');
+        } finally {
+            setLoadingPreviewFinalizar(false);
+        }
+    };
+
+    const handleConfirmarFinalizar = async () => {
+        if (!previewFinalizar) return;
+        try {
+            setFinalizingPrograma(previewFinalizar.programa.id);
+            const result = await programasApi.finalizarPrograma(previewFinalizar.programa.id);
+            setPreviewFinalizar(null);
+            setFinalizarResult(result);
+            toast.success(result.message);
+            loadProgramas();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al finalizar programa');
+        } finally {
+            setFinalizingPrograma(null);
+        }
     };
 
     const handlePreviewNotificaciones = async (programa: Programa) => {
@@ -365,6 +407,22 @@ export default function ProgramasPage() {
                                                     >
                                                         <MessageCircle className="h-4 w-4" />
                                                     </Button>
+                                                    {programa.estado === 'enviado' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="hover:bg-purple-50 hover:text-purple-600"
+                                                            onClick={() => handlePreviewFinalizar(programa)}
+                                                            disabled={loadingPreviewFinalizar}
+                                                            title="Finalizar y asignar puntos"
+                                                        >
+                                                            {loadingPreviewFinalizar ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <Trophy className="h-4 w-4" />
+                                                            )}
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
@@ -701,6 +759,166 @@ export default function ProgramasPage() {
                             </DialogFooter>
                         </div>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog confirmación de finalización */}
+            <Dialog open={!!previewFinalizar} onOpenChange={() => setPreviewFinalizar(null)}>
+                <DialogContent className="bg-white border-gray-200 max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-gray-900 flex items-center gap-2">
+                            <Trophy className="h-5 w-5 text-purple-600" />
+                            Confirmar Finalización
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-500">
+                            {previewFinalizar?.programa.titulo} - {previewFinalizar?.programa.fecha && formatDate(previewFinalizar.programa.fecha)}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {previewFinalizar && (
+                        <div className="space-y-4">
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                <p className="text-sm text-yellow-800 flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    Esta acción asignará puntos a los participantes y no se puede deshacer.
+                                </p>
+                            </div>
+
+                            {/* Resumen */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                                    <span className="text-xl font-bold text-blue-600">{previewFinalizar.resumen.participantes}</span>
+                                    <p className="text-xs text-gray-600">Participantes</p>
+                                </div>
+                                <div className="text-center p-3 bg-green-50 rounded-lg">
+                                    <span className="text-xl font-bold text-green-600">+{previewFinalizar.resumen.puntosTotal}</span>
+                                    <p className="text-xs text-gray-600">Puntos</p>
+                                </div>
+                                <div className="text-center p-3 bg-purple-50 rounded-lg">
+                                    <span className="text-xl font-bold text-purple-600">+{previewFinalizar.resumen.xpTotal}</span>
+                                    <p className="text-xs text-gray-600">XP</p>
+                                </div>
+                            </div>
+
+                            {/* Detalles */}
+                            <div className="max-h-48 overflow-y-auto border rounded-lg">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th className="text-left py-2 px-3 text-gray-600">Participante</th>
+                                            <th className="text-left py-2 px-3 text-gray-600">Parte</th>
+                                            <th className="text-right py-2 px-3 text-gray-600">Pts</th>
+                                            <th className="text-right py-2 px-3 text-gray-600">XP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {previewFinalizar.detalles.map((d, i) => (
+                                            <tr key={i} className="border-t">
+                                                <td className="py-2 px-3">{d.usuario}</td>
+                                                <td className="py-2 px-3 text-gray-600">{d.parte}</td>
+                                                <td className="py-2 px-3 text-right font-semibold text-green-600">+{d.puntos}</td>
+                                                <td className="py-2 px-3 text-right text-purple-600">+{d.xp}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setPreviewFinalizar(null)}
+                            className="border-gray-300"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleConfirmarFinalizar}
+                            disabled={finalizingPrograma !== null}
+                            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                        >
+                            {finalizingPrograma !== null ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Finalizando...
+                                </>
+                            ) : (
+                                <>
+                                    <Trophy className="h-4 w-4 mr-2" />
+                                    Confirmar y Asignar Puntos
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog resultado de finalización */}
+            <Dialog open={!!finalizarResult} onOpenChange={() => setFinalizarResult(null)}>
+                <DialogContent className="bg-white border-gray-200 max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-gray-900 flex items-center gap-2">
+                            <Trophy className="h-5 w-5 text-purple-600" />
+                            Programa Finalizado
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-500">
+                            {finalizarResult?.programa.titulo} - {finalizarResult?.programa.fecha && formatDate(finalizarResult.programa.fecha)}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {finalizarResult && (
+                        <div className="space-y-4">
+                            {/* Resumen */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="text-center p-3 bg-green-50 rounded-lg">
+                                    <span className="text-2xl font-bold text-green-600">{finalizarResult.resumen.participantes}</span>
+                                    <p className="text-sm text-gray-600">Participantes</p>
+                                </div>
+                                <div className="text-center p-3 bg-purple-50 rounded-lg">
+                                    <span className="text-2xl font-bold text-purple-600">{finalizarResult.resumen.puntosAsignados}</span>
+                                    <p className="text-sm text-gray-600">Puntos asignados</p>
+                                </div>
+                            </div>
+
+                            {/* Detalles */}
+                            <div className="max-h-60 overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th className="text-left py-2 px-2 text-gray-600">Participante</th>
+                                            <th className="text-left py-2 px-2 text-gray-600">Parte</th>
+                                            <th className="text-right py-2 px-2 text-gray-600">Pts</th>
+                                            <th className="text-right py-2 px-2 text-gray-600">XP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {finalizarResult.detalles.map((d, i) => (
+                                            <tr key={i} className={`border-t ${d.success ? '' : 'bg-red-50'}`}>
+                                                <td className="py-2 px-2">{d.usuario}</td>
+                                                <td className="py-2 px-2 text-gray-600">{d.parte}</td>
+                                                <td className="py-2 px-2 text-right font-semibold text-green-600">+{d.puntos}</td>
+                                                <td className="py-2 px-2 text-right text-purple-600">+{d.xp}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {finalizarResult.resumen.errores > 0 && (
+                                <p className="text-sm text-red-600">
+                                    {finalizarResult.resumen.errores} error(es) al asignar puntos
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button onClick={() => setFinalizarResult(null)}>
+                            Cerrar
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

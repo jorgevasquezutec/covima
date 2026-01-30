@@ -42,6 +42,7 @@ import {
   ChevronRight,
   Phone,
   Cake,
+  Trophy,
 } from 'lucide-react';
 import UsuarioForm from './UsuarioForm';
 
@@ -115,6 +116,20 @@ export default function UsuariosPage() {
       loadUsuarios();
     } catch {
       toast.error('Error al cambiar estado');
+    }
+  };
+
+  const handleToggleRanking = async (usuario: Usuario) => {
+    try {
+      await usuariosApi.toggleRanking(usuario.id);
+      toast.success(
+        usuario.participaEnRanking
+          ? 'Usuario excluido del ranking'
+          : 'Usuario incluido en el ranking'
+      );
+      loadUsuarios();
+    } catch {
+      toast.error('Error al cambiar participación en ranking');
     }
   };
 
@@ -269,19 +284,25 @@ export default function UsuariosPage() {
                   <TableHead className="text-gray-600">Cumpleaños</TableHead>
                   <TableHead className="text-gray-600">Roles</TableHead>
                   <TableHead className="text-gray-600">Estado</TableHead>
+                  <TableHead className="text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <Trophy className="w-3.5 h-3.5" />
+                      Ranking
+                    </div>
+                  </TableHead>
                   <TableHead className="text-gray-600 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
                       Cargando...
                     </TableCell>
                   </TableRow>
                 ) : usuarios.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
                       No se encontraron usuarios
                     </TableCell>
                   </TableRow>
@@ -326,6 +347,12 @@ export default function UsuariosPage() {
                         <Switch
                           checked={usuario.activo}
                           onCheckedChange={() => handleToggleActive(usuario)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={usuario.participaEnRanking !== false}
+                          onCheckedChange={() => handleToggleRanking(usuario)}
                         />
                       </TableCell>
                       <TableCell className="text-right">

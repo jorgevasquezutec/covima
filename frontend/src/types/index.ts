@@ -35,6 +35,8 @@ export interface Usuario {
   nombreWhatsapp?: string;
   email?: string;
   activo: boolean;
+  participaEnRanking?: boolean;
+  esJA?: boolean;
   debeCambiarPassword: boolean;
   ultimoLogin?: string;
   createdAt: string;
@@ -43,6 +45,8 @@ export interface Usuario {
   fechaNacimiento?: string;
   direccion?: string;
   biografia?: string;
+  notificarNuevasConversaciones?: boolean;
+  modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
 }
 
 export interface CreateUsuarioRequest {
@@ -54,9 +58,12 @@ export interface CreateUsuarioRequest {
   nombreWhatsapp?: string;
   roles?: string[];
   activo?: boolean;
+  esJA?: boolean;
   fechaNacimiento?: string;
   direccion?: string;
   biografia?: string;
+  notificarNuevasConversaciones?: boolean;
+  modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
 }
 
 export interface UpdateUsuarioRequest {
@@ -65,9 +72,12 @@ export interface UpdateUsuarioRequest {
   nombreWhatsapp?: string;
   roles?: string[];
   activo?: boolean;
+  esJA?: boolean;
   fechaNacimiento?: string;
   direccion?: string;
   biografia?: string;
+  notificarNuevasConversaciones?: boolean;
+  modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
 }
 
 export interface PaginatedResponse<T> {
@@ -97,6 +107,32 @@ export interface Parte {
   esObligatoria: boolean;
   textoFijo?: string;
   activo: boolean;
+  // Gamificación
+  puntos: number;
+  xp: number;
+}
+
+export interface CreateParteRequest {
+  nombre: string;
+  descripcion?: string;
+  orden?: number;
+  esFija?: boolean;
+  esObligatoria?: boolean;
+  textoFijo?: string;
+  puntos?: number;
+  xp?: number;
+}
+
+export interface UpdateParteRequest {
+  nombre?: string;
+  descripcion?: string;
+  orden?: number;
+  esFija?: boolean;
+  esObligatoria?: boolean;
+  textoFijo?: string;
+  activo?: boolean;
+  puntos?: number;
+  xp?: number;
 }
 
 export interface ProgramaParte {
@@ -258,6 +294,8 @@ export interface QRAsistencia {
   activo: boolean;
   horaInicio: string;
   horaFin: string;
+  margenTemprana: number; // Minutos antes de horaInicio = temprana
+  margenTardia: number; // Minutos después de horaInicio = tardía
   creador?: UsuarioSimple;
   totalAsistencias: number;
   createdAt: string;
@@ -294,6 +332,8 @@ export interface CreateQRRequest {
   tipoId: number;
   horaInicio?: string;
   horaFin?: string;
+  margenTemprana?: number;
+  margenTardia?: number;
   descripcion?: string;
 }
 
@@ -404,5 +444,302 @@ export interface PreviewNotificacionesResponse {
     totalUsuariosSinTelefono: number;
     totalAsignaciones: number;
   };
+}
+
+// ==================== GAMIFICACIÓN ====================
+
+export interface NivelBiblico {
+  id: number;
+  numero: number;
+  nombre: string;
+  descripcion?: string;
+  xpRequerido: number;
+  icono?: string;
+  color?: string;
+}
+
+export interface Insignia {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+  condicionTipo: string;
+  condicionValor: number;
+  puntosBonus: number;
+  xpBonus: number;
+  desbloqueada?: boolean;
+  desbloqueadaAt?: string;
+}
+
+export interface ConfiguracionPuntaje {
+  id: number;
+  codigo: string;
+  categoria: 'ASISTENCIA' | 'PARTICIPACION' | 'EVENTO_ESPECIAL' | 'LOGRO' | 'BONUS';
+  nombre: string;
+  descripcion?: string;
+  puntos: number;
+  xp: number;
+  activo: boolean;
+}
+
+export interface HistorialPuntos {
+  id: number;
+  puntos: number;
+  xp: number;
+  descripcion?: string;
+  fecha: string;
+  trimestre: number;
+  anio: number;
+  configPuntaje?: ConfiguracionPuntaje;
+  createdAt: string;
+}
+
+export interface EventoEspecialConfig {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  puntos: number;
+  xp: number;
+  icono?: string;
+  color?: string;
+  activo: boolean;
+}
+
+export interface PerfilGamificacion {
+  puntosTotal: number;
+  puntosTrimestre: number;
+  xpTotal: number;
+  rachaActual: number;
+  rachaMejor: number;
+  asistenciasTotales: number;
+  participacionesTotales: number;
+}
+
+export interface MiProgreso {
+  perfil: PerfilGamificacion;
+  nivel: {
+    actual: NivelBiblico;
+    siguiente: NivelBiblico | null;
+    xpParaSiguienteNivel: number;
+    progresoXp: number;
+  };
+  posicionRanking: number;
+  insignias: Insignia[];
+  historialReciente: HistorialPuntos[];
+}
+
+export interface RankingUsuario {
+  posicion: number;
+  usuarioId: number;
+  nombre: string;
+  fotoUrl?: string;
+  nivel: NivelBiblico;
+  puntosPeriodo: number;
+  rachaActual: number;
+  asistenciasTotales: number;
+}
+
+export interface RankingFilters {
+  periodoId?: number;
+  tipo?: 'general' | 'asistencia' | 'participacion';
+  limit?: number;
+}
+
+export type EstadoRanking = 'ACTIVO' | 'CERRADO' | 'PAUSADO';
+
+export interface PeriodoRanking {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  fechaInicio: string;
+  fechaFin?: string;
+  estado: EstadoRanking;
+  creadoPorId?: number;
+  cerradoAt?: string;
+  cerradoPorId?: number;
+  resultadosJson?: RankingUsuario[];
+  createdAt: string;
+  updatedAt: string;
+  creadoPor?: { id: number; nombre: string };
+  cerradoPor?: { id: number; nombre: string };
+  _count?: { historialPuntos: number };
+}
+
+export interface AsignarPuntosResult {
+  puntosAsignados: number;
+  xpAsignado: number;
+  nuevoNivel: boolean;
+  nivelActual: { numero: number; nombre: string };
+  insigniasDesbloqueadas: Array<{ codigo: string; nombre: string; icono: string }>;
+  rachaActual: number;
+}
+
+export interface RegistrarEventoRequest {
+  eventoConfigId: number;
+  fecha: string;
+  usuarioIds: number[];
+  notas?: string;
+}
+
+export interface RegistrarEventoResponse {
+  evento: string;
+  fecha: string;
+  resultados: Array<{ usuarioId: number; status: string; puntos?: number }>;
+}
+
+export interface CrearEventoRequest {
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  puntos: number;
+  xp?: number;
+  icono?: string;
+  color?: string;
+}
+
+export interface ActualizarEventoRequest {
+  nombre?: string;
+  descripcion?: string;
+  puntos?: number;
+  xp?: number;
+  icono?: string;
+  color?: string;
+  activo?: boolean;
+}
+
+// ==================== GRUPOS DE RANKING ====================
+
+export type TipoGrupoRanking = 'SISTEMA' | 'PERSONALIZADO';
+export type CriterioMembresia = 'MANUAL' | 'TODOS_ACTIVOS' | 'ROL_LIDER' | 'ROL_ADMIN' | 'ROL_LIDER_ADMIN';
+
+export interface GrupoRanking {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+  tipo: TipoGrupoRanking;
+  criterio: CriterioMembresia;
+  esPublico: boolean;
+  soloMiembros: boolean;
+  totalMiembros?: number;
+  periodo?: { id: number; nombre: string; estado: EstadoRanking };
+  activo: boolean;
+  creadoPor?: { id: number; nombre: string };
+  createdAt?: string;
+}
+
+export interface GrupoRankingMiembro {
+  id: number;
+  grupoId: number;
+  usuarioId: number;
+  oculto: boolean;
+  usuario: {
+    id: number;
+    nombre: string;
+    fotoUrl?: string;
+  };
+}
+
+export interface GrupoRankingDetalle extends GrupoRanking {
+  miembros: GrupoRankingMiembro[];
+}
+
+export interface CrearGrupoRankingRequest {
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+  esPublico?: boolean;
+  soloMiembros?: boolean;
+  periodoId?: number;
+  miembrosIds?: number[];
+}
+
+export interface ActualizarGrupoRankingRequest {
+  nombre?: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+  esPublico?: boolean;
+  soloMiembros?: boolean;
+  periodoId?: number;
+  activo?: boolean;
+}
+
+export interface RankingGrupoUsuario {
+  posicion: number;
+  usuarioId: number;
+  nombre: string;
+  fotoUrl?: string;
+  nivelNumero: number;
+  nivelNombre: string;
+  nivelColor?: string;
+  puntosPeriodo: number;
+  rachaActual: number;
+  esUsuarioActual?: boolean;
+}
+
+export interface MiVisibilidadRanking {
+  ocultoEnGeneral: boolean;
+  grupos: {
+    grupoId: number;
+    codigo: string;
+    nombre: string;
+    icono?: string;
+    oculto: boolean;
+  }[];
+}
+
+export interface PosicionGrupo {
+  grupoId: number;
+  codigo: string;
+  nombre: string;
+  icono: string | null;
+  posicion: number;
+  totalMiembros: number;
+}
+
+export interface HistorialPuntosItem {
+  id: number;
+  puntos: number;
+  xp: number;
+  descripcion?: string;
+  fecha: string;
+  createdAt: string;
+  categoria: string;
+  tipoPuntaje: string;
+  periodo?: { id: number; nombre: string } | null;
+}
+
+export interface HistorialPuntosResponse {
+  data: HistorialPuntosItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface ResumenPeriodo {
+  periodo: {
+    id: number;
+    nombre: string;
+    fechaInicio: string;
+    fechaFin?: string;
+    estado: EstadoRanking;
+  };
+  puntosTotal: number;
+  xpTotal: number;
+  totalRegistros: number;
+  posicionFinal: number;
+  totalParticipantes: number;
+  porCategoria: Record<string, { puntos: number; cantidad: number }>;
 }
 

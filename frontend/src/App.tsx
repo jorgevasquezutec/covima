@@ -15,6 +15,9 @@ import RegistrarAsistencia from '@/pages/asistencia/RegistrarAsistencia';
 import TiposAsistenciaPage from '@/pages/asistencia/TiposAsistenciaPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
 import InboxPage from '@/pages/inbox/InboxPage';
+import { RankingPage, MiProgresoPage } from '@/pages/gamificacion';
+import { ConfigPuntajesPage, RegistroEventoPage, EventosPage, PeriodosRankingPage, GruposRankingPage } from '@/pages/admin/gamificacion';
+import { PartesProgramaPage } from '@/pages/admin/partes';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -109,6 +112,88 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <InboxPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Gamificación - Usuario */}
+        <Route
+          path="/ranking"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RankingPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mi-progreso"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <MiProgresoPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Gamificación - Admin */}
+        <Route
+          path="/admin/gamificacion/puntajes"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <ConfigPuntajesPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/gamificacion/eventos"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <EventosPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/gamificacion/registrar"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RegistroEventoPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/gamificacion/periodos"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <PeriodosRankingPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/gamificacion/grupos"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <GruposRankingPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/partes-programa"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <PartesProgramaPage />
               </MainLayout>
             </ProtectedRoute>
           }
