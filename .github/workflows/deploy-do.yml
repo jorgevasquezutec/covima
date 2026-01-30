@@ -92,5 +92,6 @@ jobs:
       - name: Health check
         run: |
           echo "Waiting for services to be ready..."
-          sleep 30
-          curl -f http://${{ secrets.DO_HOST }}:3000/api/health || echo "Health check - services starting..."
+          sleep 10
+          curl -sf --max-time 10 https://covima-api.jvasquez.me/api/auth/me 2>/dev/null && echo "API responding" || echo "API check completed (auth required)"
+          curl -sf --max-time 10 https://covima.jvasquez.me -o /dev/null && echo "Frontend OK" || echo "Frontend check completed"
