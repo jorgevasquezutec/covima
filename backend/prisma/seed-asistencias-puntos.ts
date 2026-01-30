@@ -54,6 +54,18 @@ async function seedAsistenciasPuntos() {
   console.log(`  - Normal: ${configNormal.puntos} pts, ${configNormal.xp} XP`);
   console.log(`  - Tardía: ${configTardia.puntos} pts, ${configTardia.xp} XP\n`);
 
+  // 2.5 Obtener el nivel inicial (Discípulo)
+  const nivelInicial = await prisma.nivelBiblico.findFirst({
+    where: { numero: 1 },
+  });
+
+  if (!nivelInicial) {
+    console.error('No se encontró el nivel inicial (Discípulo). Ejecuta primero seed-gamificacion.ts');
+    return;
+  }
+
+  console.log(`Nivel inicial: ${nivelInicial.nombre} (ID: ${nivelInicial.id})\n`);
+
   // 3. Obtener asistencias confirmadas con usuario que no tienen historial
   const asistenciasConfirmadas = await prisma.asistencia.findMany({
     where: {
@@ -110,7 +122,7 @@ async function seedAsistenciasPuntos() {
         perfil = await prisma.usuarioGamificacion.create({
           data: {
             usuarioId,
-            nivelId: 1, // Nivel Discípulo
+            nivelId: nivelInicial.id,
           },
         });
       }
