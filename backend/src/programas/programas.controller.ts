@@ -27,7 +27,7 @@ import { CreateProgramaDto, UpdateProgramaDto } from './dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('programas')
 export class ProgramasController {
-  constructor(private readonly programasService: ProgramasService) { }
+  constructor(private readonly programasService: ProgramasService) {}
 
   @Get()
   @Roles('admin', 'lider')
@@ -55,16 +55,25 @@ export class ProgramasController {
 
   @Get('estadisticas-admin')
   @Roles('admin', 'lider')
-  @ApiOperation({ summary: 'Obtener estadísticas de programas para dashboard admin' })
+  @ApiOperation({
+    summary: 'Obtener estadísticas de programas para dashboard admin',
+  })
   async getEstadisticasAdmin() {
     return this.programasService.getEstadisticasAdmin();
   }
 
   @Get('partes')
   @Roles('admin', 'lider')
-  @ApiOperation({ summary: 'Obtener todas las partes del programa' })
+  @ApiOperation({ summary: 'Obtener todas las partes activas del programa' })
   async getPartes() {
     return this.programasService.getPartes();
+  }
+
+  @Get('partes/all')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Obtener todas las partes (incluye inactivas)' })
+  async getAllPartes() {
+    return this.programasService.getAllPartes();
   }
 
   @Get('partes/obligatorias')
@@ -79,6 +88,53 @@ export class ProgramasController {
   @ApiOperation({ summary: 'Obtener partes opcionales del programa' })
   async getPartesOpcionales() {
     return this.programasService.getPartesOpcionales();
+  }
+
+  @Post('partes')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Crear nueva parte del programa' })
+  async createParte(
+    @Body()
+    body: {
+      nombre: string;
+      descripcion?: string;
+      orden?: number;
+      esFija?: boolean;
+      esObligatoria?: boolean;
+      textoFijo?: string;
+      puntos?: number;
+      xp?: number;
+    },
+  ) {
+    return this.programasService.createParte(body);
+  }
+
+  @Put('partes/:id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Actualizar parte del programa' })
+  async updateParte(
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      nombre?: string;
+      descripcion?: string;
+      orden?: number;
+      esFija?: boolean;
+      esObligatoria?: boolean;
+      textoFijo?: string;
+      activo?: boolean;
+      puntos?: number;
+      xp?: number;
+    },
+  ) {
+    return this.programasService.updateParte(id, body);
+  }
+
+  @Delete('partes/:id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Eliminar (desactivar) parte del programa' })
+  async deleteParte(@Param('id', ParseIntPipe) id: number) {
+    return this.programasService.deleteParte(id);
   }
 
   @Get('usuarios')
@@ -130,7 +186,8 @@ export class ProgramasController {
   @Roles('admin', 'lider')
   @ApiOperation({
     summary: 'Preview de notificaciones WhatsApp',
-    description: 'Agrupa las partes asignadas por usuario y genera el mensaje de notificación. Solo incluye usuarios con teléfono.',
+    description:
+      'Agrupa las partes asignadas por usuario y genera el mensaje de notificación. Solo incluye usuarios con teléfono.',
   })
   async previewNotificaciones(@Param('id', ParseIntPipe) id: number) {
     return this.programasService.previewNotificaciones(id);
@@ -140,12 +197,35 @@ export class ProgramasController {
   @Roles('admin', 'lider')
   @ApiOperation({
     summary: 'Enviar notificaciones WhatsApp a participantes',
-    description: 'Envía mensajes personalizados a cada participante con sus partes asignadas vía WhatsApp/Chatwoot. Opcionalmente envía solo a usuarios específicos.',
+    description:
+      'Envía mensajes personalizados a cada participante con sus partes asignadas vía WhatsApp/Chatwoot. Opcionalmente envía solo a usuarios específicos.',
   })
   async enviarNotificaciones(
     @Param('id', ParseIntPipe) id: number,
     @Body() body?: { usuarioIds?: number[] },
   ) {
     return this.programasService.enviarNotificaciones(id, body?.usuarioIds);
+  }
+
+  @Get(':id/preview-finalizacion')
+  @Roles('admin', 'lider')
+  @ApiOperation({
+    summary: 'Preview de finalización de programa',
+    description:
+      'Muestra los puntos que se asignarían al finalizar sin ejecutar la acción.',
+  })
+  async previewFinalizarPrograma(@Param('id', ParseIntPipe) id: number) {
+    return this.programasService.previewFinalizarPrograma(id);
+  }
+
+  @Post(':id/finalizar')
+  @Roles('admin', 'lider')
+  @ApiOperation({
+    summary: 'Finalizar programa y asignar puntos de gamificación',
+    description:
+      'Marca el programa como finalizado y asigna puntos de participación a todos los usuarios asignados.',
+  })
+  async finalizarPrograma(@Param('id', ParseIntPipe) id: number) {
+    return this.programasService.finalizarPrograma(id);
   }
 }

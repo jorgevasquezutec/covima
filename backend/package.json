@@ -22,6 +22,12 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "ts-node prisma/seed.ts",
+    "db:seed:gamificacion": "ts-node --transpile-only prisma/seed-gamificacion.ts",
+    "db:seed:asistencias-puntos": "ts-node --transpile-only prisma/seed-asistencias-puntos.ts",
+    "db:seed:codigos-programa": "ts-node --transpile-only prisma/seed-codigos-programa.ts",
+    "db:seed:cumpleanos": "ts-node --transpile-only prisma/seed-cumpleanos.ts",
+    "db:seed:cumpleanos-fix": "ts-node --transpile-only prisma/seed-cumpleanos-fix.ts",
+    "db:seed:qr-migration": "ts-node --transpile-only prisma/seed-qr-codes-migration.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

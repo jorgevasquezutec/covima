@@ -91,7 +91,9 @@ export class TiposAsistenciaService {
     });
 
     if (existing) {
-      throw new ConflictException('Ya existe un tipo de asistencia con este nombre');
+      throw new ConflictException(
+        'Ya existe un tipo de asistencia con este nombre',
+      );
     }
 
     // Obtener el siguiente orden si no se especifica
@@ -214,13 +216,18 @@ export class TiposAsistenciaService {
     // Verificar si ya existe un campo con ese nombre
     const existingCampo = tipo.campos.find((c) => c.nombre === dto.nombre);
     if (existingCampo) {
-      throw new ConflictException('Ya existe un campo con este nombre en este tipo');
+      throw new ConflictException(
+        'Ya existe un campo con este nombre en este tipo',
+      );
     }
 
     // Obtener el siguiente orden si no se especifica
     let orden = dto.orden;
     if (orden === undefined) {
-      const maxOrden = tipo.campos.reduce((max, c) => Math.max(max, c.orden), 0);
+      const maxOrden = tipo.campos.reduce(
+        (max, c) => Math.max(max, c.orden),
+        0,
+      );
       orden = maxOrden + 1;
     }
 
@@ -299,7 +306,9 @@ export class TiposAsistenciaService {
     const tipoCampoIds = tipo.campos.map((c) => c.id);
     for (const id of campoIds) {
       if (!tipoCampoIds.includes(id)) {
-        throw new BadRequestException(`El campo ${id} no pertenece a este tipo de asistencia`);
+        throw new BadRequestException(
+          `El campo ${id} no pertenece a este tipo de asistencia`,
+        );
       }
     }
 

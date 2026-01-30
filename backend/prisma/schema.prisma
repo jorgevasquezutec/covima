@@ -88,6 +88,22 @@ model Usuario {
   conversacionesDerivadas Conversacion[] @relation("ConversacionesDerivadas")
   mensajesEnviados        Mensaje[]      @relation("MensajesEnviados")
 
+  // === RELACIÓN GAMIFICACIÓN ===
+  gamificacion            UsuarioGamificacion?
+
+  // === RELACIONES PERIODOS RANKING ===
+  rankingsCreados         PeriodoRanking[] @relation("RankingCreador")
+  rankingsCerrados        PeriodoRanking[] @relation("RankingCerrador")
+
+  // === CONTROL DE PARTICIPACIÓN EN RANKINGS ===
+  participaEnRanking      Boolean          @default(true) @map("participa_en_ranking") // false = nunca aparece en rankings
+  esJA                    Boolean          @default(true) @map("es_ja") // true = miembro JA, aparece en ranking general
+
+  // === RELACIONES GRUPOS RANKING ===
+  gruposRanking           GrupoRankingMiembro[]
+  gruposRankingCreados    GrupoRanking[]   @relation("GrupoRankingCreador")
+  miembrosAgregados       GrupoRankingMiembro[] @relation("MiembroAgregadoPor")
+
   @@map("usuarios")
 }
 
@@ -115,6 +131,9 @@ model Parte {
   esObligatoria Boolean     @default(false) @map("es_obligatoria") // Siempre aparece en programas nuevos
   textoFijo     String?     @map("texto_fijo") @db.VarChar(100)
   activo        Boolean     @default(true)
+  // Gamificación - puntos por participar en esta parte
+  puntos        Int         @default(0) // Puntos por participar
+  xp            Int         @default(0) // XP por participar
   createdAt     DateTime    @default(now()) @map("created_at")
 
   usuarioPartes UsuarioParte[]
@@ -217,17 +236,19 @@ model ProgramaLink {
 }
 
 model QRAsistencia {
-  id           Int          @id @default(autoincrement())
-  semanaInicio DateTime     @map("semana_inicio") @db.Date
-  codigo       String       @unique @db.VarChar(50)
-  tipoId       Int?         @map("tipo_id")
-  descripcion  String?      @db.VarChar(200)
-  urlGenerada  String?      @map("url_generada")
-  activo       Boolean      @default(true)
-  horaInicio   DateTime     @default(dbgenerated("'09:00:00'::time")) @map("hora_inicio") @db.Time()
-  horaFin      DateTime     @default(dbgenerated("'12:00:00'::time")) @map("hora_fin") @db.Time()
-  createdBy    Int?         @map("created_by")
-  createdAt    DateTime     @default(now()) @map("created_at")
+  id              Int          @id @default(autoincrement())
+  semanaInicio    DateTime     @map("semana_inicio") @db.Date
+  codigo          String       @unique @db.VarChar(50)
+  tipoId          Int?         @map("tipo_id")
+  descripcion     String?      @db.VarChar(200)
+  urlGenerada     String?      @map("url_generada")
+  activo          Boolean      @default(true)
+  horaInicio      DateTime     @default(dbgenerated("'09:00:00'::time")) @map("hora_inicio") @db.Time()
+  horaFin         DateTime     @default(dbgenerated("'12:00:00'::time")) @map("hora_fin") @db.Time()
+  margenTemprana  Int          @default(15) @map("margen_temprana") // Minutos antes de horaInicio = temprana
+  margenTardia    Int          @default(30) @map("margen_tardia") // Minutos después de horaInicio = tardía
+  createdBy       Int?         @map("created_by")
+  createdAt       DateTime     @default(now()) @map("created_at")
 
   creador        Usuario?        @relation(fields: [createdBy], references: [id])
   tipoAsistencia TipoAsistencia? @relation(fields: [tipoId], references: [id])
@@ -258,7 +279,7 @@ model Asistencia {
   qr                  QRAsistencia? @relation(fields: [qrId], references: [id])
   tipo                TipoAsistencia? @relation(fields: [tipoId], references: [id])
 
-  @@unique([telefonoRegistro, semanaInicio, tipoId])
+  @@unique([telefonoRegistro, qrId])
   @@map("asistencias")
 }
 
@@ -387,4 +408,273 @@ model AuditLog {
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("audit_log")
+}
+
+// ==================== GAMIFICACIÓN ====================
+
+enum CategoriaAccion {
+  ASISTENCIA
+  PARTICIPACION
+  EVENTO_ESPECIAL
+  LOGRO
+  BONUS
+}
+
+enum EstadoRanking {
+  ACTIVO
+  CERRADO
+  PAUSADO
+}
+
+model NivelBiblico {
+  id              Int       @id @default(autoincrement())
+  numero          Int       @unique // 1-10
+  nombre          String    @unique @db.VarChar(50) // Discipulo, Diacono, etc.
+  descripcion     String?   @db.VarChar(255)
+  xpRequerido     Int       @map("xp_requerido") // XP mínimo para alcanzar este nivel
+  icono           String?   @db.VarChar(50) // Icono o emoji
+  color           String?   @db.VarChar(20) // Color en hex
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  usuariosEnNivel UsuarioGamificacion[]
+
+  @@map("niveles_biblicos")
+}
+
+model UsuarioGamificacion {
+  id                  Int       @id @default(autoincrement())
+  usuarioId           Int       @unique @map("usuario_id")
+  puntosTotal         Int       @default(0) @map("puntos_total")
+  puntosTrimestre     Int       @default(0) @map("puntos_trimestre")
+  xpTotal             Int       @default(0) @map("xp_total")
+  nivelId             Int       @default(1) @map("nivel_id")
+  rachaActual         Int       @default(0) @map("racha_actual") // Semanas consecutivas
+  rachaMejor          Int       @default(0) @map("racha_mejor") // Mejor racha histórica
+  ultimaSemanaAsistio DateTime? @map("ultima_semana_asistio") @db.Date
+  asistenciasTotales  Int       @default(0) @map("asistencias_totales")
+  participacionesTotales Int    @default(0) @map("participaciones_totales")
+  ocultoEnGeneral     Boolean   @default(false) @map("oculto_en_general") // Para líderes que quieren ocultarse del ranking general
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  usuario             Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  nivel               NivelBiblico @relation(fields: [nivelId], references: [id])
+  historialPuntos     HistorialPuntos[]
+  insignias           UsuarioInsignia[]
+  eventosRegistrados  EventoEspecialRegistro[]
+
+  @@map("usuarios_gamificacion")
+}
+
+model ConfiguracionPuntaje {
+  id          Int             @id @default(autoincrement())
+  codigo      String          @unique @db.VarChar(50) // 'asistencia_temprana', 'tema_central', etc.
+  categoria   CategoriaAccion
+  nombre      String          @db.VarChar(100)
+  descripcion String?         @db.VarChar(255)
+  puntos      Int
+  xp          Int             @default(0)
+  activo      Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  historialPuntos HistorialPuntos[]
+
+  @@map("configuracion_puntaje")
+}
+
+model HistorialPuntos {
+  id                Int       @id @default(autoincrement())
+  usuarioGamId      Int       @map("usuario_gam_id")
+  configPuntajeId   Int?      @map("config_puntaje_id")
+  periodoRankingId  Int?      @map("periodo_ranking_id") // Nuevo: período al que pertenece
+  puntos            Int
+  xp                Int       @default(0)
+  descripcion       String?   @db.VarChar(255)
+  fecha             DateTime  @db.Date
+  trimestre         Int?      // Legacy: se eliminará después de migración
+  anio              Int?      @map("anio") // Legacy: se eliminará después de migración
+  referenciaId      Int?      @map("referencia_id")
+  referenciaTipo    String?   @map("referencia_tipo") @db.VarChar(50)
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  usuarioGam        UsuarioGamificacion @relation(fields: [usuarioGamId], references: [id], onDelete: Cascade)
+  configPuntaje     ConfiguracionPuntaje? @relation(fields: [configPuntajeId], references: [id])
+  periodoRanking    PeriodoRanking? @relation(fields: [periodoRankingId], references: [id])
+
+  @@index([usuarioGamId, periodoRankingId])
+  @@index([fecha])
+  @@map("historial_puntos")
+}
+
+model Insignia {
+  id              Int       @id @default(autoincrement())
+  codigo          String    @unique @db.VarChar(50) // 'madrugador', 'constante', etc.
+  nombre          String    @db.VarChar(100)
+  descripcion     String?   @db.VarChar(255)
+  icono           String?   @db.VarChar(50)
+  color           String?   @db.VarChar(20)
+  condicionTipo   String    @map("condicion_tipo") @db.VarChar(50) // 'asistencias_tempranas', 'racha_semanas', etc.
+  condicionValor  Int       @map("condicion_valor") // Valor numérico de la condición
+  puntosBonus     Int       @default(0) @map("puntos_bonus")
+  xpBonus         Int       @default(0) @map("xp_bonus")
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  usuariosConInsignia UsuarioInsignia[]
+
+  @@map("insignias")
+}
+
+model UsuarioInsignia {
+  id              Int       @id @default(autoincrement())
+  usuarioGamId    Int       @map("usuario_gam_id")
+  insigniaId      Int       @map("insignia_id")
+  desbloqueadaAt  DateTime  @default(now()) @map("desbloqueada_at")
+  notificado      Boolean   @default(false)
+
+  usuarioGam      UsuarioGamificacion @relation(fields: [usuarioGamId], references: [id], onDelete: Cascade)
+  insignia        Insignia @relation(fields: [insigniaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioGamId, insigniaId])
+  @@map("usuarios_insignias")
+}
+
+model EventoEspecialConfig {
+  id              Int       @id @default(autoincrement())
+  codigo          String    @unique @db.VarChar(50) // 'd13', 'reavivados', 'semana_oracion', etc.
+  nombre          String    @db.VarChar(100)
+  descripcion     String?   @db.VarChar(255)
+  puntos          Int
+  xp              Int       @default(0)
+  icono           String?   @db.VarChar(50)
+  color           String?   @db.VarChar(20)
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  registros       EventoEspecialRegistro[]
+
+  @@map("eventos_especiales_config")
+}
+
+model EventoEspecialRegistro {
+  id              Int       @id @default(autoincrement())
+  usuarioGamId    Int       @map("usuario_gam_id")
+  eventoConfigId  Int       @map("evento_config_id")
+  fecha           DateTime  @db.Date
+  notas           String?   @db.VarChar(255)
+  registradoPorId Int?      @map("registrado_por_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  usuarioGam      UsuarioGamificacion @relation(fields: [usuarioGamId], references: [id], onDelete: Cascade)
+  eventoConfig    EventoEspecialConfig @relation(fields: [eventoConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioGamId, eventoConfigId, fecha])
+  @@map("eventos_especiales_registro")
+}
+
+model PeriodoRanking {
+  id              Int           @id @default(autoincrement())
+  nombre          String        @db.VarChar(100) // "Ranking Q1 2026"
+  descripcion     String?       @db.Text
+  fechaInicio     DateTime      @map("fecha_inicio") @db.Date
+  fechaFin        DateTime?     @map("fecha_fin") @db.Date // null = sin cierre automático
+  estado          EstadoRanking @default(ACTIVO)
+
+  // Auditoría
+  creadoPorId     Int?          @map("creado_por_id")
+  cerradoAt       DateTime?     @map("cerrado_at")
+  cerradoPorId    Int?          @map("cerrado_por_id")
+
+  // Resultados al cerrar (snapshot del top)
+  resultadosJson  Json?         @map("resultados_json")
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relaciones
+  historialPuntos HistorialPuntos[]
+  creadoPor       Usuario?      @relation("RankingCreador", fields: [creadoPorId], references: [id])
+  cerradoPor      Usuario?      @relation("RankingCerrador", fields: [cerradoPorId], references: [id])
+  gruposRanking   GrupoRanking[]
+
+  @@map("periodos_ranking")
+}
+
+// ==================== GRUPOS DE RANKING ====================
+
+enum TipoGrupoRanking {
+  SISTEMA         // Creados por el sistema, no eliminables (General, Líderes)
+  PERSONALIZADO   // Creados por admin
+}
+
+enum CriterioMembresia {
+  MANUAL          // Admin selecciona usuarios uno a uno
+  TODOS_ACTIVOS   // Todos con participaEnRanking = true (excepto líderes/admin)
+  ROL_LIDER       // Usuarios con rol 'lider'
+  ROL_ADMIN       // Usuarios con rol 'admin'
+  ROL_LIDER_ADMIN // Usuarios con rol 'lider' o 'admin'
+}
+
+model GrupoRanking {
+  id              Int                 @id @default(autoincrement())
+  codigo          String              @unique @db.VarChar(50) // 'general', 'lideres', 'equipo_musica'
+  nombre          String              @db.VarChar(100)
+  descripcion     String?             @db.Text
+  icono           String?             @db.VarChar(10)   // Emoji
+  color           String?             @db.VarChar(20)   // Hex color
+
+  // Tipo y criterio de membresía
+  tipo            TipoGrupoRanking    @default(PERSONALIZADO)
+  criterio        CriterioMembresia   @default(MANUAL)
+
+  // Configuración de visibilidad
+  esPublico       Boolean             @default(true) @map("es_publico")    // Aparece en lista de rankings
+  soloMiembros    Boolean             @default(false) @map("solo_miembros") // Solo miembros pueden ver el ranking
+
+  // Vinculación a período (opcional)
+  periodoId       Int?                @map("periodo_id") // null = usa período activo
+
+  // Orden en UI
+  orden           Int                 @default(0)
+
+  // Estado
+  activo          Boolean             @default(true)
+
+  // Auditoría
+  creadoPorId     Int?                @map("creado_por_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  // Relaciones
+  miembros        GrupoRankingMiembro[]
+  periodo         PeriodoRanking?     @relation(fields: [periodoId], references: [id])
+  creadoPor       Usuario?            @relation("GrupoRankingCreador", fields: [creadoPorId], references: [id])
+
+  @@map("grupos_ranking")
+}
+
+model GrupoRankingMiembro {
+  id              Int       @id @default(autoincrement())
+  grupoId         Int       @map("grupo_id")
+  usuarioId       Int       @map("usuario_id")
+
+  // Control individual de visibilidad
+  oculto          Boolean   @default(false)   // Usuario puede ocultarse de este grupo
+
+  // Auditoría
+  agregadoPorId   Int?      @map("agregado_por_id")
+  agregadoAt      DateTime  @default(now()) @map("agregado_at")
+
+  // Relaciones
+  grupo           GrupoRanking @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  usuario         Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  agregadoPor     Usuario?     @relation("MiembroAgregadoPor", fields: [agregadoPorId], references: [id])
+
+  @@unique([grupoId, usuarioId])
+  @@index([grupoId])
+  @@index([usuarioId])
+  @@map("grupos_ranking_miembros")
 }

@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InboxService } from './inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InboxGateway } from './inbox.gateway';
@@ -68,12 +72,19 @@ describe('InboxService', () => {
       updatedAt: new Date(),
       createdAt: new Date(),
       derivadaAt: null,
-      usuario: { id: 1, nombre: 'Test User', nombreWhatsapp: 'Test', fotoUrl: null },
+      usuario: {
+        id: 1,
+        nombre: 'Test User',
+        nombreWhatsapp: 'Test',
+        fotoUrl: null,
+      },
       derivadaA: null,
     };
 
     it('should return paginated conversations', async () => {
-      mockPrismaService.conversacion.findMany.mockResolvedValue([mockConversacion]);
+      mockPrismaService.conversacion.findMany.mockResolvedValue([
+        mockConversacion,
+      ]);
 
       const result = await service.getConversaciones({ limit: 20 });
 
@@ -97,7 +108,10 @@ describe('InboxService', () => {
     it('should filter by misConversaciones', async () => {
       mockPrismaService.conversacion.findMany.mockResolvedValue([]);
 
-      await service.getConversaciones({ misConversaciones: 'true', limit: 20 }, 1);
+      await service.getConversaciones(
+        { misConversaciones: 'true', limit: 20 },
+        1,
+      );
 
       expect(mockPrismaService.conversacion.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -121,7 +135,9 @@ describe('InboxService', () => {
     });
 
     it('should handle cursor-based pagination', async () => {
-      mockPrismaService.conversacion.findMany.mockResolvedValue([mockConversacion]);
+      mockPrismaService.conversacion.findMany.mockResolvedValue([
+        mockConversacion,
+      ]);
 
       await service.getConversaciones({ cursor: '5', limit: 20 });
 
@@ -146,11 +162,20 @@ describe('InboxService', () => {
         updatedAt: new Date(),
         createdAt: new Date(),
         derivadaAt: null,
-        usuario: { id: 1, nombre: 'Test', nombreWhatsapp: null, fotoUrl: null, telefono: '999888777', codigoPais: '51' },
+        usuario: {
+          id: 1,
+          nombre: 'Test',
+          nombreWhatsapp: null,
+          fotoUrl: null,
+          telefono: '999888777',
+          codigoPais: '51',
+        },
         derivadaA: null,
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
 
       const result = await service.getConversacion(1);
 
@@ -163,7 +188,9 @@ describe('InboxService', () => {
     it('should throw NotFoundException if not found', async () => {
       mockPrismaService.conversacion.findUnique.mockResolvedValue(null);
 
-      await expect(service.getConversacion(999)).rejects.toThrow(NotFoundException);
+      await expect(service.getConversacion(999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -193,14 +220,20 @@ describe('InboxService', () => {
     it('should throw NotFoundException if conversation not found', async () => {
       mockPrismaService.conversacion.findUnique.mockResolvedValue(null);
 
-      await expect(service.getMensajes(999, { limit: 50 })).rejects.toThrow(NotFoundException);
+      await expect(service.getMensajes(999, { limit: 50 })).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should handle cursor pagination', async () => {
       mockPrismaService.conversacion.findUnique.mockResolvedValue({ id: 1 });
       mockPrismaService.mensaje.findMany.mockResolvedValue([mockMensaje]);
 
-      await service.getMensajes(1, { cursor: '10', limit: 50, direccion: DireccionPaginacion.ANTES });
+      await service.getMensajes(1, {
+        cursor: '10',
+        limit: 50,
+        direccion: DireccionPaginacion.ANTES,
+      });
 
       expect(mockPrismaService.mensaje.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -235,7 +268,9 @@ describe('InboxService', () => {
         derivadaA: { id: 1, nombre: 'Admin' },
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
       mockPrismaService.conversacion.update.mockResolvedValue(mockUpdated);
 
       const result = await service.tomarConversacion(1, 1);
@@ -261,15 +296,21 @@ describe('InboxService', () => {
         derivadaA: { id: 2, nombre: 'Other Admin' },
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
 
-      await expect(service.tomarConversacion(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.tomarConversacion(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw NotFoundException if conversation not found', async () => {
       mockPrismaService.conversacion.findUnique.mockResolvedValue(null);
 
-      await expect(service.tomarConversacion(999, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.tomarConversacion(999, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -296,7 +337,9 @@ describe('InboxService', () => {
         derivadaA: null,
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
       mockPrismaService.conversacion.update.mockResolvedValue(mockUpdated);
 
       const result = await service.cerrarHandoff(1, 1, {});
@@ -311,9 +354,13 @@ describe('InboxService', () => {
         derivadaAId: 2,
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
 
-      await expect(service.cerrarHandoff(1, 1, {})).rejects.toThrow(ForbiddenException);
+      await expect(service.cerrarHandoff(1, 1, {})).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -346,7 +393,9 @@ describe('InboxService', () => {
         derivadaA: { id: 2, nombre: 'New Admin' },
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
       mockPrismaService.usuario.findUnique.mockResolvedValue(mockNuevoAdmin);
       mockPrismaService.conversacion.update.mockResolvedValue(mockUpdated);
 
@@ -362,9 +411,13 @@ describe('InboxService', () => {
         derivadaAId: 2,
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
 
-      await expect(service.transferirConversacion(1, 1, { adminId: 3 })).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.transferirConversacion(1, 1, { adminId: 3 }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -388,11 +441,17 @@ describe('InboxService', () => {
         enviadoPor: { id: 1, nombre: 'Admin' },
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
       mockPrismaService.mensaje.create.mockResolvedValue(mockMensaje);
       mockPrismaService.conversacion.update.mockResolvedValue(mockConversacion);
 
-      const result = await service.enviarMensaje(1, { contenido: 'Hola desde admin' }, 1);
+      const result = await service.enviarMensaje(
+        1,
+        { contenido: 'Hola desde admin' },
+        1,
+      );
 
       expect(result.mensaje.contenido).toBe('Hola desde admin');
       expect(result.mensaje.direccion).toBe('SALIENTE');
@@ -405,9 +464,13 @@ describe('InboxService', () => {
         derivadaAId: null,
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
 
-      await expect(service.enviarMensaje(1, { contenido: 'Test' }, 1)).rejects.toThrow(BadRequestException);
+      await expect(
+        service.enviarMensaje(1, { contenido: 'Test' }, 1),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw ForbiddenException if assigned to another admin', async () => {
@@ -417,9 +480,13 @@ describe('InboxService', () => {
         derivadaAId: 2,
       };
 
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
 
-      await expect(service.enviarMensaje(1, { contenido: 'Test' }, 1)).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.enviarMensaje(1, { contenido: 'Test' }, 1),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -440,7 +507,9 @@ describe('InboxService', () => {
       };
 
       // getOrCreateConversacion uses findUnique with { telefono }
-      mockPrismaService.conversacion.findUnique.mockResolvedValue(mockConversacion);
+      mockPrismaService.conversacion.findUnique.mockResolvedValue(
+        mockConversacion,
+      );
 
       const result = await service.getOrCreateConversacion('51999888777');
 
@@ -468,9 +537,14 @@ describe('InboxService', () => {
       // Second call for findUnique might be from other tests
       mockPrismaService.conversacion.findUnique.mockResolvedValueOnce(null);
       mockPrismaService.usuario.findFirst.mockResolvedValue(null);
-      mockPrismaService.conversacion.create.mockResolvedValue(mockNewConversacion);
+      mockPrismaService.conversacion.create.mockResolvedValue(
+        mockNewConversacion,
+      );
 
-      const result = await service.getOrCreateConversacion('51999888777', 'Test User');
+      const result = await service.getOrCreateConversacion(
+        '51999888777',
+        'Test User',
+      );
 
       expect(result.conversacion.id).toBe(1);
       expect(result.isNew).toBe(true);
@@ -482,8 +556,18 @@ describe('InboxService', () => {
   describe('getAdminsDisponibles', () => {
     it('should return list of available admins', async () => {
       const mockAdmins = [
-        { id: 1, nombre: 'Admin 1', fotoUrl: null, roles: [{ rol: { nombre: 'admin' } }] },
-        { id: 2, nombre: 'Admin 2', fotoUrl: null, roles: [{ rol: { nombre: 'lider' } }] },
+        {
+          id: 1,
+          nombre: 'Admin 1',
+          fotoUrl: null,
+          roles: [{ rol: { nombre: 'admin' } }],
+        },
+        {
+          id: 2,
+          nombre: 'Admin 2',
+          fotoUrl: null,
+          roles: [{ rol: { nombre: 'lider' } }],
+        },
       ];
 
       mockPrismaService.usuario.findMany.mockResolvedValue(mockAdmins);
@@ -500,7 +584,10 @@ describe('InboxService', () => {
     it('should mark messages as read', async () => {
       mockPrismaService.conversacion.findUnique.mockResolvedValue({ id: 1 });
       mockPrismaService.mensaje.updateMany.mockResolvedValue({ count: 5 });
-      mockPrismaService.conversacion.update.mockResolvedValue({ id: 1, mensajesNoLeidos: 0 });
+      mockPrismaService.conversacion.update.mockResolvedValue({
+        id: 1,
+        mensajesNoLeidos: 0,
+      });
 
       const result = await service.marcarComoLeido(1, 1, {});
 
@@ -511,7 +598,9 @@ describe('InboxService', () => {
     it('should throw NotFoundException if conversation not found', async () => {
       mockPrismaService.conversacion.findUnique.mockResolvedValue(null);
 
-      await expect(service.marcarComoLeido(999, 1, {})).rejects.toThrow(NotFoundException);
+      await expect(service.marcarComoLeido(999, 1, {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

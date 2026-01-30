@@ -15,13 +15,19 @@ export class AsignacionDto {
   @IsInt()
   parteId: number;
 
-  @ApiPropertyOptional({ example: [1, 2], description: 'IDs de usuarios asignados' })
+  @ApiPropertyOptional({
+    example: [1, 2],
+    description: 'IDs de usuarios asignados',
+  })
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })
   usuarioIds?: number[];
 
-  @ApiPropertyOptional({ example: ['Juan Pérez', 'María García'], description: 'Nombres libres (usuarios no registrados)' })
+  @ApiPropertyOptional({
+    example: ['Juan Pérez', 'María García'],
+    description: 'Nombres libres (usuarios no registrados)',
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -53,7 +59,10 @@ export class ParteOrdenDto {
 }
 
 export class CreateProgramaDto {
-  @ApiProperty({ example: '2025-01-25', description: 'Fecha del programa (sábado)' })
+  @ApiProperty({
+    example: '2025-01-25',
+    description: 'Fecha del programa (sábado)',
+  })
   @IsDateString()
   fecha: string;
 
@@ -62,7 +71,10 @@ export class CreateProgramaDto {
   @IsString()
   titulo?: string;
 
-  @ApiPropertyOptional({ example: '18:30', description: 'Hora de inicio (HH:MM)' })
+  @ApiPropertyOptional({
+    example: '18:30',
+    description: 'Hora de inicio (HH:MM)',
+  })
   @IsOptional()
   @IsString()
   horaInicio?: string;
@@ -74,7 +86,7 @@ export class CreateProgramaDto {
 
   @ApiPropertyOptional({
     type: [ParteOrdenDto],
-    description: 'Partes incluidas en el programa con su orden'
+    description: 'Partes incluidas en el programa con su orden',
   })
   @IsOptional()
   @IsArray()

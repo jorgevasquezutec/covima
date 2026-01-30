@@ -8,12 +8,19 @@ export enum DireccionPaginacion {
 }
 
 export class GetMensajesDto {
-  @ApiPropertyOptional({ description: 'Cursor para paginación (ID del mensaje)' })
+  @ApiPropertyOptional({
+    description: 'Cursor para paginación (ID del mensaje)',
+  })
   @IsOptional()
   @IsString()
   cursor?: string;
 
-  @ApiPropertyOptional({ description: 'Límite de resultados', default: 50, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({
+    description: 'Límite de resultados',
+    default: 50,
+    minimum: 1,
+    maximum: 100,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -22,9 +29,10 @@ export class GetMensajesDto {
   limit?: number = 50;
 
   @ApiPropertyOptional({
-    description: 'Dirección de paginación: antes (scroll up) o despues (nuevos)',
+    description:
+      'Dirección de paginación: antes (scroll up) o despues (nuevos)',
     enum: DireccionPaginacion,
-    default: DireccionPaginacion.ANTES
+    default: DireccionPaginacion.ANTES,
   })
   @IsOptional()
   @IsEnum(DireccionPaginacion)

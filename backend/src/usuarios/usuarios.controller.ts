@@ -35,7 +35,7 @@ import { CreateUsuarioDto, UpdateUsuarioDto, ResetPasswordDto } from './dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('usuarios')
 export class UsuariosController {
-  constructor(private readonly usuariosService: UsuariosService) { }
+  constructor(private readonly usuariosService: UsuariosService) {}
 
   @Get()
   @Roles('admin')
@@ -71,7 +71,12 @@ export class UsuariosController {
   @Get('cumpleanos-mes')
   @Roles('admin', 'lider')
   @ApiOperation({ summary: 'Obtener cumpleaños de un mes específico' })
-  @ApiQuery({ name: 'mes', required: false, type: Number, description: 'Mes (1-12)' })
+  @ApiQuery({
+    name: 'mes',
+    required: false,
+    type: Number,
+    description: 'Mes (1-12)',
+  })
   @ApiQuery({ name: 'anio', required: false, type: Number, description: 'Año' })
   async getCumpleanosDelMes(
     @Query('mes') mes?: string,
@@ -93,7 +98,8 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Actualizar mi perfil' })
   async updateMyProfile(
     @Request() req: any,
-    @Body() body: {
+    @Body()
+    body: {
       nombre?: string;
       email?: string;
       fotoUrl?: string;
@@ -106,7 +112,9 @@ export class UsuariosController {
   ) {
     return this.usuariosService.updateProfile(req.user.id, {
       ...body,
-      fechaNacimiento: body.fechaNacimiento ? new Date(body.fechaNacimiento) : undefined,
+      fechaNacimiento: body.fechaNacimiento
+        ? new Date(body.fechaNacimiento)
+        : undefined,
     });
   }
 
@@ -129,14 +137,18 @@ export class UsuariosController {
       storage: diskStorage({
         destination: './uploads/avatars',
         filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           callback(null, `avatar-${uniqueSuffix}${ext}`);
         },
       }),
       fileFilter: (req, file, callback) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          return callback(new BadRequestException('Solo se permiten imágenes'), false);
+          return callback(
+            new BadRequestException('Solo se permiten imágenes'),
+            false,
+          );
         }
         callback(null, true);
       },
@@ -197,6 +209,13 @@ export class UsuariosController {
     return this.usuariosService.toggleActive(id);
   }
 
+  @Patch(':id/toggle-ranking')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Incluir/Excluir usuario del ranking' })
+  async toggleRanking(@Param('id', ParseIntPipe) id: number) {
+    return this.usuariosService.toggleRanking(id);
+  }
+
   @Patch(':id/telefono')
   @Roles('admin')
   @ApiOperation({ summary: 'Actualizar teléfono de usuario (solo admin)' })
@@ -204,7 +223,11 @@ export class UsuariosController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { codigoPais: string; telefono: string },
   ) {
-    return this.usuariosService.updateTelefono(id, body.codigoPais, body.telefono);
+    return this.usuariosService.updateTelefono(
+      id,
+      body.codigoPais,
+      body.telefono,
+    );
   }
 
   @Post(':id/foto')
@@ -227,14 +250,18 @@ export class UsuariosController {
       storage: diskStorage({
         destination: './uploads/avatars',
         filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           callback(null, `avatar-${uniqueSuffix}${ext}`);
         },
       }),
       fileFilter: (req, file, callback) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          return callback(new BadRequestException('Solo se permiten imágenes'), false);
+          return callback(
+            new BadRequestException('Solo se permiten imágenes'),
+            false,
+          );
         }
         callback(null, true);
       },

@@ -6,7 +6,10 @@ export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private readonly publisher: Redis;
   private readonly subscriber: Redis;
-  private readonly subscriptions = new Map<string, Set<(message: any) => void>>();
+  private readonly subscriptions = new Map<
+    string,
+    Set<(message: any) => void>
+  >();
 
   constructor() {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -59,7 +62,10 @@ export class RedisService implements OnModuleDestroy {
             try {
               callback(parsed);
             } catch (err) {
-              this.logger.error(`Error in subscription callback for ${channel}:`, err);
+              this.logger.error(
+                `Error in subscription callback for ${channel}:`,
+                err,
+              );
             }
           });
         } catch (err) {
@@ -77,7 +83,10 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
-  async subscribe(channel: string, callback: (message: any) => void): Promise<void> {
+  async subscribe(
+    channel: string,
+    callback: (message: any) => void,
+  ): Promise<void> {
     if (!this.subscriptions.has(channel)) {
       this.subscriptions.set(channel, new Set());
       await this.subscriber.subscribe(channel);
@@ -86,7 +95,10 @@ export class RedisService implements OnModuleDestroy {
     this.subscriptions.get(channel)!.add(callback);
   }
 
-  async unsubscribe(channel: string, callback?: (message: any) => void): Promise<void> {
+  async unsubscribe(
+    channel: string,
+    callback?: (message: any) => void,
+  ): Promise<void> {
     const callbacks = this.subscriptions.get(channel);
     if (!callbacks) return;
 
@@ -116,7 +128,8 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async set(key: string, value: any, ttlSeconds?: number): Promise<void> {
-    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    const serialized =
+      typeof value === 'string' ? value : JSON.stringify(value);
     if (ttlSeconds) {
       await this.publisher.setex(key, ttlSeconds, serialized);
     } else {

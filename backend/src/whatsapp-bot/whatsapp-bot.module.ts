@@ -13,26 +13,28 @@ import { AsistenciaModule } from '../asistencia/asistencia.module';
 import { UsuariosModule } from '../usuarios/usuarios.module';
 import { ProgramasModule } from '../programas/programas.module';
 import { InboxModule } from '../inbox/inbox.module';
+import { GamificacionModule } from '../gamificacion/gamificacion.module';
 
 @Module({
-    imports: [
-        HttpModule,
-        PrismaModule,
-        AsistenciaModule,
-        UsuariosModule,
-        forwardRef(() => ProgramasModule),
-        forwardRef(() => InboxModule),
-    ],
-    controllers: [WhatsappBotController],
-    providers: [
-        WhatsappBotService,
-        OpenAIService,
-        IntentRouterService,
-        AsistenciaHandler,
-        UsuariosHandler,
-        ProgramasHandler,
-        NotificacionesHandler,
-    ],
-    exports: [WhatsappBotService, OpenAIService],
+  imports: [
+    HttpModule,
+    PrismaModule,
+    AsistenciaModule,
+    UsuariosModule,
+    forwardRef(() => ProgramasModule),
+    forwardRef(() => InboxModule),
+    forwardRef(() => GamificacionModule),
+  ],
+  controllers: [WhatsappBotController],
+  providers: [
+    WhatsappBotService,
+    OpenAIService,
+    IntentRouterService,
+    AsistenciaHandler,
+    UsuariosHandler,
+    ProgramasHandler,
+    NotificacionesHandler,
+  ],
+  exports: [WhatsappBotService, OpenAIService],
 })
-export class WhatsappBotModule { }
+export class WhatsappBotModule {}

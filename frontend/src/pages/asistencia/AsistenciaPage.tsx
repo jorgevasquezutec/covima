@@ -23,6 +23,7 @@ import {
     CalendarDays,
     Pencil,
     UserPlus,
+    Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -43,6 +44,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
     Select,
     SelectContent,
@@ -157,6 +168,11 @@ export default function AsistenciaPage() {
     });
     const [updatingQR, setUpdatingQR] = useState(false);
 
+    // Delete QR Dialog state
+    const [deleteQROpen, setDeleteQROpen] = useState(false);
+    const [deletingQR, setDeletingQR] = useState<QRAsistencia | null>(null);
+    const [deletingQRLoading, setDeletingQRLoading] = useState(false);
+
     // Registrar usuario desde asistencia
     const [registerUserOpen, setRegisterUserOpen] = useState(false);
     const [registeringUser, setRegisteringUser] = useState(false);
@@ -165,6 +181,11 @@ export default function AsistenciaPage() {
         nombre: string;
         telefono: string;
     } | null>(null);
+
+    // Delete asistencia
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [asistenciaToDelete, setAsistenciaToDelete] = useState<Asistencia | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     // Load tipos on mount
     useEffect(() => {
@@ -199,6 +220,7 @@ export default function AsistenciaPage() {
                     page: meta.page,
                     limit: meta.limit,
                     estado: estadoFilter !== 'all' ? estadoFilter : undefined,
+                    tipoId: tipoFilter !== 'all' ? parseInt(tipoFilter) : undefined,
                     fechaDesde: fechaDesde || undefined,
                     fechaHasta: fechaHasta || undefined,
                 }),
@@ -206,12 +228,7 @@ export default function AsistenciaPage() {
             ]);
 
             setQrs(qrsData.data);
-            // Filtrar por tipo en frontend si se seleccionó uno
-            let filteredAsistencias = asistenciasData.data;
-            if (tipoFilter !== 'all') {
-                filteredAsistencias = filteredAsistencias.filter(a => a.tipo?.id === parseInt(tipoFilter));
-            }
-            setAsistencias(filteredAsistencias);
+            setAsistencias(asistenciasData.data);
             setMeta(asistenciasData.meta);
             setEstadisticas(statsData);
             // También cargar la lista de QRs
@@ -290,6 +307,22 @@ export default function AsistenciaPage() {
             loadData();
         } catch {
             toast.error('Error al cambiar estado');
+        }
+    };
+
+    const handleDeleteQR = async () => {
+        if (!deletingQR) return;
+        setDeletingQRLoading(true);
+        try {
+            const result = await asistenciaApi.deleteQR(deletingQR.id);
+            toast.success(`QR ${result.codigo} eliminado. ${result.asistenciasEliminadas} asistencias eliminadas.`);
+            setDeleteQROpen(false);
+            setDeletingQR(null);
+            loadData();
+        } catch {
+            toast.error('Error al eliminar QR');
+        } finally {
+            setDeletingQRLoading(false);
         }
     };
 
@@ -410,6 +443,28 @@ export default function AsistenciaPage() {
         }
     };
 
+    const handleOpenDelete = (asistencia: Asistencia) => {
+        setAsistenciaToDelete(asistencia);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteAsistencia = async () => {
+        if (!asistenciaToDelete) return;
+
+        try {
+            setDeleting(true);
+            await asistenciaApi.deleteAsistencia(asistenciaToDelete.id);
+            toast.success('Asistencia eliminada correctamente');
+            setDeleteDialogOpen(false);
+            setAsistenciaToDelete(null);
+            loadData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al eliminar asistencia');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     const toggleSelectAll = () => {
         const pendientes = asistencias.filter(a => a.estado === 'pendiente_confirmacion');
         if (selectedIds.length === pendientes.length) {
@@ -511,26 +566,36 @@ export default function AsistenciaPage() {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                         {getEstadoBadge(asistencia.estado)}
-                        {isPendiente && (
-                            <div className="flex gap-1">
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleConfirmar(asistencia.id, 'confirmado')}
-                                    className="h-8 w-8 text-green-600 hover:bg-green-50"
-                                >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleConfirmar(asistencia.id, 'rechazado')}
-                                    className="h-8 w-8 text-red-600 hover:bg-red-50"
-                                >
-                                    <XCircle className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        )}
+                        <div className="flex gap-1">
+                            {isPendiente && (
+                                <>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => handleConfirmar(asistencia.id, 'confirmado')}
+                                        className="h-8 w-8 text-green-600 hover:bg-green-50"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => handleConfirmar(asistencia.id, 'rechazado')}
+                                        className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                    >
+                                        <XCircle className="w-4 h-4" />
+                                    </Button>
+                                </>
+                            )}
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleOpenDelete(asistencia)}
+                                className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -760,6 +825,18 @@ export default function AsistenciaPage() {
                                                     >
                                                         {qr.activo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                                                     </Button>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            setDeletingQR(qr);
+                                                            setDeleteQROpen(true);
+                                                        }}
+                                                        className="h-9 w-9 text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
+                                                        title="Eliminar QR"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
                                                 </div>
                                             </div>
                                         );
@@ -897,6 +974,18 @@ export default function AsistenciaPage() {
                                                                     title={qr.activo ? 'Desactivar' : 'Activar'}
                                                                 >
                                                                     {qr.activo ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                                                                </Button>
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={() => {
+                                                                        setDeletingQR(qr);
+                                                                        setDeleteQROpen(true);
+                                                                    }}
+                                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                                                    title="Eliminar QR"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
                                                                 </Button>
                                                             </div>
                                                         </TableCell>
@@ -1199,26 +1288,37 @@ export default function AsistenciaPage() {
                                                 </TableCell>
                                                 <TableCell>{getEstadoBadge(asistencia.estado)}</TableCell>
                                                 <TableCell className="text-right">
-                                                    {asistencia.estado === 'pendiente_confirmacion' && (
-                                                        <div className="flex justify-end gap-1">
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                onClick={() => handleConfirmar(asistencia.id, 'confirmado')}
-                                                                className="h-8 w-8 text-green-600 hover:bg-green-50"
-                                                            >
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                onClick={() => handleConfirmar(asistencia.id, 'rechazado')}
-                                                                className="h-8 w-8 text-red-600 hover:bg-red-50"
-                                                            >
-                                                                <XCircle className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    )}
+                                                    <div className="flex justify-end gap-1">
+                                                        {asistencia.estado === 'pendiente_confirmacion' && (
+                                                            <>
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={() => handleConfirmar(asistencia.id, 'confirmado')}
+                                                                    className="h-8 w-8 text-green-600 hover:bg-green-50"
+                                                                >
+                                                                    <CheckCircle2 className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={() => handleConfirmar(asistencia.id, 'rechazado')}
+                                                                    className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                                                >
+                                                                    <XCircle className="w-4 h-4" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            onClick={() => handleOpenDelete(asistencia)}
+                                                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                                            title="Eliminar asistencia"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -1599,6 +1699,71 @@ export default function AsistenciaPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent className="bg-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar asistencia?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {asistenciaToDelete && (
+                                <>
+                                    Se eliminará la asistencia de{' '}
+                                    <strong>{asistenciaToDelete.usuario?.nombre || asistenciaToDelete.nombreRegistro || 'Sin nombre'}</strong>.
+                                    {asistenciaToDelete.usuario && (
+                                        <>
+                                            <br /><br />
+                                            Si tiene puntos de gamificación asociados, también se eliminarán.
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteAsistencia}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={deleting}
+                        >
+                            {deleting ? 'Eliminando...' : 'Eliminar'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete QR Confirmation Dialog */}
+            <AlertDialog open={deleteQROpen} onOpenChange={setDeleteQROpen}>
+                <AlertDialogContent className="bg-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar código QR?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deletingQR && (
+                                <div className="space-y-2">
+                                    <p>Se eliminará el QR <strong>{deletingQR.codigo}</strong></p>
+                                    {deletingQR.totalAsistencias > 0 && (
+                                        <p className="text-red-600 font-medium">
+                                            ⚠️ Se eliminarán también {deletingQR.totalAsistencias} asistencia(s) registradas y sus puntos de gamificación.
+                                        </p>
+                                    )}
+                                    <p className="text-gray-500 text-sm">Esta acción no se puede deshacer.</p>
+                                </div>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deletingQRLoading}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteQR}
+                            disabled={deletingQRLoading}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {deletingQRLoading ? 'Eliminando...' : 'Eliminar'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

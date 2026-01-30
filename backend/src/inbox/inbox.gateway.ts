@@ -63,7 +63,9 @@ interface ConversacionNuevaData {
   pingInterval: 25000, // Heartbeat cada 25 segundos
   pingTimeout: 10000, // Timeout de 10 segundos
 })
-export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class InboxGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(InboxGateway.name);
 
   @WebSocketServer()
@@ -80,7 +82,10 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   private readonly TYPING_THROTTLE_MS = 500;
 
   // Rate limiting: socketId -> { count, windowStart }
-  private rateLimits = new Map<string, { count: number; windowStart: number }>();
+  private rateLimits = new Map<
+    string,
+    { count: number; windowStart: number }
+  >();
   private readonly RATE_LIMIT_WINDOW_MS = 1000;
   private readonly RATE_LIMIT_MAX_EVENTS = 10;
 
@@ -98,23 +103,37 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
   private async setupRedisSubscriptions() {
     // Suscribirse a eventos de Redis para escalabilidad horizontal
-    await this.redisService.subscribe('inbox:mensaje:nuevo', (data: MensajeNuevoData) => {
-      this.server.to(`conv:${data.conversacionId}`).emit('inbox:mensaje:nuevo', { ...data.mensaje, conversacionId: data.conversacionId });
-      // También emitir a todos para actualizar lista de conversaciones
-      this.server.emit('inbox:conversacion:actualizada', {
-        id: data.conversacionId,
-        ultimoMensaje: data.mensaje.contenido,
-        updatedAt: data.mensaje.createdAt,
-      });
-    });
+    await this.redisService.subscribe(
+      'inbox:mensaje:nuevo',
+      (data: MensajeNuevoData) => {
+        this.server
+          .to(`conv:${data.conversacionId}`)
+          .emit('inbox:mensaje:nuevo', {
+            ...data.mensaje,
+            conversacionId: data.conversacionId,
+          });
+        // También emitir a todos para actualizar lista de conversaciones
+        this.server.emit('inbox:conversacion:actualizada', {
+          id: data.conversacionId,
+          ultimoMensaje: data.mensaje.contenido,
+          updatedAt: data.mensaje.createdAt,
+        });
+      },
+    );
 
-    await this.redisService.subscribe('inbox:conversacion:actualizada', (data: ConversacionActualizadaData) => {
-      this.server.emit('inbox:conversacion:actualizada', data.conversacion);
-    });
+    await this.redisService.subscribe(
+      'inbox:conversacion:actualizada',
+      (data: ConversacionActualizadaData) => {
+        this.server.emit('inbox:conversacion:actualizada', data.conversacion);
+      },
+    );
 
-    await this.redisService.subscribe('inbox:conversacion:nueva', (data: ConversacionNuevaData) => {
-      this.server.emit('inbox:conversacion:nueva', data.conversacion);
-    });
+    await this.redisService.subscribe(
+      'inbox:conversacion:nueva',
+      (data: ConversacionNuevaData) => {
+        this.server.emit('inbox:conversacion:nueva', data.conversacion);
+      },
+    );
 
     await this.redisService.subscribe('inbox:typing', (data: any) => {
       this.server.to(`conv:${data.conversacionId}`).emit('inbox:typing', {
@@ -146,7 +165,9 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       // Verificar que tenga rol admin o lider
       const roles: string[] = payload.roles || [];
       if (!roles.includes('admin') && !roles.includes('lider')) {
-        this.logger.warn(`Client ${client.id} rejected: insufficient permissions`);
+        this.logger.warn(
+          `Client ${client.id} rejected: insufficient permissions`,
+        );
         client.emit('error', { message: 'Permisos insuficientes' });
         client.disconnect();
         return;
@@ -167,9 +188,13 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       // Si ya hay una conexión anterior, desconectarla
       const existingAdmin = this.connectedAdmins.get(payload.sub);
       if (existingAdmin && existingAdmin.socketId !== client.id) {
-        const existingSocket = this.server.sockets.sockets.get(existingAdmin.socketId);
+        const existingSocket = this.server.sockets.sockets.get(
+          existingAdmin.socketId,
+        );
         if (existingSocket) {
-          existingSocket.emit('error', { message: 'Sesión iniciada en otro dispositivo' });
+          existingSocket.emit('error', {
+            message: 'Sesión iniciada en otro dispositivo',
+          });
           existingSocket.disconnect();
         }
       }
@@ -177,7 +202,9 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       this.connectedAdmins.set(payload.sub, adminData);
       this.socketToUser.set(client.id, payload.sub);
 
-      this.logger.log(`Admin ${payload.nombre} (${payload.sub}) connected via ${client.id}`);
+      this.logger.log(
+        `Admin ${payload.nombre} (${payload.sub}) connected via ${client.id}`,
+      );
 
       // Enviar confirmación de conexión
       client.emit('connected', {
@@ -185,9 +212,10 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
         nombre: payload.nombre,
         connectedAt: adminData.joinedAt,
       });
-
     } catch (error) {
-      this.logger.warn(`Client ${client.id} rejected: invalid token - ${error.message}`);
+      this.logger.warn(
+        `Client ${client.id} rejected: invalid token - ${error.message}`,
+      );
       client.emit('error', { message: 'Token inválido' });
       client.disconnect();
     }
@@ -263,7 +291,9 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       admin.activeConversations.add(data.conversacionId);
     }
 
-    this.logger.debug(`Admin ${userId} joined conversation ${data.conversacionId}`);
+    this.logger.debug(
+      `Admin ${userId} joined conversation ${data.conversacionId}`,
+    );
 
     // Notificar a otros en la sala
     client.to(roomName).emit('inbox:admin:joined', {
@@ -295,7 +325,9 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       admin.activeConversations.delete(data.conversacionId);
     }
 
-    this.logger.debug(`Admin ${userId} left conversation ${data.conversacionId}`);
+    this.logger.debug(
+      `Admin ${userId} left conversation ${data.conversacionId}`,
+    );
 
     // Notificar a otros en la sala
     this.server.to(roomName).emit('inbox:admin:left', {
@@ -364,7 +396,9 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
    */
   async emitMensajeNuevo(conversacionId: number, mensaje: any) {
     // Emitir localmente a la sala de la conversación (incluir conversacionId)
-    this.server.to(`conv:${conversacionId}`).emit('inbox:mensaje:nuevo', { ...mensaje, conversacionId });
+    this.server
+      .to(`conv:${conversacionId}`)
+      .emit('inbox:mensaje:nuevo', { ...mensaje, conversacionId });
 
     // Emitir actualización de conversación a todos los admins conectados
     this.server.emit('inbox:conversacion:actualizada', {
@@ -422,7 +456,11 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   /**
    * Obtener admins conectados
    */
-  getConnectedAdmins(): { id: number; nombre: string; activeConversations: number[] }[] {
+  getConnectedAdmins(): {
+    id: number;
+    nombre: string;
+    activeConversations: number[];
+  }[] {
     return Array.from(this.connectedAdmins.values()).map((admin) => ({
       id: admin.userId,
       nombre: admin.nombre,
@@ -440,7 +478,9 @@ export class InboxGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   /**
    * Obtener admins viendo una conversación específica
    */
-  getAdminsInConversation(conversacionId: number): { id: number; nombre: string }[] {
+  getAdminsInConversation(
+    conversacionId: number,
+  ): { id: number; nombre: string }[] {
     const admins: { id: number; nombre: string }[] = [];
 
     this.connectedAdmins.forEach((admin) => {

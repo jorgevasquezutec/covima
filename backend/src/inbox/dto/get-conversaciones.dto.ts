@@ -10,12 +10,19 @@ export enum ModoFiltro {
 }
 
 export class GetConversacionesDto {
-  @ApiPropertyOptional({ description: 'Cursor para paginación (ID de la última conversación)' })
+  @ApiPropertyOptional({
+    description: 'Cursor para paginación (ID de la última conversación)',
+  })
   @IsOptional()
   @IsString()
   cursor?: string;
 
-  @ApiPropertyOptional({ description: 'Límite de resultados', default: 20, minimum: 1, maximum: 50 })
+  @ApiPropertyOptional({
+    description: 'Límite de resultados',
+    default: 20,
+    minimum: 1,
+    maximum: 50,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -23,12 +30,17 @@ export class GetConversacionesDto {
   @Max(50)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ description: 'Filtrar por modo de conversación', enum: ModoFiltro })
+  @ApiPropertyOptional({
+    description: 'Filtrar por modo de conversación',
+    enum: ModoFiltro,
+  })
   @IsOptional()
   @IsEnum(ModoFiltro)
   modo?: ModoFiltro;
 
-  @ApiPropertyOptional({ description: 'Filtrar solo mis conversaciones asignadas' })
+  @ApiPropertyOptional({
+    description: 'Filtrar solo mis conversaciones asignadas',
+  })
   @IsOptional()
   @IsString()
   misConversaciones?: string;

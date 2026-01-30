@@ -4,7 +4,9 @@ import { IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateProgramaDto extends PartialType(CreateProgramaDto) {
-  @ApiPropertyOptional({ enum: ['borrador', 'completo', 'enviado', 'finalizado'] })
+  @ApiPropertyOptional({
+    enum: ['borrador', 'completo', 'enviado', 'finalizado'],
+  })
   @IsOptional()
   @IsString()
   estado?: string;

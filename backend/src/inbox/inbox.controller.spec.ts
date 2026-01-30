@@ -24,9 +24,7 @@ describe('InboxController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InboxController],
-      providers: [
-        { provide: InboxService, useValue: mockInboxService },
-      ],
+      providers: [{ provide: InboxService, useValue: mockInboxService }],
     }).compile();
 
     controller = module.get<InboxController>(InboxController);
@@ -55,7 +53,11 @@ describe('InboxController', () => {
     });
 
     it('should pass filters correctly', async () => {
-      mockInboxService.getConversaciones.mockResolvedValue({ data: [], nextCursor: null, hasMore: false });
+      mockInboxService.getConversaciones.mockResolvedValue({
+        data: [],
+        nextCursor: null,
+        hasMore: false,
+      });
 
       const dto = {
         modo: 'HANDOFF',
@@ -160,10 +162,18 @@ describe('InboxController', () => {
       mockInboxService.transferirConversacion.mockResolvedValue(mockResult);
 
       const dto = { adminId: 2, mensajeContexto: 'Context info' };
-      const result = await controller.transferirConversacion(1, dto, mockRequest);
+      const result = await controller.transferirConversacion(
+        1,
+        dto,
+        mockRequest,
+      );
 
       expect(result).toEqual(mockResult);
-      expect(mockInboxService.transferirConversacion).toHaveBeenCalledWith(1, 1, dto);
+      expect(mockInboxService.transferirConversacion).toHaveBeenCalledWith(
+        1,
+        1,
+        dto,
+      );
     });
   });
 

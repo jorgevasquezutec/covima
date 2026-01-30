@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
   Inject,
   forwardRef,
   Logger,
@@ -9,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProgramaDto, UpdateProgramaDto } from './dto';
 import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
 import { OpenAIService } from '../whatsapp-bot/openai.service';
+import { GamificacionService } from '../gamificacion/gamificacion.service';
 import { customAlphabet } from 'nanoid';
 
 // Alfabeto para códigos: solo mayúsculas y números, sin caracteres confusos (0/O, 1/I/L)
@@ -25,7 +27,9 @@ export class ProgramasService {
     private whatsappService: WhatsappBotService,
     @Inject(forwardRef(() => OpenAIService))
     private openaiService: OpenAIService,
-  ) { }
+    @Inject(forwardRef(() => GamificacionService))
+    private gamificacionService: GamificacionService,
+  ) {}
 
   /**
    * Genera un código único para el programa
@@ -33,7 +37,7 @@ export class ProgramasService {
    */
   private generarCodigo(titulo: string): string {
     // Extraer iniciales del título (máximo 3 letras)
-    const palabras = titulo.split(/\s+/).filter(p => p.length > 0);
+    const palabras = titulo.split(/\s+/).filter((p) => p.length > 0);
     let iniciales = '';
 
     if (palabras.length === 1) {
@@ -43,7 +47,7 @@ export class ProgramasService {
       // Tomar la primera letra de cada palabra (máximo 3)
       iniciales = palabras
         .slice(0, 3)
-        .map(p => p.charAt(0).toUpperCase())
+        .map((p) => p.charAt(0).toUpperCase())
         .join('');
     }
 
@@ -119,7 +123,14 @@ export class ProgramasService {
         asignaciones: {
           include: {
             parte: true,
-            usuario: { select: { id: true, nombre: true, codigoPais: true, telefono: true } },
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+                codigoPais: true,
+                telefono: true,
+              },
+            },
           },
           orderBy: { orden: 'asc' },
         },
@@ -244,8 +255,12 @@ export class ProgramasService {
         titulo: dto.titulo,
         estado: dto.estado,
         ...(dto.fecha && { fecha: new Date(dto.fecha) }),
-        ...(dto.horaInicio !== undefined && { horaInicio: dto.horaInicio ? this.parseTime(dto.horaInicio) : null }),
-        ...(dto.horaFin !== undefined && { horaFin: dto.horaFin ? this.parseTime(dto.horaFin) : null }),
+        ...(dto.horaInicio !== undefined && {
+          horaInicio: dto.horaInicio ? this.parseTime(dto.horaInicio) : null,
+        }),
+        ...(dto.horaFin !== undefined && {
+          horaFin: dto.horaFin ? this.parseTime(dto.horaFin) : null,
+        }),
       },
     });
 
@@ -350,13 +365,20 @@ export class ProgramasService {
    * - Si la parte es "bienvenida" y es la segunda persona, auto-asignar a "oración final"
    * - Si la parte es "espacio de cantos", auto-asignar a "himno final"
    */
-  async asignarParteConAuto(programaId: number, parteId: number, usuarioId: number): Promise<{
+  async asignarParteConAuto(
+    programaId: number,
+    parteId: number,
+    usuarioId: number,
+  ): Promise<{
     asignaciones: { parteNombre: string; usuarioId: number }[];
   }> {
-    const asignacionesCreadas: { parteNombre: string; usuarioId: number }[] = [];
+    const asignacionesCreadas: { parteNombre: string; usuarioId: number }[] =
+      [];
 
     // Obtener la parte
-    const parte = await this.prisma.parte.findUnique({ where: { id: parteId } });
+    const parte = await this.prisma.parte.findUnique({
+      where: { id: parteId },
+    });
     if (!parte) {
       throw new NotFoundException('Parte no encontrada');
     }
@@ -383,7 +405,8 @@ export class ProgramasService {
     if (nombreLower.includes('bienvenida')) {
       // Primera persona en bienvenida -> oración inicial
       // Segunda persona en bienvenida -> oración final
-      const oracionNombre = countExistentes === 0 ? 'oración inicial' : 'oración final';
+      const oracionNombre =
+        countExistentes === 0 ? 'oración inicial' : 'oración final';
 
       // Buscar la parte de oración
       const parteOracion = await this.prisma.parte.findFirst({
@@ -417,13 +440,19 @@ export class ProgramasService {
               orden: countOracion + 1,
             },
           });
-          asignacionesCreadas.push({ parteNombre: parteOracion.nombre, usuarioId });
+          asignacionesCreadas.push({
+            parteNombre: parteOracion.nombre,
+            usuarioId,
+          });
         }
       }
     }
 
     // Lógica automática para "espacio de cantos" -> "himno final"
-    if (nombreLower.includes('espacio de cantos') || nombreLower.includes('cantos')) {
+    if (
+      nombreLower.includes('espacio de cantos') ||
+      nombreLower.includes('cantos')
+    ) {
       const parteHimnoFinal = await this.prisma.parte.findFirst({
         where: {
           nombre: { contains: 'himno final', mode: 'insensitive' },
@@ -454,7 +483,10 @@ export class ProgramasService {
               orden: countHimno + 1,
             },
           });
-          asignacionesCreadas.push({ parteNombre: parteHimnoFinal.nombre, usuarioId });
+          asignacionesCreadas.push({
+            parteNombre: parteHimnoFinal.nombre,
+            usuarioId,
+          });
         }
       }
     }
@@ -468,13 +500,23 @@ export class ProgramasService {
    * - Bienvenida -> Oración Inicial/Final
    * - Espacio de Cantos -> Himno Final
    */
-  async asignarPorNombre(programaId: number, parteId: number, nombre: string): Promise<{
+  async asignarPorNombre(
+    programaId: number,
+    parteId: number,
+    nombre: string,
+  ): Promise<{
     asignaciones: { parteNombre: string; nombre: string; esUsuario: boolean }[];
   }> {
-    const asignacionesCreadas: { parteNombre: string; nombre: string; esUsuario: boolean }[] = [];
+    const asignacionesCreadas: {
+      parteNombre: string;
+      nombre: string;
+      esUsuario: boolean;
+    }[] = [];
 
     // Obtener la parte
-    const parte = await this.prisma.parte.findUnique({ where: { id: parteId } });
+    const parte = await this.prisma.parte.findUnique({
+      where: { id: parteId },
+    });
     if (!parte) {
       throw new NotFoundException('Parte no encontrada');
     }
@@ -504,13 +546,18 @@ export class ProgramasService {
     });
 
     const nombreFinal = usuario?.nombre || nombre;
-    asignacionesCreadas.push({ parteNombre: parte.nombre, nombre: nombreFinal, esUsuario: !!usuario });
+    asignacionesCreadas.push({
+      parteNombre: parte.nombre,
+      nombre: nombreFinal,
+      esUsuario: !!usuario,
+    });
 
     const nombreLower = parte.nombre.toLowerCase();
 
     // Lógica automática para "bienvenida"
     if (nombreLower.includes('bienvenida')) {
-      const oracionNombre = countExistentes === 0 ? 'oración inicial' : 'oración final';
+      const oracionNombre =
+        countExistentes === 0 ? 'oración inicial' : 'oración final';
 
       const parteOracion = await this.prisma.parte.findFirst({
         where: {
@@ -546,13 +593,20 @@ export class ProgramasService {
               orden: countOracion + 1,
             },
           });
-          asignacionesCreadas.push({ parteNombre: parteOracion.nombre, nombre: nombreFinal, esUsuario: !!usuario });
+          asignacionesCreadas.push({
+            parteNombre: parteOracion.nombre,
+            nombre: nombreFinal,
+            esUsuario: !!usuario,
+          });
         }
       }
     }
 
     // Lógica automática para "espacio de cantos" -> "himno final"
-    if (nombreLower.includes('espacio de cantos') || nombreLower.includes('cantos')) {
+    if (
+      nombreLower.includes('espacio de cantos') ||
+      nombreLower.includes('cantos')
+    ) {
       const parteHimnoFinal = await this.prisma.parte.findFirst({
         where: {
           nombre: { contains: 'himno final', mode: 'insensitive' },
@@ -587,7 +641,11 @@ export class ProgramasService {
               orden: countHimno + 1,
             },
           });
-          asignacionesCreadas.push({ parteNombre: parteHimnoFinal.nombre, nombre: nombreFinal, esUsuario: !!usuario });
+          asignacionesCreadas.push({
+            parteNombre: parteHimnoFinal.nombre,
+            nombre: nombreFinal,
+            esUsuario: !!usuario,
+          });
         }
       }
     }
@@ -606,7 +664,10 @@ export class ProgramasService {
     asignacionesCreadas: number;
     errores: string[];
   }> {
-    const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lineas = texto
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
     const errores: string[] = [];
     let partesActualizadas = 0;
     let asignacionesCreadas = 0;
@@ -621,7 +682,9 @@ export class ProgramasService {
     // 2. Extraer fecha de cualquier línea (buscar en las primeras 3)
     let fechaMatch: RegExpMatchArray | null = null;
     for (let i = 0; i < Math.min(3, lineas.length); i++) {
-      fechaMatch = lineas[i].match(/(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?/);
+      fechaMatch = lineas[i].match(
+        /(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?/,
+      );
       if (fechaMatch) break;
     }
 
@@ -629,7 +692,9 @@ export class ProgramasService {
     if (fechaMatch) {
       const dia = parseInt(fechaMatch[1], 10);
       const mes = parseInt(fechaMatch[2], 10) - 1;
-      let anio = fechaMatch[3] ? parseInt(fechaMatch[3], 10) : new Date().getFullYear();
+      let anio = fechaMatch[3]
+        ? parseInt(fechaMatch[3], 10)
+        : new Date().getFullYear();
       if (anio < 100) anio += 2000;
       fecha = new Date(anio, mes, dia);
     } else {
@@ -704,7 +769,8 @@ export class ProgramasService {
       const linea = lineas[i];
 
       // Detectar si es una línea de link (bullet con URL)
-      const esLink = linea.startsWith('•') || linea.startsWith('-') || linea.startsWith('*');
+      const esLink =
+        linea.startsWith('•') || linea.startsWith('-') || linea.startsWith('*');
       const tieneUrl = /https?:\/\/[^\s\]]+/.test(linea);
 
       if (esLink || tieneUrl) {
@@ -754,17 +820,26 @@ export class ProgramasService {
       }
 
       // Limpiar caracteres invisibles/especiales (zero-width spaces, nbsp, etc)
-      let parteNombre = match[1].trim()
+      const parteNombre = match[1]
+        .trim()
         .replace(/\s*\/\s*Dirigir/i, '')
-        .replace(/[\u200B-\u200D\uFEFF\u2060\u00A0\u202F\u205F\u3000\u2800-\u28FF]/g, '') // Quitar zero-width, nbsp y braille chars
+        .replace(
+          /[\u200B-\u200D\uFEFF\u2060\u00A0\u202F\u205F\u3000\u2800-\u28FF]/g,
+          '',
+        ) // Quitar zero-width, nbsp y braille chars
         .replace(/[^\w\sáéíóúüñÁÉÍÓÚÜÑ]/g, '') // Solo letras, números, espacios y acentos
         .trim();
-      const contenido = match[2].trim().replace(/[\u200B-\u200D\uFEFF\u2060\u00A0\u2800-\u28FF]/g, '');
+      const contenido = match[2]
+        .trim()
+        .replace(/[\u200B-\u200D\uFEFF\u2060\u00A0\u2800-\u28FF]/g, '');
 
       // Aplicar alias si existe (normalizar sin acentos para comparar)
-      const parteNombreLowerNorm = parteNombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      const parteNombreLowerNorm = parteNombre
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
       const nombreBuscado = aliasPartes[parteNombreLowerNorm] || parteNombre;
-
 
       // Buscar la parte - primero exacto, luego flexible
       let parte = await this.prisma.parte.findFirst({
@@ -781,10 +856,16 @@ export class ProgramasService {
         });
 
         // Buscar la parte que mejor coincida
-        const parteNombreLower = nombreBuscado.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const parteNombreLower = nombreBuscado
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
 
         for (const p of todasPartes) {
-          const nombreParteLower = p.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const nombreParteLower = p.nombre
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
 
           // Coincidencia exacta sin acentos
           if (nombreParteLower === parteNombreLower) {
@@ -793,7 +874,10 @@ export class ProgramasService {
           }
 
           // Una contiene a la otra completamente
-          if (nombreParteLower.includes(parteNombreLower) || parteNombreLower.includes(nombreParteLower)) {
+          if (
+            nombreParteLower.includes(parteNombreLower) ||
+            parteNombreLower.includes(nombreParteLower)
+          ) {
             // Evitar falsos positivos: "Oración Inicial" no debe coincidir con "Oración Intercesora"
             // Verificar que las palabras clave coincidan
             const palabrasInput = parteNombreLower.split(/\s+/);
@@ -801,7 +885,10 @@ export class ProgramasService {
 
             // Si tienen más de una palabra, verificar que la segunda también coincida
             if (palabrasInput.length > 1 && palabrasParte.length > 1) {
-              if (palabrasInput[1].substring(0, 4) === palabrasParte[1].substring(0, 4)) {
+              if (
+                palabrasInput[1].substring(0, 4) ===
+                palabrasParte[1].substring(0, 4)
+              ) {
                 parte = p;
                 break;
               }
@@ -841,7 +928,10 @@ export class ProgramasService {
       }
 
       // Separar nombres por coma o guión
-      const nombres = contenido.split(/[-,]/).map(n => n.trim()).filter(n => n.length > 0);
+      const nombres = contenido
+        .split(/[-,]/)
+        .map((n) => n.trim())
+        .filter((n) => n.length > 0);
 
       // Asignar cada nombre
       let orden = 1;
@@ -870,24 +960,33 @@ export class ProgramasService {
 
     // === Auto-asignación: Himno Final hereda de Espacio de Cantos si está vacío ===
     const parteEspacioCantos = await this.prisma.parte.findFirst({
-      where: { nombre: { contains: 'Espacio de Cantos', mode: 'insensitive' }, activo: true },
+      where: {
+        nombre: { contains: 'Espacio de Cantos', mode: 'insensitive' },
+        activo: true,
+      },
     });
     const parteHimnoFinal = await this.prisma.parte.findFirst({
-      where: { nombre: { contains: 'Himno Final', mode: 'insensitive' }, activo: true },
+      where: {
+        nombre: { contains: 'Himno Final', mode: 'insensitive' },
+        activo: true,
+      },
     });
 
     if (parteEspacioCantos && parteHimnoFinal) {
       // Verificar si Himno Final tiene asignaciones
-      const asignacionesHimnoFinal = await this.prisma.programaAsignacion.count({
-        where: { programaId: programa.id, parteId: parteHimnoFinal.id },
-      });
+      const asignacionesHimnoFinal = await this.prisma.programaAsignacion.count(
+        {
+          where: { programaId: programa.id, parteId: parteHimnoFinal.id },
+        },
+      );
 
       // Si Himno Final no tiene asignaciones, copiar de Espacio de Cantos
       if (asignacionesHimnoFinal === 0) {
-        const asignacionesCantos = await this.prisma.programaAsignacion.findMany({
-          where: { programaId: programa.id, parteId: parteEspacioCantos.id },
-          orderBy: { orden: 'asc' },
-        });
+        const asignacionesCantos =
+          await this.prisma.programaAsignacion.findMany({
+            where: { programaId: programa.id, parteId: parteEspacioCantos.id },
+            orderBy: { orden: 'asc' },
+          });
 
         let ordenHimno = 1;
         for (const asig of asignacionesCantos) {
@@ -905,7 +1004,13 @@ export class ProgramasService {
       }
     }
 
-    return { codigo: programa.codigo, fecha, partesActualizadas, asignacionesCreadas, errores };
+    return {
+      codigo: programa.codigo,
+      fecha,
+      partesActualizadas,
+      asignacionesCreadas,
+      errores,
+    };
   }
 
   /**
@@ -928,7 +1033,7 @@ export class ProgramasService {
       where: { activo: true },
       select: { nombre: true },
     });
-    const nombresPartes = partesDisponibles.map(p => p.nombre);
+    const nombresPartes = partesDisponibles.map((p) => p.nombre);
 
     // Parsear con IA
     this.logger.debug('Parseando programa con IA...');
@@ -998,13 +1103,20 @@ export class ProgramasService {
     });
 
     // Extraer todos los nombres de todas las partes para hacer un solo match
-    const todosLosNombres = parsed.partes.flatMap(p => p.asignaciones);
+    const todosLosNombres = parsed.partes.flatMap((p) => p.asignaciones);
     const nombresUnicos = [...new Set(todosLosNombres)];
 
     // Matchear usuarios con IA
-    this.logger.debug(`Matcheando ${nombresUnicos.length} nombres con ${usuariosActivos.length} usuarios...`);
-    const matchesUsuarios = await this.openaiService.matchUsuarios(nombresUnicos, usuariosActivos);
-    this.logger.debug(`Matches encontrados: ${JSON.stringify(Object.fromEntries(matchesUsuarios))}`);
+    this.logger.debug(
+      `Matcheando ${nombresUnicos.length} nombres con ${usuariosActivos.length} usuarios...`,
+    );
+    const matchesUsuarios = await this.openaiService.matchUsuarios(
+      nombresUnicos,
+      usuariosActivos,
+    );
+    this.logger.debug(
+      `Matches encontrados: ${JSON.stringify(Object.fromEntries(matchesUsuarios))}`,
+    );
 
     // Procesar cada parte parseada por la IA
     let ordenParte = 1;
@@ -1025,15 +1137,21 @@ export class ProgramasService {
           where: { activo: true },
         });
 
-        const nombreBuscadoNorm = parteParseada.nombre.toLowerCase()
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const nombreBuscadoNorm = parteParseada.nombre
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
 
         for (const p of todasPartes) {
-          const nombreParteNorm = p.nombre.toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const nombreParteNorm = p.nombre
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
 
-          if (nombreParteNorm.includes(nombreBuscadoNorm) ||
-            nombreBuscadoNorm.includes(nombreParteNorm)) {
+          if (
+            nombreParteNorm.includes(nombreBuscadoNorm) ||
+            nombreBuscadoNorm.includes(nombreParteNorm)
+          ) {
             parte = p;
             break;
           }
@@ -1041,7 +1159,9 @@ export class ProgramasService {
       }
 
       if (!parte) {
-        errores.push(`Parte "${parteParseada.nombre}" no encontrada en el sistema`);
+        errores.push(
+          `Parte "${parteParseada.nombre}" no encontrada en el sistema`,
+        );
         continue;
       }
 
@@ -1098,22 +1218,31 @@ export class ProgramasService {
 
     // Auto-asignación: Himno Final hereda de Espacio de Cantos si está vacío
     const parteEspacioCantos = await this.prisma.parte.findFirst({
-      where: { nombre: { contains: 'Espacio de Cantos', mode: 'insensitive' }, activo: true },
+      where: {
+        nombre: { contains: 'Espacio de Cantos', mode: 'insensitive' },
+        activo: true,
+      },
     });
     const parteHimnoFinal = await this.prisma.parte.findFirst({
-      where: { nombre: { contains: 'Himno Final', mode: 'insensitive' }, activo: true },
+      where: {
+        nombre: { contains: 'Himno Final', mode: 'insensitive' },
+        activo: true,
+      },
     });
 
     if (parteEspacioCantos && parteHimnoFinal) {
-      const asignacionesHimnoFinal = await this.prisma.programaAsignacion.count({
-        where: { programaId: programa.id, parteId: parteHimnoFinal.id },
-      });
+      const asignacionesHimnoFinal = await this.prisma.programaAsignacion.count(
+        {
+          where: { programaId: programa.id, parteId: parteHimnoFinal.id },
+        },
+      );
 
       if (asignacionesHimnoFinal === 0) {
-        const asignacionesCantos = await this.prisma.programaAsignacion.findMany({
-          where: { programaId: programa.id, parteId: parteEspacioCantos.id },
-          orderBy: { orden: 'asc' },
-        });
+        const asignacionesCantos =
+          await this.prisma.programaAsignacion.findMany({
+            where: { programaId: programa.id, parteId: parteEspacioCantos.id },
+            orderBy: { orden: 'asc' },
+          });
 
         let ordenHimno = 1;
         for (const asig of asignacionesCantos) {
@@ -1131,7 +1260,13 @@ export class ProgramasService {
       }
     }
 
-    return { codigo: programa.codigo, fecha, partesActualizadas, asignacionesCreadas, errores };
+    return {
+      codigo: programa.codigo,
+      fecha,
+      partesActualizadas,
+      asignacionesCreadas,
+      errores,
+    };
   }
 
   /**
@@ -1139,28 +1274,45 @@ export class ProgramasService {
    */
   private parsearFechaTexto(texto: string): Date {
     // Intentar formato dd/mm/yyyy o dd-mm-yyyy
-    const matchNumerico = texto.match(/(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?/);
+    const matchNumerico = texto.match(
+      /(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?/,
+    );
     if (matchNumerico) {
       const dia = parseInt(matchNumerico[1], 10);
       const mes = parseInt(matchNumerico[2], 10) - 1;
-      let anio = matchNumerico[3] ? parseInt(matchNumerico[3], 10) : new Date().getFullYear();
+      let anio = matchNumerico[3]
+        ? parseInt(matchNumerico[3], 10)
+        : new Date().getFullYear();
       if (anio < 100) anio += 2000;
       return new Date(anio, mes, dia);
     }
 
     // Intentar formato "dd de mes de yyyy"
     const meses: Record<string, number> = {
-      'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
-      'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
-      'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
+      enero: 0,
+      febrero: 1,
+      marzo: 2,
+      abril: 3,
+      mayo: 4,
+      junio: 5,
+      julio: 6,
+      agosto: 7,
+      septiembre: 8,
+      octubre: 9,
+      noviembre: 10,
+      diciembre: 11,
     };
 
-    const matchTexto = texto.match(/(\d{1,2})\s+de\s+(\w+)(?:\s+de\s+(\d{4}))?/i);
+    const matchTexto = texto.match(
+      /(\d{1,2})\s+de\s+(\w+)(?:\s+de\s+(\d{4}))?/i,
+    );
     if (matchTexto) {
       const dia = parseInt(matchTexto[1], 10);
       const mesNombre = matchTexto[2].toLowerCase();
       const mes = meses[mesNombre] ?? new Date().getMonth();
-      const anio = matchTexto[3] ? parseInt(matchTexto[3], 10) : new Date().getFullYear();
+      const anio = matchTexto[3]
+        ? parseInt(matchTexto[3], 10)
+        : new Date().getFullYear();
       return new Date(anio, mes, dia);
     }
 
@@ -1191,7 +1343,14 @@ export class ProgramasService {
         asignaciones: {
           include: {
             parte: true,
-            usuario: { select: { id: true, nombre: true, codigoPais: true, telefono: true } },
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+                codigoPais: true,
+                telefono: true,
+              },
+            },
           },
           orderBy: { orden: 'asc' },
         },
@@ -1227,6 +1386,85 @@ export class ProgramasService {
         esObligatoria: false,
       },
       orderBy: { orden: 'asc' },
+    });
+  }
+
+  // ==================== CRUD PARTES ====================
+
+  async getAllPartes() {
+    return this.prisma.parte.findMany({
+      orderBy: { orden: 'asc' },
+    });
+  }
+
+  async createParte(data: {
+    nombre: string;
+    descripcion?: string;
+    orden?: number;
+    esFija?: boolean;
+    esObligatoria?: boolean;
+    textoFijo?: string;
+    puntos?: number;
+    xp?: number;
+  }) {
+    // Si no se especifica orden, ponerlo al final
+    let orden = data.orden;
+    if (orden === undefined) {
+      const maxOrden = await this.prisma.parte.aggregate({
+        _max: { orden: true },
+      });
+      orden = (maxOrden._max.orden || 0) + 1;
+    }
+
+    return this.prisma.parte.create({
+      data: {
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        orden,
+        esFija: data.esFija,
+        esObligatoria: data.esObligatoria,
+        textoFijo: data.textoFijo,
+        puntos: data.puntos,
+        xp: data.xp,
+      },
+    });
+  }
+
+  async updateParte(
+    id: number,
+    data: {
+      nombre?: string;
+      descripcion?: string;
+      orden?: number;
+      esFija?: boolean;
+      esObligatoria?: boolean;
+      textoFijo?: string;
+      activo?: boolean;
+      puntos?: number;
+      xp?: number;
+    },
+  ) {
+    const parte = await this.prisma.parte.findUnique({ where: { id } });
+    if (!parte) {
+      throw new NotFoundException('Parte no encontrada');
+    }
+
+    return this.prisma.parte.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteParte(id: number) {
+    const parte = await this.prisma.parte.findUnique({ where: { id } });
+    if (!parte) {
+      throw new NotFoundException('Parte no encontrada');
+    }
+
+    // Soft delete - solo desactivar
+    return this.prisma.parte.update({
+      where: { id },
+      data: { activo: false },
     });
   }
 
@@ -1314,7 +1552,9 @@ export class ProgramasService {
     if (parte.esFija && parte.textoFijo) {
       resultado += `*${parte.nombre}:* ${parte.textoFijo}\n`;
     } else if (asignaciones.length > 0) {
-      const nombres = asignaciones.map((a) => a.usuario?.nombre || a.nombreLibre).join(', ');
+      const nombres = asignaciones
+        .map((a) => a.usuario?.nombre || a.nombreLibre)
+        .join(', ');
       resultado += `*${parte.nombre}:* ${nombres}\n`;
     } else {
       resultado += `*${parte.nombre}:*\n`;
@@ -1408,16 +1648,27 @@ export class ProgramasService {
     }
 
     // Agrupar asignaciones por usuario
-    const asignacionesPorUsuario = new Map<number, {
-      usuario: { id: number; nombre: string; codigoPais: string; telefono: string };
-      partes: string[];
-    }>();
+    const asignacionesPorUsuario = new Map<
+      number,
+      {
+        usuario: {
+          id: number;
+          nombre: string;
+          codigoPais: string;
+          telefono: string;
+        };
+        partes: string[];
+      }
+    >();
 
-    const usuariosSinTelefonoMap = new Map<number, {
-      id: number;
-      nombre: string;
-      partes: string[];
-    }>();
+    const usuariosSinTelefonoMap = new Map<
+      number,
+      {
+        id: number;
+        nombre: string;
+        partes: string[];
+      }
+    >();
 
     for (const asig of programa.asignaciones) {
       // Solo procesar asignaciones con usuario (no nombreLibre)
@@ -1466,27 +1717,31 @@ export class ProgramasService {
     const textoPrograma = await this.generarTextoParaNotificacion(programa);
 
     // Crear las notificaciones
-    const notificaciones = Array.from(asignacionesPorUsuario.values()).map(({ usuario, partes }) => {
-      const partesUnicas = [...new Set(partes)];
-      const mensaje = this.generarMensajeNotificacion(
-        usuario.nombre,
-        partesUnicas,
-        fechaFormateada,
-        textoPrograma,
-        programa.codigo,
-      );
+    const notificaciones = Array.from(asignacionesPorUsuario.values()).map(
+      ({ usuario, partes }) => {
+        const partesUnicas = [...new Set(partes)];
+        const mensaje = this.generarMensajeNotificacion(
+          usuario.nombre,
+          partesUnicas,
+          fechaFormateada,
+          textoPrograma,
+          programa.codigo,
+        );
 
-      return {
-        usuario,
-        partes: partesUnicas,
-        mensaje,
-      };
-    });
+        return {
+          usuario,
+          partes: partesUnicas,
+          mensaje,
+        };
+      },
+    );
 
-    const usuariosSinTelefono = Array.from(usuariosSinTelefonoMap.values()).map(u => ({
-      ...u,
-      partes: [...new Set(u.partes)],
-    }));
+    const usuariosSinTelefono = Array.from(usuariosSinTelefonoMap.values()).map(
+      (u) => ({
+        ...u,
+        partes: [...new Set(u.partes)],
+      }),
+    );
 
     return {
       programa: {
@@ -1515,9 +1770,10 @@ export class ProgramasService {
     textoPrograma: string,
     codigo: string,
   ): string {
-    const partesTexto = partes.length === 1
-      ? `la parte *${partes[0]}*`
-      : `las partes:\n${partes.map(p => `• *${p}*`).join('\n')}`;
+    const partesTexto =
+      partes.length === 1
+        ? `la parte *${partes[0]}*`
+        : `las partes:\n${partes.map((p) => `• *${p}*`).join('\n')}`;
 
     return `¡Hola ${nombreUsuario}! 👋
 
@@ -1604,13 +1860,16 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
     });
 
     // Agrupar por programa y eliminar partes duplicadas
-    const programasMap = new Map<number, {
-      id: number;
-      fecha: Date;
-      titulo: string;
-      estado: string;
-      partes: Map<number, { id: number; nombre: string }>;
-    }>();
+    const programasMap = new Map<
+      number,
+      {
+        id: number;
+        fecha: Date;
+        titulo: string;
+        estado: string;
+        partes: Map<number, { id: number; nombre: string }>;
+      }
+    >();
 
     for (const asig of asignaciones) {
       const prog = asig.programa;
@@ -1634,7 +1893,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
     }
 
     // Convertir Maps a arrays
-    return Array.from(programasMap.values()).map(prog => ({
+    return Array.from(programasMap.values()).map((prog) => ({
       id: prog.id,
       fecha: prog.fecha,
       titulo: prog.titulo,
@@ -1662,7 +1921,14 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         asignaciones: {
           include: {
             parte: true,
-            usuario: { select: { id: true, nombre: true, codigoPais: true, telefono: true } },
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+                codigoPais: true,
+                telefono: true,
+              },
+            },
           },
           orderBy: { orden: 'asc' },
         },
@@ -1682,7 +1948,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
   async findByCodigo(codigo: string) {
     const programa = await this.prisma.programa.findFirst({
       where: {
-        codigo: { equals: codigo, mode: 'insensitive' }
+        codigo: { equals: codigo, mode: 'insensitive' },
       },
       include: {
         creador: { select: { id: true, nombre: true } },
@@ -1693,7 +1959,14 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         asignaciones: {
           include: {
             parte: true,
-            usuario: { select: { id: true, nombre: true, codigoPais: true, telefono: true } },
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+                codigoPais: true,
+                telefono: true,
+              },
+            },
           },
           orderBy: { orden: 'asc' },
         },
@@ -1718,25 +1991,33 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
   }> {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const endOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+    );
 
-    const [programasEsteMes, programasPendientes, totalProgramas] = await Promise.all([
-      this.prisma.programa.count({
-        where: {
-          fecha: {
-            gte: startOfMonth,
-            lte: endOfMonth,
+    const [programasEsteMes, programasPendientes, totalProgramas] =
+      await Promise.all([
+        this.prisma.programa.count({
+          where: {
+            fecha: {
+              gte: startOfMonth,
+              lte: endOfMonth,
+            },
           },
-        },
-      }),
-      this.prisma.programa.count({
-        where: {
-          estado: { in: ['borrador', 'completo'] },
-          fecha: { gte: new Date() },
-        },
-      }),
-      this.prisma.programa.count(),
-    ]);
+        }),
+        this.prisma.programa.count({
+          where: {
+            estado: { in: ['borrador', 'completo'] },
+            fecha: { gte: new Date() },
+          },
+        }),
+        this.prisma.programa.count(),
+      ]);
 
     return {
       programasEsteMes,
@@ -1758,30 +2039,33 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
       creador: programa.creador,
       enviadoAt: programa.enviadoAt,
       createdAt: programa.createdAt,
-      partes: programa.partes?.map((pp: any) => ({
-        id: pp.id,
-        parteId: pp.parteId,
-        parte: pp.parte,
-        orden: pp.orden,
-      })) || [],
-      asignaciones: programa.asignaciones?.map((a: any) => ({
-        id: a.id,
-        parteId: a.parteId,
-        parte: a.parte,
-        usuario: a.usuario,
-        nombreLibre: a.nombreLibre,
-        orden: a.orden,
-        notificado: a.notificado,
-        confirmado: a.confirmado,
-      })) || [],
-      links: programa.links?.map((l: any) => ({
-        id: l.id,
-        parteId: l.parteId,
-        parte: l.parte,
-        nombre: l.nombre,
-        url: l.url,
-        orden: l.orden,
-      })) || [],
+      partes:
+        programa.partes?.map((pp: any) => ({
+          id: pp.id,
+          parteId: pp.parteId,
+          parte: pp.parte,
+          orden: pp.orden,
+        })) || [],
+      asignaciones:
+        programa.asignaciones?.map((a: any) => ({
+          id: a.id,
+          parteId: a.parteId,
+          parte: a.parte,
+          usuario: a.usuario,
+          nombreLibre: a.nombreLibre,
+          orden: a.orden,
+          notificado: a.notificado,
+          confirmado: a.confirmado,
+        })) || [],
+      links:
+        programa.links?.map((l: any) => ({
+          id: l.id,
+          parteId: l.parteId,
+          parte: l.parte,
+          nombre: l.nombre,
+          url: l.url,
+          orden: l.orden,
+        })) || [],
     };
   }
 
@@ -1822,12 +2106,22 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
    * Usa plantilla aprobada de WhatsApp para poder iniciar conversaciones
    * @param usuarioIds - Lista opcional de IDs de usuarios a notificar. Si no se proporciona, se notifica a todos.
    */
-  async enviarNotificaciones(programaId: number, usuarioIds?: number[]): Promise<{
+  async enviarNotificaciones(
+    programaId: number,
+    usuarioIds?: number[],
+  ): Promise<{
     enviados: number;
     errores: number;
-    detalles: { nombre: string; telefono: string; success: boolean; error?: string }[];
+    detalles: {
+      nombre: string;
+      telefono: string;
+      success: boolean;
+      error?: string;
+    }[];
   }> {
-    this.logger.debug(`enviarNotificaciones llamado con programaId=${programaId}, usuarioIds=${JSON.stringify(usuarioIds)}`);
+    this.logger.debug(
+      `enviarNotificaciones llamado con programaId=${programaId}, usuarioIds=${JSON.stringify(usuarioIds)}`,
+    );
 
     // Obtener el preview de notificaciones
     const preview = await this.previewNotificaciones(programaId);
@@ -1835,13 +2129,19 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
     // Filtrar por usuarios específicos si se proporcionan
     let notificacionesAEnviar = preview.notificaciones;
     if (usuarioIds && usuarioIds.length > 0) {
-      this.logger.debug(`Filtrando por ${usuarioIds.length} usuarios específicos`);
-      notificacionesAEnviar = preview.notificaciones.filter(
-        (n) => usuarioIds.includes(n.usuario.id),
+      this.logger.debug(
+        `Filtrando por ${usuarioIds.length} usuarios específicos`,
       );
-      this.logger.debug(`Después del filtro: ${notificacionesAEnviar.length} notificaciones a enviar`);
+      notificacionesAEnviar = preview.notificaciones.filter((n) =>
+        usuarioIds.includes(n.usuario.id),
+      );
+      this.logger.debug(
+        `Después del filtro: ${notificacionesAEnviar.length} notificaciones a enviar`,
+      );
     } else {
-      this.logger.debug(`No se especificaron usuarioIds, enviando a todos (${notificacionesAEnviar.length})`);
+      this.logger.debug(
+        `No se especificaron usuarioIds, enviando a todos (${notificacionesAEnviar.length})`,
+      );
     }
 
     if (notificacionesAEnviar.length === 0) {
@@ -1852,7 +2152,12 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
       };
     }
 
-    const detalles: { nombre: string; telefono: string; success: boolean; error?: string }[] = [];
+    const detalles: {
+      nombre: string;
+      telefono: string;
+      success: boolean;
+      error?: string;
+    }[] = [];
     let enviados = 0;
     let errores = 0;
 
@@ -1877,10 +2182,10 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
           'recordatorio_programa',
           'es_PE',
           [
-            notif.usuario.nombre,           // {{1}} nombre
-            fechaFormateada,                // {{2}} fecha
-            notif.partes.join(', '),        // {{3}} partes asignadas
-            preview.programa.codigo,        // {{4}} código del programa
+            notif.usuario.nombre, // {{1}} nombre
+            fechaFormateada, // {{2}} fecha
+            notif.partes.join(', '), // {{3}} partes asignadas
+            preview.programa.codigo, // {{4}} código del programa
           ],
         );
 
@@ -1944,6 +2249,179 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
       enviados,
       errores,
       detalles,
+    };
+  }
+
+  /**
+   * Preview de finalización - muestra qué puntos se asignarían sin ejecutar
+   */
+  async previewFinalizarPrograma(programaId: number) {
+    const programa = await this.prisma.programa.findUnique({
+      where: { id: programaId },
+      include: {
+        asignaciones: {
+          where: {
+            usuarioId: { not: null },
+          },
+          include: {
+            usuario: { select: { id: true, nombre: true } },
+            parte: {
+              select: { id: true, nombre: true, puntos: true, xp: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!programa) {
+      throw new NotFoundException('Programa no encontrado');
+    }
+
+    if (programa.estado === 'finalizado') {
+      throw new BadRequestException('Este programa ya fue finalizado');
+    }
+
+    // Calcular preview sin asignar puntos
+    const preview: Array<{
+      usuario: string;
+      usuarioId: number;
+      parte: string;
+      parteId: number;
+      puntos: number;
+      xp: number;
+    }> = [];
+
+    for (const asignacion of programa.asignaciones) {
+      if (!asignacion.usuarioId || !asignacion.parte) continue;
+
+      preview.push({
+        usuario: asignacion.usuario?.nombre || 'Desconocido',
+        usuarioId: asignacion.usuarioId,
+        parte: asignacion.parte.nombre,
+        parteId: asignacion.parteId,
+        puntos: asignacion.parte.puntos || 0,
+        xp: asignacion.parte.xp || 0,
+      });
+    }
+
+    const puntosTotal = preview.reduce((sum, p) => sum + p.puntos, 0);
+    const xpTotal = preview.reduce((sum, p) => sum + p.xp, 0);
+
+    return {
+      programa: {
+        id: programa.id,
+        titulo: programa.titulo,
+        fecha: programa.fecha,
+        estado: programa.estado,
+      },
+      resumen: {
+        participantes: preview.length,
+        puntosTotal,
+        xpTotal,
+      },
+      detalles: preview,
+    };
+  }
+
+  /**
+   * Finalizar un programa y asignar puntos de gamificación a todos los participantes
+   */
+  async finalizarPrograma(programaId: number) {
+    const programa = await this.prisma.programa.findUnique({
+      where: { id: programaId },
+      include: {
+        asignaciones: {
+          where: {
+            usuarioId: { not: null }, // Solo asignaciones con usuario registrado
+          },
+          include: {
+            usuario: { select: { id: true, nombre: true } },
+            parte: {
+              select: { id: true, nombre: true, puntos: true, xp: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!programa) {
+      throw new NotFoundException('Programa no encontrado');
+    }
+
+    if (programa.estado === 'finalizado') {
+      throw new BadRequestException('Este programa ya fue finalizado');
+    }
+
+    // Asignar puntos a cada participante
+    const resultados: Array<{
+      usuario: string;
+      parte: string;
+      puntos: number;
+      xp: number;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    for (const asignacion of programa.asignaciones) {
+      if (!asignacion.usuarioId || !asignacion.parte) continue;
+
+      try {
+        const resultado =
+          await this.gamificacionService.asignarPuntosPorParticipacion(
+            asignacion.usuarioId,
+            asignacion.parteId,
+            asignacion.id,
+          );
+
+        resultados.push({
+          usuario: asignacion.usuario?.nombre || 'Desconocido',
+          parte: asignacion.parte.nombre,
+          puntos: resultado.puntosAsignados,
+          xp: resultado.xpAsignado,
+          success: true,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Error asignando puntos a usuario ${asignacion.usuarioId} por parte ${asignacion.parteId}:`,
+          error,
+        );
+        resultados.push({
+          usuario: asignacion.usuario?.nombre || 'Desconocido',
+          parte: asignacion.parte.nombre,
+          puntos: 0,
+          xp: 0,
+          success: false,
+          error: error instanceof Error ? error.message : 'Error desconocido',
+        });
+      }
+    }
+
+    // Actualizar estado del programa
+    await this.prisma.programa.update({
+      where: { id: programaId },
+      data: { estado: 'finalizado' },
+    });
+
+    const exitosos = resultados.filter((r) => r.success).length;
+    const errores = resultados.filter((r) => !r.success).length;
+    const puntosTotal = resultados.reduce((sum, r) => sum + r.puntos, 0);
+    const xpTotal = resultados.reduce((sum, r) => sum + r.xp, 0);
+
+    return {
+      message: `Programa finalizado. ${exitosos} participantes recibieron puntos.`,
+      programa: {
+        id: programa.id,
+        titulo: programa.titulo,
+        fecha: programa.fecha,
+        estado: 'finalizado',
+      },
+      resumen: {
+        participantes: exitosos,
+        errores,
+        puntosAsignados: puntosTotal,
+        xpAsignado: xpTotal,
+      },
+      detalles: resultados,
     };
   }
 }

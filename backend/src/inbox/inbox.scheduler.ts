@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { ModoConversacion, DireccionMensaje, EstadoMensaje } from '@prisma/client';
+import {
+  ModoConversacion,
+  DireccionMensaje,
+  EstadoMensaje,
+} from '@prisma/client';
 import { InboxGateway } from './inbox.gateway';
 import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
 
@@ -25,7 +29,9 @@ export class InboxScheduler {
     this.logger.debug('Verificando conversaciones inactivas...');
 
     const tiempoLimite = new Date();
-    tiempoLimite.setMinutes(tiempoLimite.getMinutes() - this.INACTIVITY_TIMEOUT_MINUTES);
+    tiempoLimite.setMinutes(
+      tiempoLimite.getMinutes() - this.INACTIVITY_TIMEOUT_MINUTES,
+    );
 
     // Buscar conversaciones en HANDOFF sin actividad
     const conversacionesInactivas = await this.prisma.conversacion.findMany({
@@ -53,12 +59,15 @@ export class InboxScheduler {
       return;
     }
 
-    this.logger.log(`Encontradas ${conversacionesInactivas.length} conversaciones inactivas`);
+    this.logger.log(
+      `Encontradas ${conversacionesInactivas.length} conversaciones inactivas`,
+    );
 
     for (const conv of conversacionesInactivas) {
       try {
         // Notificar al admin si modo permite WhatsApp (WHATSAPP o AMBOS)
-        const modoRespuesta = conv.modoRespuesta || conv.derivadaA?.modoHandoffDefault || 'AMBOS';
+        const modoRespuesta =
+          conv.modoRespuesta || conv.derivadaA?.modoHandoffDefault || 'AMBOS';
         if (conv.derivadaA && modoRespuesta !== 'WEB') {
           const telefonoAdmin = `${conv.derivadaA.codigoPais}${conv.derivadaA.telefono}`;
           await this.whatsappService.sendMessageToPhone(
@@ -69,7 +78,8 @@ export class InboxScheduler {
         }
 
         // Notificar al usuario
-        const mensajeDespedida = '👋 La conversación ha sido devuelta al asistente automático por inactividad. Si necesitas ayuda, escribe tu consulta y te atenderemos.';
+        const mensajeDespedida =
+          '👋 La conversación ha sido devuelta al asistente automático por inactividad. Si necesitas ayuda, escribe tu consulta y te atenderemos.';
 
         // Guardar mensaje de sistema
         await this.prisma.mensaje.create({
@@ -99,7 +109,12 @@ export class InboxScheduler {
           },
           include: {
             usuario: {
-              select: { id: true, nombre: true, nombreWhatsapp: true, fotoUrl: true },
+              select: {
+                id: true,
+                nombre: true,
+                nombreWhatsapp: true,
+                fotoUrl: true,
+              },
             },
             derivadaA: {
               select: { id: true, nombre: true },
@@ -121,9 +136,10 @@ export class InboxScheduler {
         });
 
         this.logger.log(`Conversación ${conv.id} liberada por inactividad`);
-
       } catch (error) {
-        this.logger.error(`Error liberando conversación ${conv.id}: ${error.message}`);
+        this.logger.error(
+          `Error liberando conversación ${conv.id}: ${error.message}`,
+        );
       }
     }
   }

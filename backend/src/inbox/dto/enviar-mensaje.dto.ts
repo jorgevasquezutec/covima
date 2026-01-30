@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsEnum, MinLength, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum TipoMensajeDto {
@@ -14,7 +20,11 @@ export class EnviarMensajeDto {
   @MaxLength(4096)
   contenido: string;
 
-  @ApiPropertyOptional({ description: 'Tipo de mensaje', enum: TipoMensajeDto, default: TipoMensajeDto.TEXTO })
+  @ApiPropertyOptional({
+    description: 'Tipo de mensaje',
+    enum: TipoMensajeDto,
+    default: TipoMensajeDto.TEXTO,
+  })
   @IsOptional()
   @IsEnum(TipoMensajeDto)
   tipo?: TipoMensajeDto = TipoMensajeDto.TEXTO;

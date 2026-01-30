@@ -39,7 +39,11 @@ async function bootstrap() {
         // Permitir requests sin origin (como Postman o curl)
         if (!origin) return callback(null, true);
         // Permitir orígenes locales (192.168.x.x, 10.x.x.x, localhost)
-        if (origin.match(/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/)) {
+        if (
+          origin.match(
+            /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/,
+          )
+        ) {
           return callback(null, true);
         }
         // Permitir orígenes en la lista
@@ -68,7 +72,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(port, '0.0.0.0');  // Escuchar en todas las interfaces
+  await app.listen(port, '0.0.0.0'); // Escuchar en todas las interfaces
   console.log(`🚀 Server running on http://0.0.0.0:${port}`);
   console.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
 }

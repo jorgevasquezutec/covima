@@ -39,9 +39,14 @@ export class InboxController {
   // ==================== CONVERSACIONES ====================
 
   @Get('conversaciones')
-  @ApiOperation({ summary: 'Listar conversaciones con paginación cursor-based' })
+  @ApiOperation({
+    summary: 'Listar conversaciones con paginación cursor-based',
+  })
   @ApiResponse({ status: 200, description: 'Lista de conversaciones' })
-  async getConversaciones(@Query() dto: GetConversacionesDto, @Request() req: any) {
+  async getConversaciones(
+    @Query() dto: GetConversacionesDto,
+    @Request() req: any,
+  ) {
     return this.inboxService.getConversaciones(dto, req.user.id);
   }
 
@@ -57,7 +62,9 @@ export class InboxController {
   // ==================== MENSAJES ====================
 
   @Get('conversaciones/:id/mensajes')
-  @ApiOperation({ summary: 'Obtener mensajes de una conversación con paginación' })
+  @ApiOperation({
+    summary: 'Obtener mensajes de una conversación con paginación',
+  })
   @ApiParam({ name: 'id', description: 'ID de la conversación' })
   @ApiResponse({ status: 200, description: 'Lista de mensajes' })
   @ApiResponse({ status: 404, description: 'Conversación no encontrada' })
@@ -72,8 +79,14 @@ export class InboxController {
   @ApiOperation({ summary: 'Enviar mensaje como admin' })
   @ApiParam({ name: 'id', description: 'ID de la conversación' })
   @ApiResponse({ status: 201, description: 'Mensaje enviado' })
-  @ApiResponse({ status: 400, description: 'La conversación no está en modo HANDOFF' })
-  @ApiResponse({ status: 403, description: 'No tienes permisos para enviar mensajes en esta conversación' })
+  @ApiResponse({
+    status: 400,
+    description: 'La conversación no está en modo HANDOFF',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tienes permisos para enviar mensajes en esta conversación',
+  })
   @ApiResponse({ status: 404, description: 'Conversación no encontrada' })
   async enviarMensaje(
     @Param('id', ParseIntPipe) id: number,
@@ -89,9 +102,15 @@ export class InboxController {
   @ApiOperation({ summary: 'Tomar una conversación (iniciar handoff)' })
   @ApiParam({ name: 'id', description: 'ID de la conversación' })
   @ApiResponse({ status: 200, description: 'Conversación tomada exitosamente' })
-  @ApiResponse({ status: 400, description: 'La conversación ya está siendo atendida' })
+  @ApiResponse({
+    status: 400,
+    description: 'La conversación ya está siendo atendida',
+  })
   @ApiResponse({ status: 404, description: 'Conversación no encontrada' })
-  async tomarConversacion(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+  async tomarConversacion(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
     return this.inboxService.tomarConversacion(id, req.user.id);
   }
 
@@ -99,8 +118,14 @@ export class InboxController {
   @ApiOperation({ summary: 'Cerrar handoff y devolver conversación al bot' })
   @ApiParam({ name: 'id', description: 'ID de la conversación' })
   @ApiResponse({ status: 200, description: 'Handoff cerrado exitosamente' })
-  @ApiResponse({ status: 400, description: 'La conversación no está en modo HANDOFF' })
-  @ApiResponse({ status: 403, description: 'Solo el admin asignado puede cerrar' })
+  @ApiResponse({
+    status: 400,
+    description: 'La conversación no está en modo HANDOFF',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo el admin asignado puede cerrar',
+  })
   @ApiResponse({ status: 404, description: 'Conversación no encontrada' })
   async cerrarHandoff(
     @Param('id', ParseIntPipe) id: number,
@@ -113,10 +138,23 @@ export class InboxController {
   @Post('conversaciones/:id/transferir')
   @ApiOperation({ summary: 'Transferir conversación a otro admin' })
   @ApiParam({ name: 'id', description: 'ID de la conversación' })
-  @ApiResponse({ status: 200, description: 'Conversación transferida exitosamente' })
-  @ApiResponse({ status: 400, description: 'La conversación no está en modo HANDOFF o admin destino inválido' })
-  @ApiResponse({ status: 403, description: 'Solo el admin asignado puede transferir' })
-  @ApiResponse({ status: 404, description: 'Conversación o admin no encontrado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Conversación transferida exitosamente',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'La conversación no está en modo HANDOFF o admin destino inválido',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo el admin asignado puede transferir',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Conversación o admin no encontrado',
+  })
   async transferirConversacion(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: TransferirConversacionDto,
@@ -144,20 +182,29 @@ export class InboxController {
   @ApiOperation({ summary: 'Cambiar modo de respuesta para esta conversación' })
   @ApiParam({ name: 'id', description: 'ID de la conversación' })
   @ApiResponse({ status: 200, description: 'Modo de respuesta actualizado' })
-  @ApiResponse({ status: 403, description: 'Solo el admin asignado puede cambiar el modo' })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo el admin asignado puede cambiar el modo',
+  })
   @ApiResponse({ status: 404, description: 'Conversación no encontrada' })
   async actualizarModoRespuesta(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: { modoRespuesta: 'WEB' | 'WHATSAPP' | 'AMBOS' | null },
     @Request() req: any,
   ) {
-    return this.inboxService.actualizarModoRespuesta(id, req.user.id, dto.modoRespuesta);
+    return this.inboxService.actualizarModoRespuesta(
+      id,
+      req.user.id,
+      dto.modoRespuesta,
+    );
   }
 
   // ==================== UTILIDADES ====================
 
   @Get('admins-disponibles')
-  @ApiOperation({ summary: 'Obtener lista de admins disponibles para transferencia' })
+  @ApiOperation({
+    summary: 'Obtener lista de admins disponibles para transferencia',
+  })
   @ApiResponse({ status: 200, description: 'Lista de admins' })
   async getAdminsDisponibles(@Request() req: any) {
     return this.inboxService.getAdminsDisponibles(req.user.id);

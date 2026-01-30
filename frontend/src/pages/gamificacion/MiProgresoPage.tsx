@@ -7,10 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trophy, Flame, Star, Calendar, CheckCircle, History, Lock, ChevronRight, Check, ChevronLeft, Medal, TrendingUp } from 'lucide-react';
+import { Trophy, Flame, Star, Calendar, CheckCircle, History, Lock, ChevronRight, Check, ChevronLeft, Medal, TrendingUp, ChevronUp } from 'lucide-react';
 import { gamificacionApi } from '@/services/api';
-import { NivelBadge, ProgresoXP } from './components';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 
@@ -24,8 +23,8 @@ const CATEGORIAS_COLORES: Record<string, string> = {
 };
 
 export default function MiProgresoPage() {
-  const [showNivelesModal, setShowNivelesModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
+  const [showNivelesModal, setShowNivelesModal] = useState(false);
   const [historialPage, setHistorialPage] = useState(1);
   const [historialPeriodoId, setHistorialPeriodoId] = useState<string>('all');
 
@@ -68,13 +67,8 @@ export default function MiProgresoPage() {
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 max-w-4xl space-y-6">
-        <Skeleton className="h-40 w-full" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
@@ -91,185 +85,171 @@ export default function MiProgresoPage() {
     );
   }
 
-  const statCards = [
-    {
-      icon: Star,
-      label: 'Puntos Totales',
-      value: progreso.perfil.puntosTotal.toLocaleString(),
-      color: 'text-blue-500',
-    },
-    {
-      icon: Flame,
-      label: 'Racha Actual',
-      value: `${progreso.perfil.rachaActual} semanas`,
-      color: 'text-orange-500',
-    },
-    {
-      icon: CheckCircle,
-      label: 'Asistencias',
-      value: progreso.perfil.asistenciasTotales,
-      color: 'text-green-500',
-    },
-  ];
+  // Ordenar niveles de mayor a menor para el roadmap
+  const nivelesOrdenados = niveles ? [...niveles].sort((a, b) => b.numero - a.numero) : [];
 
   return (
     <div className="container mx-auto p-4 max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Mi Progreso</h1>
-        <p className="text-muted-foreground text-sm">Tu camino en la fe y participación</p>
+      {/* Header compacto con stats */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Mi Progreso</h1>
+          <p className="text-muted-foreground text-sm">Tu camino en la fe</p>
+        </div>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            <Star className="w-4 h-4 text-blue-500" />
+            <span className="font-semibold">{progreso.perfil.puntosTotal.toLocaleString()}</span>
+            <span className="text-muted-foreground">pts</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Flame className="w-4 h-4 text-orange-500" />
+            <span className="font-semibold">{progreso.perfil.rachaActual}</span>
+            <span className="text-muted-foreground">sem</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle className="w-4 h-4 text-green-500" />
+            <span className="font-semibold">{progreso.perfil.asistenciasTotales}</span>
+            <span className="text-muted-foreground">asist</span>
+          </div>
+        </div>
       </div>
 
-      {/* Card de Nivel */}
-      <Card
-        className="bg-gradient-to-r from-primary/10 to-primary/5 cursor-pointer hover:shadow-md transition-shadow"
-        onClick={() => setShowNivelesModal(true)}
-      >
+      {/* Rankings compactos */}
+      {posiciones && posiciones.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {posiciones.map((pos) => (
+            <Link
+              key={pos.grupoId}
+              to={`/ranking?grupo=${pos.grupoId}`}
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 hover:shadow-md transition-all hover:scale-105"
+            >
+              <span className="text-lg">{pos.icono || '🏆'}</span>
+              <span className="text-sm font-medium truncate max-w-[100px]">{pos.nombre}</span>
+              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                #{pos.posicion}
+              </Badge>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Nivel Actual - Compacto */}
+      <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-            <NivelBadge nivel={progreso.nivel.actual} size="lg" />
-            <div className="flex-1 w-full">
-              <ProgresoXP
-                xpActual={progreso.perfil.xpTotal}
-                nivelActual={progreso.nivel.actual}
-                nivelSiguiente={progreso.nivel.siguiente}
-                progresoXp={progreso.nivel.progresoXp}
-              />
-              {progreso.nivel.siguiente && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Te faltan {progreso.nivel.xpParaSiguienteNivel.toLocaleString()} XP para{' '}
-                  <span className="font-medium">{progreso.nivel.siguiente.nombre}</span>
-                </p>
+          <div className="flex items-center gap-4">
+            {/* Icono grande del nivel */}
+            <div
+              className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shadow-lg shrink-0"
+              style={{
+                backgroundColor: `${progreso.nivel.actual.color}20` || '#6366f120',
+                border: `2px solid ${progreso.nivel.actual.color || '#6366f1'}`
+              }}
+            >
+              {progreso.nivel.actual.icono}
+            </div>
+
+            {/* Info del nivel */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h2
+                  className="text-2xl font-bold"
+                  style={{ color: progreso.nivel.actual.color }}
+                >
+                  {progreso.nivel.actual.nombre}
+                </h2>
+                <Badge variant="secondary" className="text-xs">
+                  Nivel {progreso.nivel.actual.numero}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                {progreso.nivel.actual.descripcion}
+              </p>
+
+              {/* Barra de progreso al siguiente nivel */}
+              {progreso.nivel.siguiente ? (
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-medium">{progreso.perfil.xpTotal.toLocaleString()} XP</span>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <ChevronUp className="w-3 h-3" />
+                      {progreso.nivel.siguiente.nombre} ({progreso.nivel.siguiente.xpRequerido.toLocaleString()} XP)
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${progreso.nivel.progresoXp}%`,
+                        backgroundColor: progreso.nivel.actual.color || '#6366f1'
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-center text-muted-foreground mt-1.5">
+                    Te faltan <span className="font-semibold" style={{ color: progreso.nivel.actual.color }}>{progreso.nivel.xpParaSiguienteNivel.toLocaleString()}</span> XP para subir de nivel
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <Trophy className="w-4 h-4" />
+                  <span className="font-medium">Has alcanzado el nivel máximo</span>
+                </div>
               )}
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground hidden md:block" />
           </div>
-          <p className="text-xs text-muted-foreground text-center mt-4 md:hidden">
-            Toca para ver todos los niveles
-          </p>
+
+          {/* Preview de próximos niveles - Clickeable */}
+          {nivelesOrdenados.length > 0 && (
+            <button
+              onClick={() => setShowNivelesModal(true)}
+              className="mt-5 w-full p-3 rounded-xl bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border border-amber-200 hover:border-amber-300 hover:shadow-md transition-all group"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+                  <Star className="w-4 h-4" />
+                  Próximos niveles
+                </span>
+                <span className="text-xs text-amber-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                  Ver todos
+                  <ChevronRight className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="flex items-center justify-center gap-1">
+                {nivelesOrdenados
+                  .filter(n => n.xpRequerido > progreso.perfil.xpTotal)
+                  .slice(-5)
+                  .reverse()
+                  .map((nivel, idx) => (
+                    <div
+                      key={nivel.id}
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-lg bg-white border-2 shadow-sm hover:scale-110 transition-transform"
+                      style={{
+                        borderColor: nivel.color,
+                        opacity: 1 - (idx * 0.15)
+                      }}
+                      title={`${nivel.nombre} - ${nivel.xpRequerido.toLocaleString()} XP`}
+                    >
+                      {nivel.icono}
+                    </div>
+                  ))}
+                {nivelesOrdenados.filter(n => n.xpRequerido > progreso.perfil.xpTotal).length > 5 && (
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold bg-amber-100 border-2 border-amber-300 text-amber-700">
+                    +{nivelesOrdenados.filter(n => n.xpRequerido > progreso.perfil.xpTotal).length - 5}
+                  </div>
+                )}
+              </div>
+            </button>
+          )}
         </CardContent>
       </Card>
 
-      {/* Modal de Niveles */}
-      <Dialog open={showNivelesModal} onOpenChange={setShowNivelesModal}>
-        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Star className="w-5 h-5" />
-              Niveles Bíblicos
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            {niveles?.map((nivel) => {
-              const isCurrentLevel = nivel.id === progreso.nivel.actual.id;
-              const isUnlocked = progreso.perfil.xpTotal >= nivel.xpRequerido;
-
-              return (
-                <div
-                  key={nivel.id}
-                  className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${
-                    isCurrentLevel
-                      ? 'bg-primary/10 border-primary'
-                      : isUnlocked
-                        ? 'bg-muted/30 border-transparent'
-                        : 'opacity-60 border-transparent'
-                  }`}
-                >
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
-                    style={{ backgroundColor: `${nivel.color}20` }}
-                  >
-                    {nivel.icono}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold" style={{ color: isUnlocked ? nivel.color : undefined }}>
-                        {nivel.nombre}
-                      </p>
-                      {isCurrentLevel && (
-                        <Badge variant="default" className="text-xs">
-                          Actual
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{nivel.descripcion}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {nivel.xpRequerido.toLocaleString()} XP requeridos
-                    </p>
-                  </div>
-                  <div className="shrink-0">
-                    {isUnlocked ? (
-                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                        <Check className="w-4 h-4 text-green-600" />
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                        <Lock className="w-3 h-3 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="text-center text-sm text-muted-foreground border-t pt-4">
-            Tu XP actual: <span className="font-semibold">{progreso.perfil.xpTotal.toLocaleString()}</span>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Mis Posiciones en Rankings */}
-      {posiciones && posiciones.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-500" />
-              Mis Posiciones en Rankings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {posiciones.map((pos) => (
-                <Link
-                  key={pos.grupoId}
-                  to={`/ranking?grupo=${pos.grupoId}`}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-100 hover:shadow-md transition-shadow"
-                >
-                  <span className="text-2xl">{pos.icono || '📊'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{pos.nombre}</p>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xl font-bold text-yellow-600">#{pos.posicion}</span>
-                      <span className="text-xs text-muted-foreground">/ {pos.totalMiembros}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-                <span className="text-xs text-muted-foreground">{stat.label}</span>
-              </div>
-              <p className="text-2xl font-bold">{stat.value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
+      {/* Grid: Insignias + Actividad Reciente */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Insignias */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Star className="w-5 h-5" />
+              <Medal className="w-5 h-5 text-purple-500" />
               Mis Insignias
             </CardTitle>
           </CardHeader>
@@ -279,7 +259,7 @@ export default function MiProgresoPage() {
                 {progreso.insignias.map((insignia) => (
                   <div
                     key={insignia.codigo}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg bg-muted/50"
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100"
                     title={insignia.descripcion}
                   >
                     <span className="text-2xl">{insignia.icono}</span>
@@ -295,20 +275,17 @@ export default function MiProgresoPage() {
                 <p className="text-sm text-muted-foreground">
                   Aún no has desbloqueado insignias
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Sigue participando para ganar logros
-                </p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Historial Reciente */}
+        {/* Actividad Reciente */}
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <History className="w-5 h-5" />
+                <History className="w-5 h-5 text-blue-500" />
                 Actividad Reciente
               </CardTitle>
               <Button
@@ -323,27 +300,16 @@ export default function MiProgresoPage() {
           </CardHeader>
           <CardContent>
             {progreso.historialReciente.length > 0 ? (
-              <div className="space-y-3">
-                {progreso.historialReciente.slice(0, 6).map((item) => (
+              <div className="space-y-2">
+                {progreso.historialReciente.slice(0, 5).map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between text-sm"
+                    className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-muted/50"
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-primary" />
-                      <span className="text-muted-foreground">{item.descripcion}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        +{item.puntos} pts
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(item.createdAt), {
-                          addSuffix: true,
-                          locale: es,
-                        })}
-                      </span>
-                    </div>
+                    <span className="text-muted-foreground truncate flex-1">{item.descripcion}</span>
+                    <Badge variant="secondary" className="ml-2 shrink-0">
+                      +{item.puntos}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -357,6 +323,221 @@ export default function MiProgresoPage() {
         </Card>
       </div>
 
+      {/* Estadísticas de Racha */}
+      <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-100">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-around">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2">
+                <Flame className="w-6 h-6 text-orange-500" />
+                <span className="text-3xl font-bold text-orange-500">{progreso.perfil.rachaActual}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Racha Actual</p>
+            </div>
+            <div className="w-px h-12 bg-orange-200" />
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2">
+                <Trophy className="w-6 h-6 text-yellow-500" />
+                <span className="text-3xl font-bold text-yellow-500">{progreso.perfil.rachaMejor}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Mejor Racha</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Resumen por Períodos */}
+      {misPeriodos && misPeriodos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Historial por Período
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {misPeriodos.map((resumen) => (
+                <div
+                  key={resumen.periodo.id}
+                  className={`p-4 rounded-lg border ${
+                    resumen.periodo.estado === 'ACTIVO'
+                      ? 'border-green-200 bg-green-50/50'
+                      : 'border-gray-200 bg-gray-50/30'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold">{resumen.periodo.nombre}</h4>
+                      {resumen.periodo.estado === 'ACTIVO' && (
+                        <Badge className="bg-green-100 text-green-700 text-xs">Activo</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-amber-600">
+                      <Medal className="w-4 h-4" />
+                      <span className="font-bold">#{resumen.posicionFinal}</span>
+                      <span className="text-xs text-muted-foreground">/ {resumen.totalParticipantes}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6 text-sm">
+                    <div>
+                      <span className="font-semibold text-primary">{resumen.puntosTotal}</span>
+                      <span className="text-muted-foreground ml-1">pts</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-purple-600">{resumen.xpTotal}</span>
+                      <span className="text-muted-foreground ml-1">XP</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold">{resumen.totalRegistros}</span>
+                      <span className="text-muted-foreground ml-1">actividades</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Modal de Todos los Niveles - Horizontal */}
+      <Dialog open={showNivelesModal} onOpenChange={setShowNivelesModal}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-500" />
+              Camino de Fe
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-2">
+              {/* Indicador de cantidad y scroll */}
+              <div className="flex items-center justify-between mb-2 px-3">
+                <span className="text-xs text-muted-foreground">
+                  Nivel {progreso.nivel.actual.numero} de {niveles?.length || 0}
+                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1 animate-pulse">
+                  Desliza para ver más
+                  <ChevronRight className="w-3 h-3" />
+                </span>
+              </div>
+
+              {/* Path horizontal con scroll */}
+              <div className="relative">
+                <div className="overflow-x-auto scrollbar-thin">
+                  {/* Niveles en fila */}
+                  <div className="flex gap-5 p-3">
+                  {[...nivelesOrdenados].reverse().map((nivel) => {
+                    const isCurrentLevel = nivel.id === progreso.nivel.actual.id;
+                    const isUnlocked = progreso.perfil.xpTotal >= nivel.xpRequerido;
+                    const isNext = progreso.nivel.siguiente?.id === nivel.id;
+
+                    return (
+                      <div
+                        key={nivel.id}
+                        className={`flex flex-col items-center min-w-[80px] p-2 rounded-xl transition-all ${
+                          isCurrentLevel
+                            ? 'bg-primary/10 ring-2 ring-primary shadow-lg'
+                            : isNext
+                              ? 'bg-yellow-50 ring-1 ring-yellow-300'
+                              : isUnlocked
+                                ? 'bg-green-50/50'
+                                : ''
+                        }`}
+                      >
+                        {/* Icono del nivel */}
+                        <div
+                          className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-md relative ${
+                            isCurrentLevel
+                              ? 'bg-white'
+                              : isUnlocked
+                                ? 'bg-white'
+                                : 'bg-gray-50'
+                          }`}
+                          style={{
+                            borderColor: isUnlocked ? nivel.color : '#d1d5db',
+                            borderWidth: '3px',
+                            borderStyle: 'solid',
+                            opacity: isUnlocked ? 1 : 0.5
+                          }}
+                        >
+                          {nivel.icono}
+                          {isCurrentLevel && (
+                            <span className="absolute -top-1 -right-1 text-sm">⭐</span>
+                          )}
+                          {!isUnlocked && (
+                            <div className="absolute inset-0 rounded-full bg-white/60 flex items-center justify-center">
+                              <Lock className="w-4 h-4 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Nombre */}
+                        <span
+                          className={`text-xs font-semibold mt-2 text-center ${!isUnlocked ? 'text-gray-400' : ''}`}
+                          style={{ color: isUnlocked ? nivel.color : undefined }}
+                        >
+                          {nivel.nombre}
+                        </span>
+
+                        {/* XP requerido */}
+                        <span className="text-[10px] text-muted-foreground">
+                          {nivel.xpRequerido.toLocaleString()} XP
+                        </span>
+
+                        {/* Badges */}
+                        {isCurrentLevel && (
+                          <Badge className="bg-primary text-[10px] px-1.5 py-0 mt-1">TÚ</Badge>
+                        )}
+                        {isNext && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1 border-yellow-400 text-yellow-600">
+                            Siguiente
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                  </div>
+                </div>
+                {/* Gradient fade derecho para indicar más contenido */}
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+              </div>
+
+              {/* Detalle del nivel actual */}
+              <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{progreso.nivel.actual.icono}</span>
+                  <div>
+                    <h3 className="font-bold" style={{ color: progreso.nivel.actual.color }}>
+                      {progreso.nivel.actual.nombre}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{progreso.nivel.actual.descripcion}</p>
+                  </div>
+                </div>
+                {progreso.nivel.siguiente && (
+                  <div className="mt-3 pt-3 border-t border-primary/20">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Progreso hacia <strong>{progreso.nivel.siguiente.nombre}</strong></span>
+                      <span className="font-semibold">{progreso.nivel.progresoXp}%</span>
+                    </div>
+                    <div className="h-2 bg-white rounded-full overflow-hidden mt-1.5">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${progreso.nivel.progresoXp}%`,
+                          backgroundColor: progreso.nivel.actual.color
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de Historial Completo */}
       <Dialog open={showHistorialModal} onOpenChange={setShowHistorialModal}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
@@ -367,7 +548,6 @@ export default function MiProgresoPage() {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Filtro por período */}
           <div className="flex items-center gap-2 py-2">
             <span className="text-sm text-muted-foreground">Período:</span>
             <Select
@@ -391,7 +571,6 @@ export default function MiProgresoPage() {
             </Select>
           </div>
 
-          {/* Lista de historial */}
           <ScrollArea className="flex-1 min-h-0">
             {loadingHistorial ? (
               <div className="space-y-3 p-2">
@@ -432,11 +611,10 @@ export default function MiProgresoPage() {
             )}
           </ScrollArea>
 
-          {/* Paginación */}
           {historial && historial.meta.totalPages > 1 && (
             <div className="flex items-center justify-between pt-4 border-t">
               <span className="text-sm text-muted-foreground">
-                Página {historial.meta.page} de {historial.meta.totalPages} ({historial.meta.total} registros)
+                Página {historial.meta.page} de {historial.meta.totalPages}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -460,117 +638,6 @@ export default function MiProgresoPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Resumen por Períodos */}
-      {misPeriodos && misPeriodos.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Mi Historial por Período
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {misPeriodos.map((resumen) => (
-                <div
-                  key={resumen.periodo.id}
-                  className={`p-4 rounded-lg border ${
-                    resumen.periodo.estado === 'ACTIVO'
-                      ? 'border-green-200 bg-green-50/50'
-                      : 'border-gray-200 bg-gray-50/50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold">{resumen.periodo.nombre}</h4>
-                        <Badge
-                          variant="outline"
-                          className={
-                            resumen.periodo.estado === 'ACTIVO'
-                              ? 'bg-green-100 text-green-700 border-green-200'
-                              : resumen.periodo.estado === 'CERRADO'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                          }
-                        >
-                          {resumen.periodo.estado}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(resumen.periodo.fechaInicio), "d MMM yyyy", { locale: es })}
-                        {resumen.periodo.fechaFin && (
-                          <> - {format(new Date(resumen.periodo.fechaFin), "d MMM yyyy", { locale: es })}</>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-amber-600">
-                        <Medal className="w-4 h-4" />
-                        <span className="font-bold">#{resumen.posicionFinal}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">de {resumen.totalParticipantes}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 mb-3">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-primary">{resumen.puntosTotal}</p>
-                      <p className="text-xs text-muted-foreground">Puntos</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-purple-600">{resumen.xpTotal}</p>
-                      <p className="text-xs text-muted-foreground">XP</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-700">{resumen.totalRegistros}</p>
-                      <p className="text-xs text-muted-foreground">Actividades</p>
-                    </div>
-                  </div>
-
-                  {/* Desglose por categoría */}
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(resumen.porCategoria).map(([categoria, data]) => (
-                      <Badge
-                        key={categoria}
-                        variant="outline"
-                        className={CATEGORIAS_COLORES[categoria] || CATEGORIAS_COLORES.OTRO}
-                      >
-                        {categoria}: {data.puntos} pts ({data.cantidad})
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Mejores rachas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Flame className="w-5 h-5 text-orange-500" />
-            Estadísticas de Racha
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-8">
-            <div className="text-center">
-              <p className="text-4xl font-bold text-orange-500">{progreso.perfil.rachaActual}</p>
-              <p className="text-sm text-muted-foreground">Racha Actual</p>
-              <p className="text-xs text-muted-foreground mt-1">semanas consecutivas</p>
-            </div>
-            <div className="text-center">
-              <p className="text-4xl font-bold text-yellow-500">{progreso.perfil.rachaMejor}</p>
-              <p className="text-sm text-muted-foreground">Mejor Racha</p>
-              <p className="text-xs text-muted-foreground mt-1">tu récord personal</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

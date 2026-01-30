@@ -424,6 +424,11 @@ export const asistenciaApi = {
     return response.data;
   },
 
+  deleteQR: async (id: number): Promise<{ message: string; codigo: string; asistenciasEliminadas: number }> => {
+    const response = await api.delete<{ message: string; codigo: string; asistenciasEliminadas: number }>(`/asistencia/qr/${id}`);
+    return response.data;
+  },
+
   // Asistencia endpoints
   registrar: async (data: RegistrarAsistenciaRequest): Promise<Asistencia> => {
     const response = await api.post<Asistencia>('/asistencia/registrar', data);
@@ -467,6 +472,11 @@ export const asistenciaApi = {
 
   vincularUsuario: async (asistenciaId: number, usuarioId: number): Promise<Asistencia> => {
     const response = await api.patch<Asistencia>(`/asistencia/${asistenciaId}/vincular-usuario`, { usuarioId });
+    return response.data;
+  },
+
+  deleteAsistencia: async (id: number): Promise<{ mensaje: string }> => {
+    const response = await api.delete<{ mensaje: string }>(`/asistencia/${id}`);
     return response.data;
   },
 

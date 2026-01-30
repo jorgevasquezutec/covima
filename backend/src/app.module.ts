@@ -12,6 +12,7 @@ import { AsistenciaModule } from './asistencia/asistencia.module';
 import { TiposAsistenciaModule } from './tipos-asistencia/tipos-asistencia.module';
 import { WhatsappBotModule } from './whatsapp-bot/whatsapp-bot.module';
 import { InboxModule } from './inbox/inbox.module';
+import { GamificacionModule } from './gamificacion/gamificacion.module';
 
 @Module({
   imports: [
@@ -26,9 +27,9 @@ import { InboxModule } from './inbox/inbox.module';
     TiposAsistenciaModule,
     WhatsappBotModule,
     InboxModule,
+    GamificacionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
-
+export class AppModule {}

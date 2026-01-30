@@ -14,14 +14,21 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCampoDto {
-  @ApiProperty({ description: 'Nombre único del campo (slug)', example: 'dias_estudio' })
+  @ApiProperty({
+    description: 'Nombre único del campo (slug)',
+    example: 'dias_estudio',
+  })
   @IsString()
   @Matches(/^[a-z][a-z0-9_]*$/, {
-    message: 'El nombre debe ser un slug válido (minúsculas, números y guiones bajos)',
+    message:
+      'El nombre debe ser un slug válido (minúsculas, números y guiones bajos)',
   })
   nombre: string;
 
-  @ApiProperty({ description: 'Etiqueta visible del campo', example: 'Días de estudio de lección' })
+  @ApiProperty({
+    description: 'Etiqueta visible del campo',
+    example: 'Días de estudio de lección',
+  })
   @IsString()
   label: string;
 
@@ -124,10 +131,14 @@ export class UpdateCampoDto {
 }
 
 export class CreateTipoAsistenciaDto {
-  @ApiProperty({ description: 'Nombre único del tipo (slug)', example: 'escuela_sabatica' })
+  @ApiProperty({
+    description: 'Nombre único del tipo (slug)',
+    example: 'escuela_sabatica',
+  })
   @IsString()
   @Matches(/^[a-z][a-z0-9_]*$/, {
-    message: 'El nombre debe ser un slug válido (minúsculas, números y guiones bajos)',
+    message:
+      'El nombre debe ser un slug válido (minúsculas, números y guiones bajos)',
   })
   nombre: string;
 
@@ -140,12 +151,18 @@ export class CreateTipoAsistenciaDto {
   @IsString()
   descripcion?: string;
 
-  @ApiPropertyOptional({ description: 'Nombre del ícono (lucide)', example: 'BookOpen' })
+  @ApiPropertyOptional({
+    description: 'Nombre del ícono (lucide)',
+    example: 'BookOpen',
+  })
   @IsOptional()
   @IsString()
   icono?: string;
 
-  @ApiPropertyOptional({ description: 'Color en formato hex', example: '#3B82F6' })
+  @ApiPropertyOptional({
+    description: 'Color en formato hex',
+    example: '#3B82F6',
+  })
   @IsOptional()
   @IsString()
   @Matches(/^#[0-9A-Fa-f]{6}$/, {
@@ -153,7 +170,9 @@ export class CreateTipoAsistenciaDto {
   })
   color?: string;
 
-  @ApiPropertyOptional({ description: 'Si solo registra presencia (sin formulario adicional)' })
+  @ApiPropertyOptional({
+    description: 'Si solo registra presencia (sin formulario adicional)',
+  })
   @IsOptional()
   @IsBoolean()
   soloPresencia?: boolean;
@@ -199,7 +218,9 @@ export class UpdateTipoAsistenciaDto {
   })
   color?: string;
 
-  @ApiPropertyOptional({ description: 'Si solo registra presencia (sin formulario adicional)' })
+  @ApiPropertyOptional({
+    description: 'Si solo registra presencia (sin formulario adicional)',
+  })
   @IsOptional()
   @IsBoolean()
   soloPresencia?: boolean;

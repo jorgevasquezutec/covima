@@ -141,7 +141,10 @@ describe('InboxGateway', () => {
         to: jest.fn().mockReturnValue({ emit: mockEmit }),
       } as unknown as Socket;
 
-      gateway.handleTyping(authenticatedSocket, { conversacionId: 1, isTyping: true });
+      gateway.handleTyping(authenticatedSocket, {
+        conversacionId: 1,
+        isTyping: true,
+      });
 
       expect(authenticatedSocket.to).toHaveBeenCalledWith('conv:1');
       expect(mockEmit).toHaveBeenCalledWith('inbox:typing', expect.any(Object));

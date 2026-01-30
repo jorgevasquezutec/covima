@@ -8,7 +8,11 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ModoConversacion, DireccionMensaje, EstadoMensaje } from '@prisma/client';
+import {
+  ModoConversacion,
+  DireccionMensaje,
+  EstadoMensaje,
+} from '@prisma/client';
 import {
   GetConversacionesDto,
   ModoFiltro,
@@ -58,7 +62,11 @@ export class InboxService {
       where.OR = [
         { telefono: { contains: search } },
         { usuario: { nombre: { contains: search, mode: 'insensitive' } } },
-        { usuario: { nombreWhatsapp: { contains: search, mode: 'insensitive' } } },
+        {
+          usuario: {
+            nombreWhatsapp: { contains: search, mode: 'insensitive' },
+          },
+        },
       ];
     }
 
@@ -91,7 +99,8 @@ export class InboxService {
       queryOptions.skip = 1; // Saltar el elemento del cursor
     }
 
-    const conversaciones = await this.prisma.conversacion.findMany(queryOptions);
+    const conversaciones =
+      await this.prisma.conversacion.findMany(queryOptions);
 
     const hasMore = conversaciones.length > limit;
     const data = hasMore ? conversaciones.slice(0, limit) : conversaciones;
@@ -153,9 +162,10 @@ export class InboxService {
     }
 
     // Construir query para paginación
-    const orderBy = direccion === DireccionPaginacion.ANTES
-      ? { createdAt: 'desc' as const }
-      : { createdAt: 'asc' as const };
+    const orderBy =
+      direccion === DireccionPaginacion.ANTES
+        ? { createdAt: 'desc' as const }
+        : { createdAt: 'asc' as const };
 
     const queryOptions: any = {
       where: { conversacionId },
@@ -251,7 +261,10 @@ export class InboxService {
     const formattedMensaje = this.formatMensaje(mensaje);
 
     // Emitir evento WebSocket
-    await this.inboxGateway.emitMensajeNuevo(data.conversacionId, formattedMensaje);
+    await this.inboxGateway.emitMensajeNuevo(
+      data.conversacionId,
+      formattedMensaje,
+    );
 
     return formattedMensaje;
   }
@@ -259,7 +272,11 @@ export class InboxService {
   /**
    * Enviar mensaje como admin (incluye envío a WhatsApp)
    */
-  async enviarMensaje(conversacionId: number, dto: EnviarMensajeDto, adminId: number) {
+  async enviarMensaje(
+    conversacionId: number,
+    dto: EnviarMensajeDto,
+    adminId: number,
+  ) {
     // Verificar que la conversación existe y está en modo HANDOFF
     const conversacion = await this.prisma.conversacion.findUnique({
       where: { id: conversacionId },
@@ -276,7 +293,9 @@ export class InboxService {
     }
 
     if (conversacion.derivadaAId !== adminId) {
-      throw new ForbiddenException('Esta conversación está asignada a otro administrador');
+      throw new ForbiddenException(
+        'Esta conversación está asignada a otro administrador',
+      );
     }
 
     // Guardar mensaje en BD
@@ -365,7 +384,9 @@ export class InboxService {
       },
     });
 
-    this.logger.log(`Conversación ${conversacionId} tomada por admin ${adminId}`);
+    this.logger.log(
+      `Conversación ${conversacionId} tomada por admin ${adminId}`,
+    );
 
     const formattedConversacion = this.formatConversacion(updated);
 
@@ -381,7 +402,11 @@ export class InboxService {
   /**
    * Cerrar handoff y devolver al bot
    */
-  async cerrarHandoff(conversacionId: number, adminId: number, dto: CerrarHandoffDto) {
+  async cerrarHandoff(
+    conversacionId: number,
+    adminId: number,
+    dto: CerrarHandoffDto,
+  ) {
     const conversacion = await this.prisma.conversacion.findUnique({
       where: { id: conversacionId },
     });
@@ -395,7 +420,9 @@ export class InboxService {
     }
 
     if (conversacion.derivadaAId !== adminId) {
-      throw new ForbiddenException('Solo el admin asignado puede cerrar esta conversación');
+      throw new ForbiddenException(
+        'Solo el admin asignado puede cerrar esta conversación',
+      );
     }
 
     // Enviar mensaje de despedida si se proporciona
@@ -415,7 +442,9 @@ export class InboxService {
           dto.mensajeDespedida,
         );
       } catch (error) {
-        this.logger.error(`Error enviando mensaje de despedida a WhatsApp: ${error.message}`);
+        this.logger.error(
+          `Error enviando mensaje de despedida a WhatsApp: ${error.message}`,
+        );
       }
     }
 
@@ -429,7 +458,12 @@ export class InboxService {
       },
       include: {
         usuario: {
-          select: { id: true, nombre: true, nombreWhatsapp: true, fotoUrl: true },
+          select: {
+            id: true,
+            nombre: true,
+            nombreWhatsapp: true,
+            fotoUrl: true,
+          },
         },
         derivadaA: {
           select: { id: true, nombre: true },
@@ -437,10 +471,14 @@ export class InboxService {
       },
     });
 
-    this.logger.log(`Handoff cerrado para conversación ${conversacionId} por admin ${adminId}`);
+    this.logger.log(
+      `Handoff cerrado para conversación ${conversacionId} por admin ${adminId}`,
+    );
 
     // Emitir evento WebSocket
-    await this.inboxGateway.emitConversacionActualizada(this.formatConversacion(updated));
+    await this.inboxGateway.emitConversacionActualizada(
+      this.formatConversacion(updated),
+    );
 
     return { success: true };
   }
@@ -466,7 +504,9 @@ export class InboxService {
     }
 
     if (conversacion.derivadaAId !== adminActualId) {
-      throw new ForbiddenException('Solo el admin asignado puede transferir esta conversación');
+      throw new ForbiddenException(
+        'Solo el admin asignado puede transferir esta conversación',
+      );
     }
 
     // Verificar que el nuevo admin existe y tiene rol admin/lider
@@ -486,7 +526,9 @@ export class InboxService {
     );
 
     if (!tieneRolAdmin) {
-      throw new BadRequestException('El usuario destino no tiene permisos de administrador');
+      throw new BadRequestException(
+        'El usuario destino no tiene permisos de administrador',
+      );
     }
 
     // Transferir
@@ -498,7 +540,12 @@ export class InboxService {
       },
       include: {
         usuario: {
-          select: { id: true, nombre: true, nombreWhatsapp: true, fotoUrl: true },
+          select: {
+            id: true,
+            nombre: true,
+            nombreWhatsapp: true,
+            fotoUrl: true,
+          },
         },
         derivadaA: {
           select: { id: true, nombre: true },
@@ -526,7 +573,9 @@ export class InboxService {
     );
 
     // Emitir evento WebSocket
-    await this.inboxGateway.emitConversacionActualizada(this.formatConversacion(updated));
+    await this.inboxGateway.emitConversacionActualizada(
+      this.formatConversacion(updated),
+    );
 
     // Notificar al nuevo admin
     this.inboxGateway.notifyAdmin(dto.adminId, 'inbox:conversacion:asignada', {
@@ -540,7 +589,11 @@ export class InboxService {
   /**
    * Marcar mensajes como leídos
    */
-  async marcarComoLeido(conversacionId: number, adminId: number, dto: MarcarLeidoDto) {
+  async marcarComoLeido(
+    conversacionId: number,
+    adminId: number,
+    dto: MarcarLeidoDto,
+  ) {
     const conversacion = await this.prisma.conversacion.findUnique({
       where: { id: conversacionId },
     });
@@ -625,7 +678,12 @@ export class InboxService {
       where: { telefono: telefonoLimpio },
       include: {
         usuario: {
-          select: { id: true, nombre: true, nombreWhatsapp: true, fotoUrl: true },
+          select: {
+            id: true,
+            nombre: true,
+            nombreWhatsapp: true,
+            fotoUrl: true,
+          },
         },
         derivadaA: {
           select: { id: true, nombre: true },
@@ -634,7 +692,10 @@ export class InboxService {
     });
 
     if (conversacion) {
-      return { conversacion: this.formatConversacion(conversacion), isNew: false };
+      return {
+        conversacion: this.formatConversacion(conversacion),
+        isNew: false,
+      };
     }
 
     // Buscar usuario por teléfono para vincular
@@ -655,7 +716,12 @@ export class InboxService {
       },
       include: {
         usuario: {
-          select: { id: true, nombre: true, nombreWhatsapp: true, fotoUrl: true },
+          select: {
+            id: true,
+            nombre: true,
+            nombreWhatsapp: true,
+            fotoUrl: true,
+          },
         },
         derivadaA: {
           select: { id: true, nombre: true },
@@ -668,7 +734,9 @@ export class InboxService {
     // Emitir evento de nueva conversación
     await this.inboxGateway.emitConversacionNueva(formattedConversacion);
 
-    this.logger.log(`Nueva conversación creada: ${conversacion.id} para ${telefonoLimpio}`);
+    this.logger.log(
+      `Nueva conversación creada: ${conversacion.id} para ${telefonoLimpio}`,
+    );
 
     return { conversacion: formattedConversacion, isNew: true };
   }
@@ -676,7 +744,9 @@ export class InboxService {
   /**
    * Verificar si un teléfono pertenece a un admin/lider
    */
-  async esAdmin(telefono: string): Promise<{ esAdmin: boolean; usuario?: any }> {
+  async esAdmin(
+    telefono: string,
+  ): Promise<{ esAdmin: boolean; usuario?: any }> {
     const telefonoLimpio = telefono.replace(/\D/g, '');
 
     const usuario = await this.prisma.usuario.findFirst({
@@ -699,12 +769,14 @@ export class InboxService {
 
     return {
       esAdmin,
-      usuario: esAdmin ? {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        telefono: usuario.telefono,
-        roles: usuario.roles.map((r) => r.rol.nombre),
-      } : undefined,
+      usuario: esAdmin
+        ? {
+            id: usuario.id,
+            nombre: usuario.nombre,
+            telefono: usuario.telefono,
+            roles: usuario.roles.map((r) => r.rol.nombre),
+          }
+        : undefined,
     };
   }
 
@@ -741,7 +813,12 @@ export class InboxService {
       where: { telefono: telefonoLimpio },
       include: {
         usuario: {
-          select: { id: true, nombre: true, nombreWhatsapp: true, fotoUrl: true },
+          select: {
+            id: true,
+            nombre: true,
+            nombreWhatsapp: true,
+            fotoUrl: true,
+          },
         },
         derivadaA: {
           select: { id: true, nombre: true },
@@ -789,7 +866,9 @@ export class InboxService {
     }
 
     if (conversacion.derivadaAId !== adminId) {
-      throw new ForbiddenException('Solo el admin asignado puede cambiar el modo de respuesta');
+      throw new ForbiddenException(
+        'Solo el admin asignado puede cambiar el modo de respuesta',
+      );
     }
 
     const updated = await this.prisma.conversacion.update({
@@ -797,7 +876,12 @@ export class InboxService {
       data: { modoRespuesta },
       include: {
         usuario: {
-          select: { id: true, nombre: true, nombreWhatsapp: true, fotoUrl: true },
+          select: {
+            id: true,
+            nombre: true,
+            nombreWhatsapp: true,
+            fotoUrl: true,
+          },
         },
         derivadaA: {
           select: { id: true, nombre: true, modoHandoffDefault: true },

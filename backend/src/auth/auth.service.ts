@@ -13,7 +13,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-  ) { }
+  ) {}
 
   async login(loginDto: LoginDto) {
     const { codigoPais, telefono, password } = loginDto;
@@ -63,7 +63,9 @@ export class AuthService {
     // Construir URL completa para la foto
     let fotoUrl = user.fotoUrl;
     if (user.fotoUrl && !user.fotoUrl.startsWith('http')) {
-      const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+      const baseUrl =
+        process.env.BACKEND_URL ||
+        `http://localhost:${process.env.PORT || 3000}`;
       fotoUrl = `${baseUrl}${user.fotoUrl}`;
     }
 
@@ -132,7 +134,9 @@ export class AuthService {
     // Construir URL completa para la foto
     let fotoUrl = user.fotoUrl;
     if (user.fotoUrl && !user.fotoUrl.startsWith('http')) {
-      const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+      const baseUrl =
+        process.env.BACKEND_URL ||
+        `http://localhost:${process.env.PORT || 3000}`;
       fotoUrl = `${baseUrl}${user.fotoUrl}`;
     }
 

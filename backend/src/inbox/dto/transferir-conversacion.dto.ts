@@ -6,7 +6,9 @@ export class TransferirConversacionDto {
   @IsInt()
   adminId: number;
 
-  @ApiPropertyOptional({ description: 'Mensaje de contexto para el nuevo admin' })
+  @ApiPropertyOptional({
+    description: 'Mensaje de contexto para el nuevo admin',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

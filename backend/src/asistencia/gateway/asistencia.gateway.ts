@@ -33,7 +33,9 @@ interface LeaveRoomPayload {
   },
   namespace: '/asistencia',
 })
-export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class AsistenciaGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(AsistenciaGateway.name);
 
   @WebSocketServer()
@@ -52,11 +54,15 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
 
   private async setupRedisSubscriptions() {
     await this.redisService.subscribe('asistencia:nueva', (data) => {
-      this.server.to(`qr:${data.qrCode}`).emit('nuevaAsistencia', data.asistencia);
+      this.server
+        .to(`qr:${data.qrCode}`)
+        .emit('nuevaAsistencia', data.asistencia);
     });
 
     await this.redisService.subscribe('asistencia:actualizada', (data) => {
-      this.server.to(`qr:${data.qrCode}`).emit('asistenciaActualizada', data.asistencia);
+      this.server
+        .to(`qr:${data.qrCode}`)
+        .emit('asistenciaActualizada', data.asistencia);
     });
   }
 
@@ -138,7 +144,9 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
       totalEnRoom: roomUsers.size,
     });
 
-    this.logger.log(`User ${client.data.user.nombre} joined room ${data.qrCode}`);
+    this.logger.log(
+      `User ${client.data.user.nombre} joined room ${data.qrCode}`,
+    );
 
     return { success: true, room: roomName, totalEnRoom: roomUsers.size };
   }
@@ -164,7 +172,9 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
       });
     }
 
-    this.logger.log(`User ${client.data.user?.nombre} left room ${data.qrCode}`);
+    this.logger.log(
+      `User ${client.data.user?.nombre} left room ${data.qrCode}`,
+    );
 
     return { success: true };
   }
@@ -181,7 +191,10 @@ export class AsistenciaGateway implements OnGatewayConnection, OnGatewayDisconne
   // Método para emitir actualización (confirmación/rechazo)
   async emitAsistenciaActualizada(qrCode: string, asistencia: any) {
     this.server.to(`qr:${qrCode}`).emit('asistenciaActualizada', asistencia);
-    await this.redisService.publish('asistencia:actualizada', { qrCode, asistencia });
+    await this.redisService.publish('asistencia:actualizada', {
+      qrCode,
+      asistencia,
+    });
   }
 
   // Obtener estadísticas de un room

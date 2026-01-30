@@ -701,6 +701,7 @@ export interface RankingGrupoUsuario {
   nivelColor?: string;
   puntosPeriodo: number;
   rachaActual: number;
+  asistenciasTotales: number;
   esUsuarioActual?: boolean;
 }
 

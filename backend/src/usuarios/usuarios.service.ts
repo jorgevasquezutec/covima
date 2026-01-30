@@ -9,7 +9,7 @@ import { CreateUsuarioDto, UpdateUsuarioDto, ResetPasswordDto } from './dto';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findAll(options?: {
     search?: string;
@@ -118,8 +118,11 @@ export class UsuariosService {
         email: dto.email,
         nombreWhatsapp: dto.nombreWhatsapp,
         activo: dto.activo ?? true,
+        esJA: dto.esJA ?? true,
         debeCambiarPassword: true,
-        fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : undefined,
+        fechaNacimiento: dto.fechaNacimiento
+          ? new Date(dto.fechaNacimiento)
+          : undefined,
         direccion: dto.direccion,
         biografia: dto.biografia,
       },
@@ -150,11 +153,13 @@ export class UsuariosService {
         email: dto.email,
         nombreWhatsapp: dto.nombreWhatsapp,
         activo: dto.activo,
-        fechaNacimiento: dto.fechaNacimiento === null
-          ? null
-          : dto.fechaNacimiento
-            ? new Date(dto.fechaNacimiento)
-            : undefined,
+        esJA: dto.esJA,
+        fechaNacimiento:
+          dto.fechaNacimiento === null
+            ? null
+            : dto.fechaNacimiento
+              ? new Date(dto.fechaNacimiento)
+              : undefined,
         direccion: dto.direccion,
         biografia: dto.biografia,
       },
@@ -203,6 +208,21 @@ export class UsuariosService {
     return this.findOne(id);
   }
 
+  async toggleRanking(id: number) {
+    const usuario = await this.prisma.usuario.findUnique({ where: { id } });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    await this.prisma.usuario.update({
+      where: { id },
+      data: { participaEnRanking: !usuario.participaEnRanking },
+    });
+
+    return this.findOne(id);
+  }
+
   /**
    * Actualizar teléfono de usuario (solo admin)
    */
@@ -235,16 +255,19 @@ export class UsuariosService {
   /**
    * Actualizar perfil del usuario
    */
-  async updateProfile(id: number, data: {
-    nombre?: string;
-    email?: string;
-    fotoUrl?: string;
-    fechaNacimiento?: Date;
-    direccion?: string;
-    biografia?: string;
-    notificarNuevasConversaciones?: boolean;
-    modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
-  }) {
+  async updateProfile(
+    id: number,
+    data: {
+      nombre?: string;
+      email?: string;
+      fotoUrl?: string;
+      fechaNacimiento?: Date;
+      direccion?: string;
+      biografia?: string;
+      notificarNuevasConversaciones?: boolean;
+      modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
+    },
+  ) {
     const usuario = await this.prisma.usuario.findUnique({ where: { id } });
 
     if (!usuario) {
@@ -286,7 +309,9 @@ export class UsuariosService {
     // Construir URL completa para la foto
     let fotoUrlCompleta = usuario.fotoUrl;
     if (usuario.fotoUrl && !usuario.fotoUrl.startsWith('http')) {
-      const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+      const baseUrl =
+        process.env.BACKEND_URL ||
+        `http://localhost:${process.env.PORT || 3000}`;
       fotoUrlCompleta = `${baseUrl}${usuario.fotoUrl}`;
     }
 
@@ -400,6 +425,8 @@ export class UsuariosService {
       nombreWhatsapp: usuario.nombreWhatsapp,
       email: usuario.email,
       activo: usuario.activo,
+      participaEnRanking: usuario.participaEnRanking,
+      esJA: usuario.esJA,
       debeCambiarPassword: usuario.debeCambiarPassword,
       ultimoLogin: usuario.ultimoLogin,
       createdAt: usuario.createdAt,

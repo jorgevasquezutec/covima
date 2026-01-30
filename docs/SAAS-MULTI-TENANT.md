@@ -11,10 +11,11 @@ Este documento describe los cambios necesarios para convertir la plataforma actu
 3. [Arquitectura Propuesta](#arquitectura-propuesta)
 4. [Cambios por Area](#cambios-por-area)
    - [Base de Datos](#1-base-de-datos)
-   - [Autenticacion](#2-autenticacion)
-   - [Modulos Backend](#3-modulos-backend)
-   - [Frontend](#4-frontend)
-   - [Configuracion WhatsApp Multi-Tenant](#5-configuracion-whatsapp-multi-tenant)
+   - [Super Admin](#2-super-admin-administrador-global)
+   - [Autenticacion](#3-autenticacion)
+   - [Modulos Backend](#4-modulos-backend)
+   - [Frontend](#5-frontend)
+   - [Integraciones Multi-Tenant](#6-configuracion-de-integraciones-por-tenant)
 5. [Plan de Implementacion](#plan-de-implementacion)
 6. [Estimacion de Esfuerzo](#estimacion-de-esfuerzo)
 7. [Puntos Criticos](#puntos-criticos)
@@ -32,7 +33,7 @@ Este documento describe los cambios necesarios para convertir la plataforma actu
 | WhatsApp | 1 numero | 1 numero por tenant (credenciales propias) |
 | Webhook | 1 global | 1 por tenant (`/webhook/whatsapp/:codigo`) |
 
-**Esfuerzo total estimado:** 170-250 horas (~5-7 semanas, 1 dev full-time)
+**Esfuerzo total estimado:** 180-265 horas (~5-7 semanas, 1 dev full-time)
 
 ---
 
@@ -232,7 +233,142 @@ model Conversacion {
 
 ---
 
-### 2. Autenticacion
+### 2. Super Admin (Administrador Global)
+
+El Super Admin es un usuario especial que tiene acceso a **todos los tenants** y puede administrar la plataforma completa.
+
+#### Tabla SuperAdmin
+
+```prisma
+model SuperAdmin {
+  id          Int       @id @default(autoincrement())
+  usuarioId   Int       @unique
+  permisos    String[]  @default(["all"])
+  activo      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@map("super_admins")
+}
+```
+
+#### JWT Payload para Super Admin
+
+```typescript
+// Usuario normal
+{
+  sub: 1,
+  tenant: { id: 1, nombre: "Mi Org" },
+  tenants: [...],
+  roles: ["admin"],
+  isSuperAdmin: false
+}
+
+// Super Admin
+{
+  sub: 99,
+  tenant: null,              // No tiene tenant por defecto
+  tenants: [],               // Puede acceder a todos
+  roles: ["super_admin"],
+  isSuperAdmin: true
+}
+```
+
+#### Guard de Super Admin
+
+```typescript
+@Injectable()
+export class SuperAdminGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const user = context.switchToHttp().getRequest().user;
+    if (!user?.isSuperAdmin) {
+      throw new ForbiddenException('Acceso solo para Super Admin');
+    }
+    return true;
+  }
+}
+```
+
+#### API de Administracion Global
+
+```typescript
+@Controller('admin')
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
+export class AdminController {
+
+  // Listar todos los tenants
+  @Get('tenants')
+  async listTenants() {
+    return this.prisma.tenant.findMany({
+      include: {
+        _count: { select: { usuarios: true, programas: true } },
+        integraciones: { select: { whatsappActivo: true, openaiActivo: true } }
+      }
+    });
+  }
+
+  // Crear tenant
+  @Post('tenants')
+  async createTenant(@Body() dto: CreateTenantDto) { }
+
+  // Suspender tenant
+  @Post('tenants/:id/suspend')
+  async suspendTenant(@Param('id') id: number) { }
+
+  // Impersonar (soporte tecnico)
+  @Post('tenants/:id/impersonate')
+  async impersonate(@Param('id') id: number) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id } });
+    return {
+      accessToken: this.jwtService.sign({
+        sub: this.request.user.sub,
+        tenant: { id: tenant.id, nombre: tenant.nombre },
+        roles: ['admin'],
+        isSuperAdmin: true,
+        impersonating: true,
+      }),
+    };
+  }
+
+  // Estadisticas globales
+  @Get('stats')
+  async getStats() {
+    return {
+      totalTenants: await this.prisma.tenant.count(),
+      totalUsuarios: await this.prisma.usuario.count(),
+      totalProgramas: await this.prisma.programa.count(),
+    };
+  }
+}
+```
+
+#### Frontend: Panel de Super Admin
+
+| Seccion | Descripcion |
+|---------|-------------|
+| Dashboard | Stats globales (tenants, usuarios, programas) |
+| Tenants | Lista de tenants con acciones (editar, suspender, impersonar) |
+| Crear Tenant | Formulario para nuevo tenant |
+| Configuracion | Plantillas por defecto, planes, limites |
+| Logs | Auditoria global del sistema |
+
+#### Permisos del Super Admin
+
+| Permiso | Descripcion |
+|---------|-------------|
+| `all` | Acceso total |
+| `tenants.read` | Ver lista de tenants |
+| `tenants.write` | Crear/editar tenants |
+| `tenants.impersonate` | "Ver como" admin de un tenant |
+| `billing` | Gestionar planes y pagos |
+| `config` | Configuracion global |
+
+**Complejidad:** MEDIA | **Esfuerzo adicional:** 10-15 horas
+
+---
+
+### 3. Autenticacion
 
 #### JWT Payload Actual vs Propuesto
 
@@ -306,7 +442,7 @@ export class TenantMiddleware implements NestMiddleware {
 
 ---
 
-### 3. Modulos Backend
+### 4. Modulos Backend
 
 #### Patron de Cambio (aplicar a todos los servicios)
 
@@ -371,7 +507,7 @@ async handleWebhook(codigoTenant: string, body: any) {
 
 ---
 
-### 4. Frontend
+### 5. Frontend
 
 #### Auth Store (Zustand)
 
@@ -477,7 +613,7 @@ useEffect(() => {
 
 ---
 
-### 5. Configuracion de Integraciones por Tenant
+### 6. Configuracion de Integraciones por Tenant
 
 Cada tenant puede configurar sus propias credenciales de WhatsApp y OpenAI con webhook unico.
 
@@ -1145,17 +1281,18 @@ API_URL=https://api.tudominio.com
 | Area | Complejidad | Horas |
 |------|-------------|-------|
 | Base de datos (schema + migraciones) | MEDIA-ALTA | 20-30 |
+| **Super Admin (panel global)** | **MEDIA** | **10-15** |
 | Autenticacion | MEDIA | 15-20 |
 | Usuarios | MEDIA | 15-20 |
 | Programas | MEDIA | 10-15 |
 | Asistencia | MEDIA | 15-20 |
 | WhatsApp Bot (routing) | ALTA | 25-35 |
-| **Integraciones (WhatsApp + OpenAI)** | **MEDIA-ALTA** | **15-20** |
+| Integraciones (WhatsApp + OpenAI) | MEDIA-ALTA | 15-20 |
 | Inbox | MEDIA | 15-20 |
 | Frontend | MEDIA | 20-25 |
 | Testing | MEDIA | 15-20 |
 | Deploy + Migracion | BAJA | 5-10 |
-| **TOTAL** | | **170-250** |
+| **TOTAL** | | **180-265** |
 
 **Tiempo estimado:** 5-7 semanas (1 desarrollador full-time)
 

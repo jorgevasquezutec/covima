@@ -8,6 +8,7 @@ import {
   IsEmail,
   Matches,
   ValidateIf,
+  IsIn,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -19,7 +20,10 @@ export class CreateUsuarioDto {
   @MaxLength(5)
   codigoPais: string;
 
-  @ApiProperty({ example: '940393758', description: 'Número de teléfono sin código de país' })
+  @ApiProperty({
+    example: '940393758',
+    description: 'Número de teléfono sin código de país',
+  })
   @IsString()
   @MinLength(6)
   @MaxLength(20)
@@ -60,6 +64,14 @@ export class CreateUsuarioDto {
   @IsBoolean()
   activo?: boolean;
 
+  @ApiPropertyOptional({
+    default: true,
+    description: 'Es miembro JA (aparece en ranking general)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  esJA?: boolean;
+
   @ApiPropertyOptional({ example: '1990-01-15', nullable: true })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
@@ -78,4 +90,21 @@ export class CreateUsuarioDto {
   @IsString()
   @MaxLength(500)
   biografia?: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Notificar nuevas conversaciones en inbox',
+  })
+  @IsOptional()
+  @IsBoolean()
+  notificarNuevasConversaciones?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['WEB', 'WHATSAPP', 'AMBOS'],
+    default: 'AMBOS',
+    description: 'Modo de respuesta por defecto en handoff',
+  })
+  @IsOptional()
+  @IsIn(['WEB', 'WHATSAPP', 'AMBOS'])
+  modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
 }

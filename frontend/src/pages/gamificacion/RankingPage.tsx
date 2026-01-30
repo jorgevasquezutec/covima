@@ -93,7 +93,7 @@ export default function RankingPage() {
     },
     puntosPeriodo: r.puntosPeriodo,
     rachaActual: r.rachaActual,
-    asistenciasTotales: 0,
+    asistenciasTotales: r.asistenciasTotales || 0,
   }));
 
   const isLoading = loadingGrupos || loadingPeriodos || loadingRanking;

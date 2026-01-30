@@ -116,8 +116,8 @@ export default function HistorialPuntosPage() {
   });
 
   const { data: usuarios } = useQuery({
-    queryKey: ['usuarios-simple'],
-    queryFn: () => usuariosApi.getAll(),
+    queryKey: ['usuarios-todos'],
+    queryFn: () => usuariosApi.getAll({ limit: 1000 }),
   });
 
   // Mutations

@@ -7,7 +7,10 @@ export class LoginDto {
   @IsNotEmpty()
   codigoPais: string;
 
-  @ApiProperty({ example: '940393758', description: 'Número de teléfono local' })
+  @ApiProperty({
+    example: '940393758',
+    description: 'Número de teléfono local',
+  })
   @IsString()
   @IsNotEmpty()
   telefono: string;
