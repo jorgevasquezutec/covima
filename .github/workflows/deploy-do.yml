@@ -15,6 +15,7 @@ on:
 
 env:
   DOMAIN: jvasquez.me
+  REPO_URL: https://github.com/jorgevasquezutec/covima.git
 
 jobs:
   deploy:
@@ -31,9 +32,32 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Create .env file
+      - name: Deploy to server
         run: |
-          cat > .env << EOF
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            root@${{ secrets.DO_HOST }} << 'ENDSSH'
+
+          cd ~
+
+          # Si no existe el repo, clonarlo. Si existe, hacer pull
+          if [ ! -d "covima-ja/.git" ]; then
+            echo ">>> Clonando repositorio..."
+            rm -rf covima-ja
+            git clone ${{ env.REPO_URL }} covima-ja
+          else
+            echo ">>> Actualizando repositorio..."
+            cd covima-ja
+            git fetch origin
+            git reset --hard origin/main
+            cd ~
+          fi
+
+          cd covima-ja
+
+          # Crear .env si no existe
+          if [ ! -f ".env" ]; then
+            echo ">>> Creando archivo .env..."
+            cat > .env << 'ENVEOF'
           POSTGRES_USER=postgres
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
@@ -44,45 +68,28 @@ jobs:
           WHATSAPP_VERIFY_TOKEN=${{ secrets.WHATSAPP_VERIFY_TOKEN }}
           WHATSAPP_BOT_NUMBER=${{ secrets.WHATSAPP_BOT_NUMBER }}
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          EOF
+          ENVEOF
+          fi
 
-      - name: Copy files to server
-        run: |
-          rsync -avz --delete \
-            --exclude 'node_modules' \
-            --exclude '.git' \
-            --exclude '.env.local' \
-            --exclude 'backend/.env' \
-            --exclude 'backups' \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ./ root@${{ secrets.DO_HOST }}:~/covima-ja/
-
-      - name: Deploy with Docker Compose
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            root@${{ secrets.DO_HOST }} << 'ENDSSH'
-          cd ~/covima-ja
-
-          # Detener contenedores existentes
+          echo ">>> Deteniendo contenedores..."
           docker compose -f docker-compose.prod.yml down || true
 
-          # Construir y levantar
-          docker compose -f docker-compose.prod.yml build --no-cache
-          docker compose -f docker-compose.prod.yml up -d
+          echo ">>> Construyendo y levantando servicios..."
+          docker compose -f docker-compose.prod.yml up -d --build
 
-          # Esperar a que los servicios esten listos
+          echo ">>> Esperando a que los servicios estén listos..."
           sleep 15
 
-          # Limpiar imagenes antiguas
+          echo ">>> Limpiando imágenes antiguas..."
           docker image prune -f
 
-          # Mostrar estado
+          echo ">>> Estado de los servicios:"
           docker compose -f docker-compose.prod.yml ps
+
           ENDSSH
 
       - name: Health check
         run: |
           echo "Waiting for services to be ready..."
           sleep 30
-          # Por ahora usamos IP directa hasta que hagamos el switch de DNS
           curl -f http://${{ secrets.DO_HOST }}:3000/api/health || echo "Health check - services starting..."
