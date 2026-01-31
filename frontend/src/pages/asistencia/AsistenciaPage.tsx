@@ -544,7 +544,7 @@ export default function AsistenciaPage() {
                             </p>
                             <div className="flex flex-wrap items-center gap-2 mt-1">
                                 <span className="text-sm text-gray-500">
-                                    {new Date(asistencia.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
+                                    {parseLocalDate(asistencia.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
                                 </span>
                                 {asistencia.tipo && (
                                     <Badge
@@ -1245,7 +1245,7 @@ export default function AsistenciaPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-gray-700">
-                                                    {new Date(asistencia.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
+                                                    {parseLocalDate(asistencia.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
                                                 </TableCell>
                                                 <TableCell>
                                                     {asistencia.tipo ? (

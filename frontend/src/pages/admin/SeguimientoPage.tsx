@@ -31,6 +31,7 @@ import { usuariosApi, gamificacionApi } from '@/services/api';
 import type { NivelInactividad } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/utils';
 
 export default function SeguimientoPage() {
   const [filtroNivel, setFiltroNivel] = useState<'critico' | 'en_riesgo' | 'activo' | 'todos'>('todos');
@@ -98,8 +99,8 @@ export default function SeguimientoPage() {
       u.nombre,
       `+${u.codigoPais}${u.telefono}`,
       u.nivel.nombre,
-      u.ultimaAsistencia ? new Date(u.ultimaAsistencia).toLocaleDateString() : 'Nunca',
-      u.ultimaActividad ? new Date(u.ultimaActividad).toLocaleDateString() : 'Nunca',
+      u.ultimaAsistencia ? parseLocalDate(u.ultimaAsistencia).toLocaleDateString() : 'Nunca',
+      u.ultimaActividad ? parseLocalDate(u.ultimaActividad).toLocaleDateString() : 'Nunca',
       u.diasSinAsistencia ?? 'N/A',
       u.diasSinActividad ?? 'N/A',
       u.rachaActual,

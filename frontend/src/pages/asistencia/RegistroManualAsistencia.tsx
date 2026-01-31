@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { asistenciaApi, usuariosApi } from '@/services/api';
 import type { QRAsistencia, Usuario } from '@/types';
 import { DynamicForm } from '@/components/asistencia/DynamicForm';
+import { parseLocalDate } from '@/lib/utils';
 
 interface Props {
     onSuccess?: () => void;
@@ -286,7 +287,7 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                         </SelectTrigger>
                         <SelectContent className="bg-white border-gray-200 max-h-56">
                             {qrs.map((qr) => {
-                                const fecha = new Date(qr.semanaInicio);
+                                const fecha = parseLocalDate(qr.semanaInicio);
                                 const fechaStr = fecha.toLocaleDateString('es-PE', {
                                     day: '2-digit',
                                     month: 'short',

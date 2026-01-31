@@ -53,7 +53,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { History, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Filter, ChevronsUpDown, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseLocalDate } from '@/lib/utils';
 import { gamificacionApi, usuariosApi } from '@/services/api';
 import type { HistorialAdminItem, PeriodoRanking } from '@/types';
 import { toast } from 'sonner';
@@ -381,7 +381,7 @@ export default function HistorialPuntosPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {format(new Date(entry.fecha), 'dd MMM yyyy', { locale: es })}
+                    {format(parseLocalDate(entry.fecha), 'dd MMM yyyy', { locale: es })}
                   </TableCell>
                   <TableCell>
                     {entry.periodo ? (

@@ -43,6 +43,7 @@ import {
 import { programasApi, asistenciaApi, usuariosApi, gamificacionApi } from '@/services/api';
 import type { EstadisticasGenerales, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo, EstadisticasDashboard, PosicionEnNivel, ResumenInactividad } from '@/types';
 import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
+import { parseLocalDate } from '@/lib/utils';
 
 interface ProximaAsignacion {
   id: number;
@@ -976,7 +977,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-green-500" />
                       <span className="text-sm text-gray-700">
-                        {new Date(item.fecha).toLocaleDateString('es-PE', {
+                        {parseLocalDate(item.fecha).toLocaleDateString('es-PE', {
                           day: 'numeric',
                           month: 'short',
                         })}

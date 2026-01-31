@@ -196,7 +196,7 @@ export default function RegistrarAsistencia() {
                                 <div className="flex justify-between text-sm mb-2">
                                     <span className="text-gray-500">Fecha:</span>
                                     <span className="font-medium text-gray-900">
-                                        {new Date(yaRegistrado.fecha).toLocaleDateString('es-PE', {
+                                        {parseLocalDate(yaRegistrado.fecha).toLocaleDateString('es-PE', {
                                             day: 'numeric',
                                             month: 'long',
                                             year: 'numeric'
