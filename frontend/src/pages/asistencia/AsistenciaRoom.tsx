@@ -507,51 +507,49 @@ export default function AsistenciaRoom() {
                 </div>
             </div>
 
-            {/* Modal QR Expandido */}
+            {/* Modal QR Expandido - Maximiza el QR */}
             <Dialog open={qrExpanded} onOpenChange={setQrExpanded}>
-                <DialogContent className="w-[92vw] max-w-sm sm:max-w-md bg-white border-gray-200 p-4 sm:p-6 overflow-hidden">
-                    <DialogHeader className="text-center">
-                        <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">
+                <DialogContent
+                    className="p-3 bg-white border-gray-200 overflow-hidden"
+                    style={{
+                        width: 'min(96vw, calc(96vh - 100px))',
+                        maxWidth: 'min(96vw, calc(96vh - 100px))',
+                        maxHeight: '96vh',
+                    }}
+                >
+                    <DialogHeader className="text-center pb-1">
+                        <DialogTitle className="text-base font-bold text-gray-900">
                             {qr.tipoAsistencia?.label || 'Asistencia'}
                         </DialogTitle>
-                        <DialogDescription className="text-gray-500">
+                        <DialogDescription className="text-gray-500 text-xs">
                             Escanea para registrar tu asistencia
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex flex-col items-center w-full overflow-hidden">
+                    <div className="flex items-center justify-center">
                         {(qr.urlWhatsapp || qr.urlGenerada) && (
-                            <div className="bg-white p-2 sm:p-4 rounded-2xl border-4 border-gray-100 shadow-lg w-fit max-w-full">
+                            <div className="bg-white rounded-lg border-2 border-gray-100 shadow-lg w-full aspect-square">
                                 <QRCodeSVG
                                     value={qr.urlWhatsapp || qr.urlGenerada || ''}
-                                    size={256}
+                                    size={1000}
                                     level="H"
                                     includeMargin={true}
                                     bgColor="#ffffff"
                                     fgColor={tipoColor}
-                                    className="max-w-full h-auto"
+                                    style={{ width: '100%', height: '100%' }}
                                 />
                             </div>
                         )}
-                        <div className="mt-4 sm:mt-6 text-center">
-                            <p className="text-base sm:text-lg font-medium text-gray-900">
-                                {parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', {
-                                    weekday: 'long',
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric',
-                                })}
-                            </p>
-                            <p className="text-gray-500 mt-1 text-sm sm:text-base">
-                                <Clock className="w-4 h-4 inline mr-1" />
-                                Válido de {formatHora(qr.horaInicio)} a {formatHora(qr.horaFin)}
-                            </p>
-                            <Badge
-                                className="mt-3 sm:mt-4"
-                                style={{ backgroundColor: tipoColor, color: 'white' }}
-                            >
-                                {qr.tipoAsistencia?.label}
-                            </Badge>
-                        </div>
+                    </div>
+                    <div className="pt-1 text-center">
+                        <p className="text-xs font-medium text-gray-900">
+                            {parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                            })}
+                            {' · '}
+                            <Clock className="w-3 h-3 inline" /> {formatHora(qr.horaInicio)} - {formatHora(qr.horaFin)}
+                        </p>
                     </div>
                 </DialogContent>
             </Dialog>

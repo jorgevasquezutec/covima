@@ -722,19 +722,19 @@ export default function AsistenciaPage() {
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                                     {qrs.map((qr) => {
                                         const tipoColor = qr.tipoAsistencia?.color || '#3B82F6';
                                         return (
                                             <div
                                                 key={qr.id}
-                                                className="relative border-2 rounded-xl p-4 transition-all hover:shadow-lg bg-gradient-to-br from-white to-gray-50 group"
+                                                className="relative border-2 rounded-xl p-3 sm:p-4 transition-all hover:shadow-lg bg-gradient-to-br from-white to-gray-50 group"
                                                 style={{ borderColor: tipoColor }}
                                             >
                                                 {/* Header con tipo y estado */}
-                                                <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center justify-between mb-2 sm:mb-3">
                                                     <Badge
-                                                        className="text-xs font-semibold px-2 py-1"
+                                                        className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1"
                                                         style={{
                                                             backgroundColor: tipoColor,
                                                             color: 'white',
@@ -744,7 +744,7 @@ export default function AsistenciaPage() {
                                                     </Badge>
                                                     <div className="flex items-center gap-1">
                                                         <div className={`w-2 h-2 rounded-full ${qr.activo ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                                                        <span className={`text-xs font-medium ${qr.activo ? 'text-green-600' : 'text-gray-500'}`}>
+                                                        <span className={`text-[10px] sm:text-xs font-medium ${qr.activo ? 'text-green-600' : 'text-gray-500'}`}>
                                                             {qr.activo ? 'Activo' : 'Inactivo'}
                                                         </span>
                                                     </div>
@@ -752,35 +752,36 @@ export default function AsistenciaPage() {
 
                                                 {/* QR Code - Click to open room */}
                                                 <div
-                                                    className="flex justify-center mb-3 cursor-pointer group/qr"
+                                                    className="flex justify-center mb-2 sm:mb-3 cursor-pointer group/qr"
                                                     onClick={() => navigate(`/asistencias/room/${qr.codigo}`)}
                                                 >
-                                                    <div className="relative p-2 bg-white rounded-lg shadow-sm group-hover/qr:shadow-md transition-shadow">
+                                                    <div className="relative p-1.5 sm:p-2 bg-white rounded-lg shadow-sm group-hover/qr:shadow-md transition-shadow">
                                                         <QRCodeSVG
                                                             value={qr.urlWhatsapp || qr.urlGenerada || ''}
-                                                            size={90}
+                                                            size={75}
                                                             level="M"
                                                             bgColor="#ffffff"
                                                             fgColor={tipoColor}
+                                                            className="w-[70px] h-[70px] sm:w-[90px] sm:h-[90px]"
                                                         />
                                                         {/* Overlay en hover */}
                                                         <div className="absolute inset-0 bg-purple-600/80 rounded-lg flex items-center justify-center opacity-0 group-hover/qr:opacity-100 transition-opacity">
                                                             <div className="text-center text-white">
-                                                                <Radio className="w-5 h-5 mx-auto mb-1 animate-pulse" />
-                                                                <span className="text-xs font-medium">Ver en vivo</span>
+                                                                <Radio className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 animate-pulse" />
+                                                                <span className="text-[10px] sm:text-xs font-medium">Ver en vivo</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {/* Código y fecha */}
-                                                <div className="text-center mb-3">
-                                                    <p className="font-mono text-lg font-bold text-gray-900 tracking-wider">{qr.codigo}</p>
-                                                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mt-1">
-                                                        <CalendarDays className="w-4 h-4" />
+                                                <div className="text-center mb-2 sm:mb-3">
+                                                    <p className="font-mono text-base sm:text-lg font-bold text-gray-900 tracking-wider">{qr.codigo}</p>
+                                                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600 mt-1">
+                                                        <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                                         <span>{parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
                                                     </div>
-                                                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500 mt-1">
+                                                    <div className="flex items-center justify-center gap-1 text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
                                                         <Clock className="w-3 h-3" />
                                                         <span>{formatHora(qr.horaInicio)} - {formatHora(qr.horaFin)}</span>
                                                     </div>
@@ -788,42 +789,43 @@ export default function AsistenciaPage() {
 
                                                 {/* Estadística de asistencias */}
                                                 {(qr.totalAsistencias ?? 0) > 0 && (
-                                                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 rounded-lg mb-3">
-                                                        <Users className="w-4 h-4 text-blue-600" />
-                                                        <span className="text-sm font-medium text-blue-700">{qr.totalAsistencias} asistencias</span>
+                                                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 px-2 sm:px-3 bg-blue-50 rounded-lg mb-2 sm:mb-3">
+                                                        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+                                                        <span className="text-xs sm:text-sm font-medium text-blue-700">{qr.totalAsistencias} asistencias</span>
                                                     </div>
                                                 )}
 
                                                 {/* Acciones */}
-                                                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                                <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center" onClick={(e) => e.stopPropagation()}>
                                                     {qr.urlWhatsapp && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => handleCopyLink(qr.urlWhatsapp!)}
-                                                            className="flex-1 h-9 text-xs text-green-600 border-green-200 hover:bg-green-50"
+                                                            className="h-8 sm:h-9 text-xs text-green-600 border-green-200 hover:bg-green-50 px-2 sm:px-3"
                                                         >
                                                             <Copy className="w-3 h-3 mr-1" />
-                                                            Copiar link
+                                                            <span className="hidden xs:inline">Copiar link</span>
+                                                            <span className="xs:hidden">Link</span>
                                                         </Button>
                                                     )}
                                                     <Button
                                                         size="icon"
                                                         variant="outline"
                                                         onClick={() => openEditQRModal(qr)}
-                                                        className="h-9 w-9 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                                                        className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
                                                         title="Editar QR"
                                                     >
-                                                        <Pencil className="w-4 h-4" />
+                                                        <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                                     </Button>
                                                     <Button
                                                         size="icon"
                                                         variant="outline"
                                                         onClick={() => handleToggleQR(qr)}
-                                                        className={`h-9 w-9 ${qr.activo ? 'text-green-600 border-green-200 hover:bg-green-50' : 'text-gray-400 border-gray-200 hover:bg-gray-50'}`}
+                                                        className={`h-8 w-8 sm:h-9 sm:w-9 ${qr.activo ? 'text-green-600 border-green-200 hover:bg-green-50' : 'text-gray-400 border-gray-200 hover:bg-gray-50'}`}
                                                         title={qr.activo ? 'Desactivar' : 'Activar'}
                                                     >
-                                                        {qr.activo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                                                        {qr.activo ? <ToggleRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ToggleLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                                                     </Button>
                                                     <Button
                                                         size="icon"
@@ -832,10 +834,10 @@ export default function AsistenciaPage() {
                                                             setDeletingQR(qr);
                                                             setDeleteQROpen(true);
                                                         }}
-                                                        className="h-9 w-9 text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
+                                                        className="h-8 w-8 sm:h-9 sm:w-9 text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
                                                         title="Eliminar QR"
                                                     >
-                                                        <Trash2 className="w-4 h-4" />
+                                                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                                     </Button>
                                                 </div>
                                             </div>
