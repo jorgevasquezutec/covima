@@ -105,18 +105,23 @@ export class AsistenciaHandler {
       return;
     }
 
-    // Verificar horario
+    // Verificar horario (considerando margen temprano)
     const ahora = new Date();
     const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
     const horaInicio =
       qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes();
     const horaFin = qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes();
+    const margenTemprana = qr.margenTemprana ?? 15; // Default 15 minutos
+    const horaInicioConMargen = horaInicio - margenTemprana;
 
-    if (horaActual < horaInicio || horaActual >= horaFin) {
+    if (horaActual < horaInicioConMargen || horaActual >= horaFin) {
       const formatTime = (d: Date) =>
         `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      // Calcular hora de inicio con margen para mostrar en mensaje
+      const horaInicioReal = new Date(qr.horaInicio);
+      horaInicioReal.setMinutes(horaInicioReal.getMinutes() - margenTemprana);
       await this.whatsappService.sendMessage(context.conversationId, {
-        content: `⏰ El registro de asistencia solo está disponible de ${formatTime(qr.horaInicio)} a ${formatTime(qr.horaFin)}.`,
+        content: `⏰ El registro de asistencia solo está disponible de ${formatTime(horaInicioReal)} a ${formatTime(qr.horaFin)}.`,
       });
       return;
     }
@@ -265,18 +270,23 @@ export class AsistenciaHandler {
       return;
     }
 
-    // Verificar horario
+    // Verificar horario (considerando margen temprano)
     const ahora = new Date();
     const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
     const horaInicio =
       qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes();
     const horaFin = qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes();
+    const margenTemprana = qr.margenTemprana ?? 15; // Default 15 minutos
+    const horaInicioConMargen = horaInicio - margenTemprana;
 
-    if (horaActual < horaInicio || horaActual >= horaFin) {
+    if (horaActual < horaInicioConMargen || horaActual >= horaFin) {
       const formatTime = (d: Date) =>
         `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      // Calcular hora de inicio con margen para mostrar en mensaje
+      const horaInicioReal = new Date(qr.horaInicio);
+      horaInicioReal.setMinutes(horaInicioReal.getMinutes() - margenTemprana);
       await this.whatsappService.sendMessage(context.conversationId, {
-        content: `⏰ El registro de asistencia solo está disponible de ${formatTime(qr.horaInicio)} a ${formatTime(qr.horaFin)}.`,
+        content: `⏰ El registro de asistencia solo está disponible de ${formatTime(horaInicioReal)} a ${formatTime(qr.horaFin)}.`,
       });
       return;
     }
