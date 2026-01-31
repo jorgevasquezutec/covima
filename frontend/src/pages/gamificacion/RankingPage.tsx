@@ -38,7 +38,7 @@ export default function RankingPage() {
   // Obtener niveles disponibles
   const { data: niveles, isLoading: loadingNiveles } = useQuery({
     queryKey: ['niveles-ranking'],
-    queryFn: gamificacionApi.getNiveles,
+    queryFn: () => gamificacionApi.getNiveles(),
   });
 
   // Obtener ranking del nivel seleccionado

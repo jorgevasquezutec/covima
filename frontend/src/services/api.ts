@@ -10,6 +10,11 @@ import type {
   PaginatedResponse,
   Rol,
   PeriodoRanking,
+  UsuariosInactivosResponse,
+  ResumenInactividad,
+  RankingsPorNivelResponse,
+  PosicionEnNivel,
+  EstadisticasDashboard,
 } from '@/types';
 
 // En desarrollo, usar la misma IP/host del navegador para la API
@@ -172,6 +177,25 @@ export const usuariosApi = {
     cumpleaneros: { id: number; nombre: string; dia: number; mes: number }[];
   }> => {
     const response = await api.get('/usuarios/cumpleanos-mes', { params });
+    return response.data;
+  },
+
+  // ==================== SEGUIMIENTO DE INACTIVIDAD ====================
+
+  getUsuariosInactivos: async (params?: {
+    nivel?: 'critico' | 'en_riesgo' | 'todos';
+    nivelGamificacionId?: number;
+    ordenarPor?: 'ultimaAsistencia' | 'ultimaActividad' | 'nombre';
+    orden?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }): Promise<UsuariosInactivosResponse> => {
+    const response = await api.get<UsuariosInactivosResponse>('/usuarios/inactivos', { params });
+    return response.data;
+  },
+
+  getResumenInactividad: async (): Promise<ResumenInactividad> => {
+    const response = await api.get<ResumenInactividad>('/usuarios/inactivos/resumen');
     return response.data;
   },
 };

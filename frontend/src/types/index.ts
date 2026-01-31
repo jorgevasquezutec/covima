@@ -837,3 +837,55 @@ export interface HistorialAdminResponse {
   totalPages: number;
 }
 
+// ==================== SEGUIMIENTO DE INACTIVIDAD ====================
+
+export type NivelInactividad = 'critico' | 'en_riesgo' | 'activo';
+
+export interface UsuarioInactivo {
+  id: number;
+  nombre: string;
+  telefono: string;
+  codigoPais: string;
+  fotoUrl?: string;
+  roles: string[];
+  nivel: {
+    id: number;
+    nombre: string;
+    icono?: string;
+    color?: string;
+  };
+  ultimaAsistencia: string | null;
+  ultimaActividad: string | null;
+  diasSinAsistencia: number | null;
+  diasSinActividad: number | null;
+  rachaActual: number;
+  rachaPerdida: boolean;
+  rachaMejor: number;
+  asistenciasTotales: number;
+  nivelInactividad: NivelInactividad;
+}
+
+export interface ConteoInactividad {
+  critico: number;
+  enRiesgo: number;
+  activos: number;
+}
+
+export interface UsuariosInactivosResponse {
+  data: UsuarioInactivo[];
+  conteo: ConteoInactividad;
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface ResumenInactividad {
+  total: number;
+  criticos: number;
+  enRiesgo: number;
+  activos: number;
+}
+

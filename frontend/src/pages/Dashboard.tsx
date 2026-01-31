@@ -522,7 +522,7 @@ export default function Dashboard() {
                             tick={{ fontSize: 11 }}
                           />
                           <Tooltip
-                            formatter={(value: number) => [value, 'Cantidad']}
+                            formatter={(value) => [value ?? 0, 'Cantidad']}
                             labelFormatter={(label) => label}
                           />
                           <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
@@ -574,7 +574,7 @@ export default function Dashboard() {
                             tick={{ fontSize: 11 }}
                           />
                           <Tooltip
-                            formatter={(value: number) => [value, 'Veces']}
+                            formatter={(value) => [value ?? 0, 'Veces']}
                             labelFormatter={(label) => label}
                           />
                           <Bar dataKey="cantidad" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
@@ -769,7 +769,7 @@ export default function Dashboard() {
                         tick={{ fontSize: 10 }}
                       />
                       <Tooltip
-                        formatter={(value: number) => [value, 'Cantidad']}
+                        formatter={(value) => [value ?? 0, 'Cantidad']}
                         labelFormatter={(label) => label}
                       />
                       <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
@@ -821,7 +821,7 @@ export default function Dashboard() {
                         tick={{ fontSize: 10 }}
                       />
                       <Tooltip
-                        formatter={(value: number) => [value, 'Veces']}
+                        formatter={(value) => [value ?? 0, 'Veces']}
                         labelFormatter={(label) => label}
                       />
                       <Bar dataKey="cantidad" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
