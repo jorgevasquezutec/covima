@@ -452,25 +452,32 @@ export class AsistenciaService {
           ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
           : 12 * 60; // Default 12:00
 
+      // Aplicar margen temprana: el QR se abre margenTemprana minutos antes de horaInicio
+      const margenTemprana = qr.margenTemprana || 0;
+      const horaAperturaQR = horaInicioQR - margenTemprana;
+
       // Verificar si está en horario (considerando horarios que cruzan medianoche)
       let enHorario: boolean;
-      if (horaFinQR > horaInicioQR) {
-        // Horario normal (ej: 09:00 - 12:00)
+      if (horaFinQR > horaAperturaQR) {
+        // Horario normal (ej: 08:45 - 12:00 con margen temprana de 15 min)
         enHorario =
-          horaActualEnMinutos >= horaInicioQR &&
+          horaActualEnMinutos >= horaAperturaQR &&
           horaActualEnMinutos < horaFinQR;
       } else {
-        // Horario que cruza medianoche (ej: 14:00 - 04:00)
+        // Horario que cruza medianoche
         enHorario =
-          horaActualEnMinutos >= horaInicioQR ||
+          horaActualEnMinutos >= horaAperturaQR ||
           horaActualEnMinutos < horaFinQR;
       }
 
       if (!enHorario) {
-        const horaInicioStr = this.formatHora(qr.horaInicio);
+        // Mostrar la hora de apertura real (con margen)
+        const horaAperturaDate = new Date();
+        horaAperturaDate.setHours(Math.floor(horaAperturaQR / 60), horaAperturaQR % 60, 0);
+        const horaAperturaStr = this.formatHora(horaAperturaDate);
         const horaFinStr = this.formatHora(qr.horaFin);
         throw new BadRequestException(
-          `Solo se puede registrar asistencia entre ${horaInicioStr} y ${horaFinStr}`,
+          `Solo se puede registrar asistencia entre ${horaAperturaStr} y ${horaFinStr}`,
         );
       }
 
@@ -605,14 +612,20 @@ export class AsistenciaService {
         ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
         : 12 * 60;
 
+    // Aplicar margen temprana: el QR se abre margenTemprana minutos antes de horaInicio
+    const margenTemprana = qr.margenTemprana || 0;
+    const horaAperturaQR = horaInicioQR - margenTemprana;
+
     if (
-      horaActualEnMinutos < horaInicioQR ||
+      horaActualEnMinutos < horaAperturaQR ||
       horaActualEnMinutos >= horaFinQR
     ) {
-      const horaInicioStr = this.formatHora(qr.horaInicio);
+      const horaAperturaDate = new Date();
+      horaAperturaDate.setHours(Math.floor(horaAperturaQR / 60), horaAperturaQR % 60, 0);
+      const horaAperturaStr = this.formatHora(horaAperturaDate);
       const horaFinStr = this.formatHora(qr.horaFin);
       throw new BadRequestException(
-        `Solo se puede registrar asistencia entre ${horaInicioStr} y ${horaFinStr}`,
+        `Solo se puede registrar asistencia entre ${horaAperturaStr} y ${horaFinStr}`,
       );
     }
 

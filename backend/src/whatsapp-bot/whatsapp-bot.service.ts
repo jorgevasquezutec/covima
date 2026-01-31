@@ -3,6 +3,8 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { SendMessageDto } from './dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { DireccionMensaje, EstadoMensaje } from '@prisma/client';
 
 /**
  * Servicio de mensajería que envía mensajes directamente a WhatsApp API
@@ -26,6 +28,7 @@ export class WhatsappBotService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     this.token = this.configService.get<string>('WHATSAPP_TOKEN', '');
     this.phoneNumberId = this.configService.get<string>(
@@ -120,19 +123,14 @@ export class WhatsappBotService {
 
   /**
    * Enviar mensaje a una conversación (compatible con interfaz anterior)
+   * Automáticamente guarda el mensaje en la BD como mensaje del bot
    */
   async sendMessage(
     conversationId: number,
     message: SendMessageDto,
   ): Promise<any> {
-    const telefono = this.conversationPhoneMap.get(conversationId);
-
-    if (!telefono) {
-      this.logger.error(`No phone found for conversationId ${conversationId}`);
-      return null;
-    }
-
-    return this.sendWhatsAppMessage(telefono, message.content);
+    // Usar sendBotMessage que guarda Y envía
+    return this.sendBotMessage(conversationId, message.content);
   }
 
   /**
@@ -337,5 +335,51 @@ export class WhatsappBotService {
         error: error.response?.data?.error?.message || error.message,
       };
     }
+  }
+
+  /**
+   * Enviar mensaje del bot Y guardarlo en la BD
+   * Usar este método para todas las respuestas automáticas del bot
+   */
+  async sendBotMessage(
+    conversationId: number,
+    content: string,
+  ): Promise<any> {
+    const telefono = this.conversationPhoneMap.get(conversationId);
+
+    if (!telefono) {
+      this.logger.error(`No phone found for conversationId ${conversationId}`);
+      return null;
+    }
+
+    // Buscar conversación en BD para guardar el mensaje
+    const conversacion = await this.prisma.conversacion.findFirst({
+      where: { telefono },
+    });
+
+    if (conversacion) {
+      // Guardar mensaje saliente del bot
+      await this.prisma.mensaje.create({
+        data: {
+          conversacionId: conversacion.id,
+          contenido: content,
+          direccion: DireccionMensaje.SALIENTE,
+          tipo: 'bot',
+          estado: EstadoMensaje.ENVIADO,
+        },
+      });
+
+      // Actualizar último mensaje de la conversación
+      await this.prisma.conversacion.update({
+        where: { id: conversacion.id },
+        data: {
+          ultimoMensaje: content.substring(0, 500),
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    // Enviar a WhatsApp
+    return this.sendWhatsAppMessage(telefono, content);
   }
 }

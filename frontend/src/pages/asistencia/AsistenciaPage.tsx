@@ -1434,7 +1434,7 @@ export default function AsistenciaPage() {
                                 />
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500">El QR solo será válido entre estas horas</p>
+                        <p className="text-xs text-gray-500">El QR cierra a la hora fin indicada</p>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -1460,7 +1460,7 @@ export default function AsistenciaPage() {
                                 />
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500">Temprana: antes de hora inicio. Tardía: después de hora inicio.</p>
+                        <p className="text-xs text-gray-500">El QR abre {newQR.margenTemprana} min antes de hora inicio. Tardía: {newQR.margenTardia} min después.</p>
 
                         <div className="space-y-2">
                             <Label className="text-gray-700">Descripción (opcional)</Label>
@@ -1568,7 +1568,7 @@ export default function AsistenciaPage() {
                                 />
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500">Temprana: antes de hora inicio. Tardía: después de hora inicio.</p>
+                        <p className="text-xs text-gray-500">El QR abre {editQRData.margenTemprana} min antes de hora inicio. Tardía: {editQRData.margenTardia} min después.</p>
 
                         <div className="space-y-2">
                             <Label className="text-gray-700">Descripción (opcional)</Label>

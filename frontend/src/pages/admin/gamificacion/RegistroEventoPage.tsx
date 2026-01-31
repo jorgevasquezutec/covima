@@ -5,19 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Gift, Check, Search } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Users, Gift, Check, Search, ChevronsUpDown } from 'lucide-react';
 import { gamificacionApi, usuariosApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function RegistroEventoPage() {
   const [selectedEvento, setSelectedEvento] = useState<string>('');
+  const [eventoComboOpen, setEventoComboOpen] = useState(false);
   const [fecha, setFecha] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [selectedUsuarios, setSelectedUsuarios] = useState<number[]>([]);
   const [notas, setNotas] = useState('');
@@ -120,24 +123,59 @@ export default function RegistroEventoPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Tipo de Evento</Label>
-              <Select value={selectedEvento} onValueChange={setSelectedEvento}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un evento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {eventos?.map((evento) => (
-                    <SelectItem key={evento.id} value={evento.id.toString()}>
+              <Popover open={eventoComboOpen} onOpenChange={setEventoComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={eventoComboOpen}
+                    className="w-full justify-between h-11"
+                  >
+                    {eventoSeleccionado ? (
                       <div className="flex items-center gap-2">
-                        <span>{evento.icono}</span>
-                        <span>{evento.nombre}</span>
+                        <span>{eventoSeleccionado.icono}</span>
+                        <span>{eventoSeleccionado.nombre}</span>
                         <Badge variant="secondary" className="ml-2">
-                          {evento.puntos} pts
+                          {eventoSeleccionado.puntos} pts
                         </Badge>
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    ) : (
+                      <span className="text-muted-foreground">Buscar evento...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar evento..." />
+                    <CommandList>
+                      <CommandEmpty>No se encontró el evento.</CommandEmpty>
+                      <CommandGroup>
+                        {eventos?.map((evento) => (
+                          <CommandItem
+                            key={evento.id}
+                            value={`${evento.nombre} ${evento.codigo}`}
+                            onSelect={() => {
+                              setSelectedEvento(evento.id.toString());
+                              setEventoComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedEvento === evento.id.toString() ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="mr-2">{evento.icono}</span>
+                            <span className="flex-1">{evento.nombre}</span>
+                            <Badge variant="secondary">{evento.puntos} pts</Badge>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {eventoSeleccionado && (
@@ -166,6 +204,7 @@ export default function RegistroEventoPage() {
                 value={fecha}
                 onChange={setFecha}
                 placeholder="Seleccionar fecha"
+                className="h-11 text-base"
               />
             </div>
 
