@@ -954,25 +954,35 @@ export class AsistenciaService {
           'asistencia',
         );
 
-        // Actualizar contador de asistencias y fecha de última asistencia
+        // Actualizar contador de asistencias, fecha de última asistencia y recalcular racha
         const perfil = await this.prisma.usuarioGamificacion.findUnique({
           where: { usuarioId },
         });
         if (perfil) {
-          // Actualizar ultimaSemanaAsistio solo si la fecha del QR es más reciente
-          const updateData: any = { asistenciasTotales: { increment: 1 } };
+          // Obtener todas las asistencias confirmadas del usuario para recalcular racha
+          const asistenciasConfirmadas = await this.prisma.asistencia.findMany({
+            where: {
+              usuarioId,
+              estado: 'confirmado',
+            },
+            orderBy: { fecha: 'desc' },
+            select: { fecha: true },
+          });
 
-          // Si no tiene fecha de última asistencia, o si la fecha del QR es más reciente
-          if (
-            !perfil.ultimaSemanaAsistio ||
-            fechaAsistencia > perfil.ultimaSemanaAsistio
-          ) {
-            updateData.ultimaSemanaAsistio = fechaAsistencia;
-          }
+          // Calcular la racha basada en semanas consecutivas
+          const { rachaActual, ultimaFecha } =
+            this.calcularRachaDesdeAsistencias(asistenciasConfirmadas);
+
+          const mejorRacha = Math.max(rachaActual, perfil.rachaMejor);
 
           await this.prisma.usuarioGamificacion.update({
             where: { id: perfil.id },
-            data: updateData,
+            data: {
+              asistenciasTotales: { increment: 1 },
+              ultimaSemanaAsistio: ultimaFecha,
+              rachaActual,
+              rachaMejor: mejorRacha,
+            },
           });
         }
       } catch (error) {
@@ -1524,6 +1534,77 @@ export class AsistenciaService {
   }
 
   // ==================== HELPERS ====================
+
+  /**
+   * Calcula la racha de asistencia basada en semanas consecutivas
+   * @param asistencias - Lista de asistencias ordenadas por fecha descendente
+   * @returns rachaActual y ultimaFecha de asistencia
+   */
+  private calcularRachaDesdeAsistencias(
+    asistencias: { fecha: Date }[],
+  ): { rachaActual: number; ultimaFecha: Date | null } {
+    if (asistencias.length === 0) {
+      return { rachaActual: 0, ultimaFecha: null };
+    }
+
+    // Obtener semanas únicas (inicio de semana) de las asistencias
+    const semanasSet = new Set<string>();
+    for (const a of asistencias) {
+      const inicioSemana = this.getInicioSemanaDate(a.fecha);
+      semanasSet.add(inicioSemana.toISOString());
+    }
+
+    // Convertir a array y ordenar descendente (más reciente primero)
+    const semanas = Array.from(semanasSet)
+      .map((s) => new Date(s))
+      .sort((a, b) => b.getTime() - a.getTime());
+
+    if (semanas.length === 0) {
+      return { rachaActual: 0, ultimaFecha: null };
+    }
+
+    const ultimaFecha = semanas[0];
+    const ahora = new Date();
+    const inicioSemanaActual = this.getInicioSemanaDate(ahora);
+
+    // Verificar si la última asistencia es de esta semana o la anterior
+    const diffSemanas = Math.floor(
+      (inicioSemanaActual.getTime() - ultimaFecha.getTime()) /
+        (7 * 24 * 60 * 60 * 1000),
+    );
+
+    // Si la última asistencia es de hace más de 1 semana, la racha está rota
+    if (diffSemanas > 1) {
+      return { rachaActual: 0, ultimaFecha };
+    }
+
+    // Contar semanas consecutivas hacia atrás
+    let racha = 1;
+    for (let i = 1; i < semanas.length; i++) {
+      const diff =
+        (semanas[i - 1].getTime() - semanas[i].getTime()) /
+        (7 * 24 * 60 * 60 * 1000);
+      if (Math.abs(diff - 1) < 0.1) {
+        // Aproximadamente 1 semana de diferencia
+        racha++;
+      } else {
+        break;
+      }
+    }
+
+    return { rachaActual: racha, ultimaFecha };
+  }
+
+  /**
+   * Obtiene el inicio de la semana (domingo) para una fecha
+   */
+  private getInicioSemanaDate(fecha: Date): Date {
+    const d = new Date(fecha);
+    const day = d.getDay();
+    d.setDate(d.getDate() - day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
 
   private formatQR(qr: any) {
     const whatsappNumber = process.env.WHATSAPP_BOT_NUMBER || '';
