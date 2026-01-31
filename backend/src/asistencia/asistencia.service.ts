@@ -954,14 +954,25 @@ export class AsistenciaService {
           'asistencia',
         );
 
-        // Actualizar contador de asistencias
+        // Actualizar contador de asistencias y fecha de última asistencia
         const perfil = await this.prisma.usuarioGamificacion.findUnique({
           where: { usuarioId },
         });
         if (perfil) {
+          // Actualizar ultimaSemanaAsistio solo si la fecha del QR es más reciente
+          const updateData: any = { asistenciasTotales: { increment: 1 } };
+
+          // Si no tiene fecha de última asistencia, o si la fecha del QR es más reciente
+          if (
+            !perfil.ultimaSemanaAsistio ||
+            fechaAsistencia > perfil.ultimaSemanaAsistio
+          ) {
+            updateData.ultimaSemanaAsistio = fechaAsistencia;
+          }
+
           await this.prisma.usuarioGamificacion.update({
             where: { id: perfil.id },
-            data: { asistenciasTotales: { increment: 1 } },
+            data: updateData,
           });
         }
       } catch (error) {

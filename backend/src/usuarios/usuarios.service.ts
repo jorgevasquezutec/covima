@@ -517,11 +517,7 @@ export class UsuariosService {
         let nivelInactividad: 'critico' | 'en_riesgo' | 'activo';
         if (sinAsistencia4Semanas && sinActividad4Semanas) {
           nivelInactividad = 'critico';
-        } else if (
-          sinAsistencia2Semanas ||
-          sinActividad2Semanas ||
-          gam.rachaActual === 0
-        ) {
+        } else if (sinAsistencia2Semanas || sinActividad2Semanas) {
           nivelInactividad = 'en_riesgo';
         } else {
           nivelInactividad = 'activo';
