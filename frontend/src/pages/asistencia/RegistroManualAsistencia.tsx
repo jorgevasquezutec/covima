@@ -9,7 +9,6 @@ import {
     User,
     Phone,
     X,
-    Clock,
     History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -410,11 +409,10 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                                         {usuarios.map((usuario) => (
                                             <div
                                                 key={usuario.id}
-                                                className={`p-2.5 cursor-pointer transition-colors border-b last:border-b-0 ${
-                                                    selectedUsuario?.id === usuario.id
+                                                className={`p-2.5 cursor-pointer transition-colors border-b last:border-b-0 ${selectedUsuario?.id === usuario.id
                                                         ? 'bg-blue-50 border-blue-200'
                                                         : 'hover:bg-gray-50'
-                                                }`}
+                                                    }`}
                                                 onClick={() => {
                                                     setSelectedUsuario(usuario);
                                                     setSearchTerm(usuario.nombre);
