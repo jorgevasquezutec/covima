@@ -71,7 +71,7 @@ export default function MiProgresoPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4 max-w-4xl space-y-6">
+      <div className="container mx-auto p-3 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -80,7 +80,7 @@ export default function MiProgresoPage() {
 
   if (!progreso) {
     return (
-      <div className="container mx-auto p-4 max-w-4xl">
+      <div className="container mx-auto p-3 sm:p-4 max-w-4xl">
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Error al cargar tu progreso</p>
@@ -94,14 +94,14 @@ export default function MiProgresoPage() {
   const nivelesOrdenados = niveles ? [...niveles].sort((a, b) => b.numero - a.numero) : [];
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl space-y-6">
+    <div className="container mx-auto p-3 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
       {/* Header compacto con stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mi Progreso</h1>
-          <p className="text-gray-500 mt-1">Tu camino en la fe</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mi Progreso</h1>
+          <p className="text-gray-500 text-sm mt-0.5 sm:mt-1">Tu camino en la fe</p>
         </div>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-3 sm:gap-4 text-sm">
           <div className="flex items-center gap-1.5">
             <Star className="w-4 h-4 text-blue-500" />
             <span className="font-semibold">{progreso.perfil.puntosTotal.toLocaleString()}</span>
@@ -160,11 +160,11 @@ export default function MiProgresoPage() {
 
       {/* Nivel Actual - Compacto */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
+        <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+          <div className="flex items-center gap-3 sm:gap-4">
             {/* Icono grande del nivel */}
             <div
-              className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shadow-lg shrink-0"
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-lg shrink-0"
               style={{
                 backgroundColor: `${progreso.nivel.actual.color}20` || '#6366f120',
                 border: `2px solid ${progreso.nivel.actual.color || '#6366f1'}`
@@ -175,18 +175,18 @@ export default function MiProgresoPage() {
 
             {/* Info del nivel */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <h2
-                  className="text-2xl font-bold"
+                  className="text-xl sm:text-2xl font-bold"
                   style={{ color: progreso.nivel.actual.color }}
                 >
                   {progreso.nivel.actual.nombre}
                 </h2>
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">
                   Nivel {progreso.nivel.actual.numero}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground mb-3">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2">
                 {progreso.nivel.actual.descripcion}
               </p>
 
@@ -226,7 +226,7 @@ export default function MiProgresoPage() {
           {nivelesOrdenados.length > 0 && (
             <button
               onClick={() => setShowNivelesModal(true)}
-              className="mt-5 w-full p-3 rounded-xl bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border border-amber-200 hover:border-amber-300 hover:shadow-md transition-all group"
+              className="mt-4 sm:mt-5 w-full p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border border-amber-200 hover:border-amber-300 hover:shadow-md transition-all group"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
@@ -268,16 +268,16 @@ export default function MiProgresoPage() {
       </Card>
 
       {/* Grid: Insignias + Actividad Reciente */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
         {/* Insignias */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Medal className="w-5 h-5 text-purple-500" />
+          <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Medal className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
               Mis Insignias
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
             {progreso.insignias.length > 0 ? (
               <div className="grid grid-cols-4 gap-3">
                 {progreso.insignias.map((insignia) => (
@@ -306,23 +306,23 @@ export default function MiProgresoPage() {
 
         {/* Actividad Reciente */}
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <History className="w-5 h-5 text-blue-500" />
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <History className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                 Actividad Reciente
               </CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowHistorialModal(true)}
-                className="text-primary"
+                className="text-primary text-xs sm:text-sm h-8"
               >
                 Ver todo
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
             {progreso.historialReciente.length > 0 ? (
               <div className="space-y-2">
                 {progreso.historialReciente.slice(0, 5).map((item) => (
@@ -349,22 +349,22 @@ export default function MiProgresoPage() {
 
       {/* Estadísticas de Racha */}
       <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-100">
-        <CardContent className="py-4">
+        <CardContent className="py-3 sm:py-4 px-3 sm:px-6">
           <div className="flex items-center justify-around">
             <div className="text-center">
-              <div className="flex items-center justify-center gap-2">
-                <Flame className="w-6 h-6 text-orange-500" />
-                <span className="text-3xl font-bold text-orange-500">{progreso.perfil.rachaActual}</span>
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
+                <span className="text-2xl sm:text-3xl font-bold text-orange-500">{progreso.perfil.rachaActual}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Racha Actual</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Racha Actual</p>
             </div>
-            <div className="w-px h-12 bg-orange-200" />
+            <div className="w-px h-10 sm:h-12 bg-orange-200" />
             <div className="text-center">
-              <div className="flex items-center justify-center gap-2">
-                <Trophy className="w-6 h-6 text-yellow-500" />
-                <span className="text-3xl font-bold text-yellow-500">{progreso.perfil.rachaMejor}</span>
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
+                <span className="text-2xl sm:text-3xl font-bold text-yellow-500">{progreso.perfil.rachaMejor}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Mejor Racha</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Mejor Racha</p>
             </div>
           </div>
         </CardContent>
