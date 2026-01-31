@@ -188,7 +188,7 @@ export class InboxGateway
       // Si ya hay una conexión anterior, desconectarla
       const existingAdmin = this.connectedAdmins.get(payload.sub);
       if (existingAdmin && existingAdmin.socketId !== client.id) {
-        const existingSocket = this.server.sockets.sockets.get(
+        const existingSocket = this.server.sockets?.sockets?.get(
           existingAdmin.socketId,
         );
         if (existingSocket) {

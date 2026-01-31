@@ -25,9 +25,21 @@ import {
   Star,
   Flame,
   ArrowRight,
+  Activity,
+  Mic,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 import { programasApi, asistenciaApi, usuariosApi, gamificacionApi } from '@/services/api';
-import type { EstadisticasGenerales, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo } from '@/types';
+import type { EstadisticasGenerales, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo, EstadisticasDashboard, PosicionEnNivel } from '@/types';
 import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
 
 interface ProximaAsignacion {
@@ -74,6 +86,11 @@ export default function Dashboard() {
   const [miProgreso, setMiProgreso] = useState<MiProgreso | null>(null);
   const [periodoActivo, setPeriodoActivo] = useState<PeriodoRanking | null>(null);
   const [misPosiciones, setMisPosiciones] = useState<PosicionGrupo[]>([]);
+  const [miPosicionNivel, setMiPosicionNivel] = useState<PosicionEnNivel | null>(null);
+
+  // Dashboard charts
+  const [dashboardEquipo, setDashboardEquipo] = useState<EstadisticasDashboard | null>(null);
+  const [miDashboard, setMiDashboard] = useState<EstadisticasDashboard | null>(null);
 
   const isAdminOrLider = user?.roles?.some(r => ['admin', 'lider'].includes(r));
 
@@ -127,6 +144,8 @@ export default function Dashboard() {
           gamificacionApi.getMiProgreso().catch(() => null),
           gamificacionApi.getPeriodoActivo().catch(() => null),
           gamificacionApi.getMisPosicionesRanking().catch(() => []),
+          gamificacionApi.getMiDashboard().catch(() => null), // Mi dashboard personal
+          gamificacionApi.getMiPosicionEnNivel().catch(() => null), // Mi posición en mi nivel
         ];
 
         // Solo cargar stats de admin si tiene permisos
@@ -135,6 +154,7 @@ export default function Dashboard() {
             programasApi.getEstadisticasAdmin().catch(() => null),
             asistenciaApi.getEstadisticasGenerales().catch(() => null),
             usuariosApi.getCumpleanosDelMes().catch(() => null),
+            gamificacionApi.getDashboardEquipo().catch(() => null), // Dashboard equipo
           );
         }
 
@@ -144,11 +164,14 @@ export default function Dashboard() {
         setMiProgreso(results[2]);
         setPeriodoActivo(results[3]);
         setMisPosiciones(results[4] || []);
+        setMiDashboard(results[5]);
+        setMiPosicionNivel(results[6]);
 
         if (isAdminOrLider) {
-          setAdminStats(results[5]);
-          setEstadisticasGenerales(results[6]);
-          setCumpleanosMes(results[7]);
+          setAdminStats(results[7]);
+          setEstadisticasGenerales(results[8]);
+          setCumpleanosMes(results[9]);
+          setDashboardEquipo(results[10]);
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -467,6 +490,103 @@ export default function Dashboard() {
             </Card>
           )}
 
+          {/* Gráficos de Gamificación del Equipo */}
+          {dashboardEquipo && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Acciones por Tipo */}
+              {dashboardEquipo.accionesPorTipo.length > 0 && (
+                <Card className="bg-white border-gray-200 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-blue-600" />
+                      Acciones del Equipo
+                      {dashboardEquipo.periodo && (
+                        <Badge variant="outline" className="text-xs ml-2">{dashboardEquipo.periodo.nombre}</Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={dashboardEquipo.accionesPorTipo.slice(0, 8)}
+                          layout="vertical"
+                          margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis
+                            dataKey="nombre"
+                            type="category"
+                            width={90}
+                            tick={{ fontSize: 11 }}
+                          />
+                          <Tooltip
+                            formatter={(value: number) => [value, 'Cantidad']}
+                            labelFormatter={(label) => label}
+                          />
+                          <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
+                            {dashboardEquipo.accionesPorTipo.slice(0, 8).map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={
+                                  entry.categoria === 'ASISTENCIA'
+                                    ? '#22c55e'
+                                    : entry.categoria === 'PARTICIPACION'
+                                    ? '#8b5cf6'
+                                    : entry.categoria === 'EVENTO'
+                                    ? '#f59e0b'
+                                    : '#6366f1'
+                                }
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Partes más hechas */}
+              {dashboardEquipo.partesMasHechas.length > 0 && (
+                <Card className="bg-white border-gray-200 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                      <Mic className="w-4 h-4 text-purple-600" />
+                      Partes Más Realizadas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={dashboardEquipo.partesMasHechas.slice(0, 8)}
+                          layout="vertical"
+                          margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis
+                            dataKey="nombre"
+                            type="category"
+                            width={90}
+                            tick={{ fontSize: 11 }}
+                          />
+                          <Tooltip
+                            formatter={(value: number) => [value, 'Veces']}
+                            labelFormatter={(label) => label}
+                          />
+                          <Bar dataKey="cantidad" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
         </>
       )}
 
@@ -546,9 +666,24 @@ export default function Dashboard() {
                 ) : (
                   <p className="text-xs text-yellow-600">Sin período activo</p>
                 )}
-                {/* Posiciones en rankings */}
+                {/* Posición en mi nivel */}
+                {miPosicionNivel && (
+                  <div className="mt-3 pt-3 border-t border-purple-50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{miPosicionNivel.nivel.icono || '🏅'}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-amber-600 text-lg">#{miPosicionNivel.posicion}</span>
+                          <span className="text-xs text-gray-500">de {miPosicionNivel.totalEnNivel}</span>
+                        </div>
+                        <p className="text-xs text-gray-600">Ranking {miPosicionNivel.nivel.nombre}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Posiciones en grupos adicionales */}
                 {misPosiciones.length > 0 && (
-                  <div className="mt-3 space-y-1">
+                  <div className="mt-2 space-y-1">
                     {misPosiciones.slice(0, 2).map((pos) => (
                       <div key={pos.grupoId} className="flex items-center gap-2 text-sm">
                         <span className="text-base">{pos.icono || '📊'}</span>
@@ -600,6 +735,103 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Mis Gráficos de Actividad */}
+      {miDashboard && (miDashboard.accionesPorTipo.length > 0 || miDashboard.partesMasHechas.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Mis Acciones por Tipo */}
+          {miDashboard.accionesPorTipo.length > 0 && (
+            <Card className="bg-white border-gray-200 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-600" />
+                  Mis Acciones
+                  {miDashboard.periodo && (
+                    <Badge variant="outline" className="text-xs ml-2">{miDashboard.periodo.nombre}</Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={miDashboard.accionesPorTipo.slice(0, 6)}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis
+                        dataKey="nombre"
+                        type="category"
+                        width={70}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [value, 'Cantidad']}
+                        labelFormatter={(label) => label}
+                      />
+                      <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
+                        {miDashboard.accionesPorTipo.slice(0, 6).map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={
+                              entry.categoria === 'ASISTENCIA'
+                                ? '#22c55e'
+                                : entry.categoria === 'PARTICIPACION'
+                                ? '#8b5cf6'
+                                : entry.categoria === 'EVENTO'
+                                ? '#f59e0b'
+                                : '#6366f1'
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Mis Partes más hechas */}
+          {miDashboard.partesMasHechas.length > 0 && (
+            <Card className="bg-white border-gray-200 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-purple-600" />
+                  Mis Partes Realizadas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={miDashboard.partesMasHechas.slice(0, 6)}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis
+                        dataKey="nombre"
+                        type="category"
+                        width={70}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [value, 'Veces']}
+                        labelFormatter={(label) => label}
+                      />
+                      <Bar dataKey="cantidad" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       <div className={`grid grid-cols-1 ${!isAdminOrLider ? 'lg:grid-cols-2' : ''} gap-6`}>

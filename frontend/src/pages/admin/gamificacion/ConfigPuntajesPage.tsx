@@ -204,6 +204,7 @@ export default function ConfigPuntajesPage() {
                         onChange={(e) =>
                           setEditData((prev) => prev && { ...prev, puntos: Number(e.target.value) })
                         }
+                        onFocus={(e) => e.target.select()}
                         className="w-20 text-center"
                       />
                     ) : (
@@ -218,6 +219,7 @@ export default function ConfigPuntajesPage() {
                         onChange={(e) =>
                           setEditData((prev) => prev && { ...prev, xp: Number(e.target.value) })
                         }
+                        onFocus={(e) => e.target.select()}
                         className="w-20 text-center"
                       />
                     ) : (
@@ -288,6 +290,7 @@ export default function ConfigPuntajesPage() {
                             onChange={(e) =>
                               setEditData((prev) => prev && { ...prev, puntos: Number(e.target.value) })
                             }
+                            onFocus={(e) => e.target.select()}
                             className="w-20 text-center"
                           />
                         ) : (
@@ -302,6 +305,7 @@ export default function ConfigPuntajesPage() {
                             onChange={(e) =>
                               setEditData((prev) => prev && { ...prev, xp: Number(e.target.value) })
                             }
+                            onFocus={(e) => e.target.select()}
                             className="w-20 text-center"
                           />
                         ) : (

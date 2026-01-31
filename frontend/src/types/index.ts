@@ -561,6 +561,26 @@ export interface RankingUsuario {
   asistenciasTotales: number;
 }
 
+export interface AccionDashboard {
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+  puntosTotales: number;
+  categoria: string;
+}
+
+export interface ParteDashboard {
+  id: number;
+  nombre: string;
+  cantidad: number;
+}
+
+export interface EstadisticasDashboard {
+  accionesPorTipo: AccionDashboard[];
+  partesMasHechas: ParteDashboard[];
+  periodo: { id: number; nombre: string } | null;
+}
+
 export interface RankingFilters {
   periodoId?: number;
   tipo?: 'general' | 'asistencia' | 'participacion';
@@ -723,6 +743,38 @@ export interface PosicionGrupo {
   icono: string | null;
   posicion: number;
   totalMiembros: number;
+}
+
+export interface NivelRankingInfo {
+  id: number;
+  numero: number;
+  nombre: string;
+  icono?: string;
+  color?: string;
+}
+
+export interface RankingNivelData {
+  nivel: NivelRankingInfo;
+  totalUsuarios: number;
+  top3: RankingGrupoUsuario[];
+}
+
+export interface RankingsPorNivelResponse {
+  periodo: { id: number; nombre: string } | null;
+  rankings: RankingNivelData[];
+}
+
+export interface PosicionEnNivel {
+  nivel: {
+    id: number;
+    numero: number;
+    nombre: string;
+    icono?: string;
+    color?: string;
+  };
+  posicion: number;
+  totalEnNivel: number;
+  puntos: number;
 }
 
 export interface HistorialPuntosItem {

@@ -126,10 +126,21 @@ export class AsistenciaHandler {
     const hoy = getTodayAsUTC();
     const semanaInicio = getInicioSemana(hoy);
 
+    // Buscar usuario por teléfono para validar duplicados correctamente
+    const usuarioExistente = await this.prisma.usuario.findFirst({
+      where: {
+        telefono: { endsWith: context.telefono.slice(-9) },
+      },
+    });
+
+    // Validar duplicados tanto por usuarioId como por telefonoRegistro
     const existente = await this.prisma.asistencia.findFirst({
       where: {
-        telefonoRegistro: context.telefono,
-        qrId: qr.id, // Solo validar por QR específico
+        qrId: qr.id,
+        OR: [
+          { telefonoRegistro: context.telefono },
+          ...(usuarioExistente ? [{ usuarioId: usuarioExistente.id }] : []),
+        ],
       },
     });
 
@@ -329,21 +340,29 @@ export class AsistenciaHandler {
     const hoy = getTodayAsUTC();
     const semanaInicio = getInicioSemana(hoy);
 
-    const whereClause: any = {
-      qrId: qr.id, // Solo validar por QR específico
-    };
+    // Validar duplicados tanto por usuarioId como por telefonoRegistro
+    const orConditions: any[] = [];
 
     if (usuarioObjetivo) {
-      whereClause.usuarioId = usuarioObjetivo.id;
-    } else if (telefonoRegistro) {
-      whereClause.telefonoRegistro = telefonoRegistro;
-    } else {
-      whereClause.nombreRegistro = nombreRegistro;
+      orConditions.push({ usuarioId: usuarioObjetivo.id });
+      // También buscar si el bot ya registró con el teléfono del usuario
+      orConditions.push({ telefonoRegistro: usuarioObjetivo.telefono });
+      orConditions.push({ telefonoRegistro: { endsWith: usuarioObjetivo.telefono.slice(-9) } });
+    }
+    if (telefonoRegistro) {
+      orConditions.push({ telefonoRegistro });
+      orConditions.push({ telefonoRegistro: { endsWith: telefonoRegistro.slice(-9) } });
+    }
+    if (!usuarioObjetivo && !telefonoRegistro && nombreRegistro) {
+      orConditions.push({ nombreRegistro });
     }
 
-    const existente = await this.prisma.asistencia.findFirst({
-      where: whereClause,
-    });
+    const existente = orConditions.length > 0 ? await this.prisma.asistencia.findFirst({
+      where: {
+        qrId: qr.id,
+        OR: orConditions,
+      },
+    }) : null;
 
     if (existente) {
       await this.whatsappService.sendMessage(context.conversationId, {

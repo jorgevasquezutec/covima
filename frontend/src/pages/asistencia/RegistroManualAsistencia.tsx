@@ -30,7 +30,7 @@ interface Props {
     onSuccess?: () => void;
 }
 
-// Helper para verificar si QR está en horario válido
+// Helper para verificar si QR está en horario válido (considerando margenTemprana)
 const isQRInTime = (qr: QRAsistencia): boolean => {
     const now = new Date();
     const horaActual = now.getHours() * 60 + now.getMinutes();
@@ -42,7 +42,18 @@ const isQRInTime = (qr: QRAsistencia): boolean => {
     const inicioMinutos = horaInicio ? horaInicio.getHours() * 60 + horaInicio.getMinutes() : 9 * 60;
     const finMinutos = horaFin ? horaFin.getHours() * 60 + horaFin.getMinutes() : 12 * 60;
 
-    return horaActual >= inicioMinutos && horaActual < finMinutos;
+    // Aplicar margen temprana: el QR se abre margenTemprana minutos antes de horaInicio
+    const margenTemprana = qr.margenTemprana || 0;
+    const horaApertura = inicioMinutos - margenTemprana;
+
+    // Verificar si está en horario (considerando horarios que cruzan medianoche)
+    if (finMinutos > horaApertura) {
+        // Horario normal
+        return horaActual >= horaApertura && horaActual < finMinutos;
+    } else {
+        // Horario que cruza medianoche
+        return horaActual >= horaApertura || horaActual < finMinutos;
+    }
 };
 
 export default function RegistroManualAsistencia({ onSuccess }: Props) {

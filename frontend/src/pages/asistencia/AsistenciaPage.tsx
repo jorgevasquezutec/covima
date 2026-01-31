@@ -1445,6 +1445,7 @@ export default function AsistenciaPage() {
                                     max={60}
                                     value={newQR.margenTemprana}
                                     onChange={(e) => setNewQR({ ...newQR, margenTemprana: parseInt(e.target.value) || 0 })}
+                                    onFocus={(e) => e.target.select()}
                                     className="bg-white border-gray-300 text-gray-900"
                                 />
                             </div>
@@ -1456,6 +1457,7 @@ export default function AsistenciaPage() {
                                     max={120}
                                     value={newQR.margenTardia}
                                     onChange={(e) => setNewQR({ ...newQR, margenTardia: parseInt(e.target.value) || 0 })}
+                                    onFocus={(e) => e.target.select()}
                                     className="bg-white border-gray-300 text-gray-900"
                                 />
                             </div>
@@ -1553,6 +1555,7 @@ export default function AsistenciaPage() {
                                     max={60}
                                     value={editQRData.margenTemprana}
                                     onChange={(e) => setEditQRData({ ...editQRData, margenTemprana: parseInt(e.target.value) || 0 })}
+                                    onFocus={(e) => e.target.select()}
                                     className="bg-white border-gray-300 text-gray-900"
                                 />
                             </div>
@@ -1564,6 +1567,7 @@ export default function AsistenciaPage() {
                                     max={120}
                                     value={editQRData.margenTardia}
                                     onChange={(e) => setEditQRData({ ...editQRData, margenTardia: parseInt(e.target.value) || 0 })}
+                                    onFocus={(e) => e.target.select()}
                                     className="bg-white border-gray-300 text-gray-900"
                                 />
                             </div>

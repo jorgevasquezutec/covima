@@ -893,6 +893,63 @@ export class InboxService {
   }
 
   /**
+   * Eliminar historial de mensajes de una conversación específica
+   */
+  async eliminarHistorialConversacion(conversacionId: number) {
+    const conversacion = await this.prisma.conversacion.findUnique({
+      where: { id: conversacionId },
+    });
+
+    if (!conversacion) {
+      throw new NotFoundException('Conversación no encontrada');
+    }
+
+    // Eliminar todos los mensajes de la conversación
+    const result = await this.prisma.mensaje.deleteMany({
+      where: { conversacionId },
+    });
+
+    // Actualizar la conversación
+    await this.prisma.conversacion.update({
+      where: { id: conversacionId },
+      data: {
+        ultimoMensaje: null,
+        mensajesNoLeidos: 0,
+      },
+    });
+
+    this.logger.log(
+      `Eliminados ${result.count} mensajes de la conversación ${conversacionId}`,
+    );
+
+    return {
+      success: true,
+      mensajesEliminados: result.count,
+    };
+  }
+
+  /**
+   * Eliminar todo el historial del inbox (todas las conversaciones y mensajes)
+   */
+  async eliminarTodoElHistorial() {
+    // Primero eliminar todos los mensajes
+    const mensajesResult = await this.prisma.mensaje.deleteMany({});
+
+    // Luego eliminar todas las conversaciones
+    const conversacionesResult = await this.prisma.conversacion.deleteMany({});
+
+    this.logger.log(
+      `Eliminado todo el historial: ${mensajesResult.count} mensajes, ${conversacionesResult.count} conversaciones`,
+    );
+
+    return {
+      success: true,
+      mensajesEliminados: mensajesResult.count,
+      conversacionesEliminadas: conversacionesResult.count,
+    };
+  }
+
+  /**
    * Formatear conversación para respuesta
    */
   private formatConversacion(conv: any) {

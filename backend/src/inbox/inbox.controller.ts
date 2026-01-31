@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -208,5 +209,25 @@ export class InboxController {
   @ApiResponse({ status: 200, description: 'Lista de admins' })
   async getAdminsDisponibles(@Request() req: any) {
     return this.inboxService.getAdminsDisponibles(req.user.id);
+  }
+
+  // ==================== ELIMINACIÓN ====================
+
+  @Delete('conversaciones/:id/historial')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Eliminar historial de mensajes de una conversación' })
+  @ApiParam({ name: 'id', description: 'ID de la conversación' })
+  @ApiResponse({ status: 200, description: 'Historial eliminado exitosamente' })
+  @ApiResponse({ status: 404, description: 'Conversación no encontrada' })
+  async eliminarHistorialConversacion(@Param('id', ParseIntPipe) id: number) {
+    return this.inboxService.eliminarHistorialConversacion(id);
+  }
+
+  @Delete('historial-completo')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Eliminar todo el historial del inbox' })
+  @ApiResponse({ status: 200, description: 'Todo el historial eliminado exitosamente' })
+  async eliminarTodoElHistorial() {
+    return this.inboxService.eliminarTodoElHistorial();
   }
 }

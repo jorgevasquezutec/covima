@@ -6,17 +6,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Trophy, Calendar, AlertCircle } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trophy, Calendar, AlertCircle, Users } from 'lucide-react';
 import { gamificacionApi } from '@/services/api';
 import { RankingTop3, RankingTable } from './components';
 import { useAuthStore } from '@/store/auth';
 import { formatDate } from '@/lib/utils';
+
+type TabType = 'grupos' | 'niveles';
 
 export default function RankingPage() {
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [periodoId, setPeriodoId] = useState<number | null>(null);
   const [grupoId, setGrupoId] = useState<number | null>(null);
+  const [nivelId, setNivelId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('niveles');
 
   // Obtener grupos de ranking visibles
   const { data: grupos, isLoading: loadingGrupos } = useQuery({
@@ -28,6 +33,19 @@ export default function RankingPage() {
   const { data: periodos, isLoading: loadingPeriodos } = useQuery({
     queryKey: ['periodos-ranking'],
     queryFn: () => gamificacionApi.getPeriodos(true),
+  });
+
+  // Obtener niveles disponibles
+  const { data: niveles, isLoading: loadingNiveles } = useQuery({
+    queryKey: ['niveles-ranking'],
+    queryFn: gamificacionApi.getNiveles,
+  });
+
+  // Obtener ranking del nivel seleccionado
+  const { data: rankingNivel, isLoading: loadingRankingNivel } = useQuery({
+    queryKey: ['ranking-nivel', nivelId, periodoId],
+    queryFn: () => gamificacionApi.getRankingNivel(nivelId!, periodoId || undefined, 50),
+    enabled: !!nivelId && activeTab === 'niveles',
   });
 
   // Seleccionar grupo por defecto o desde query param
@@ -55,15 +73,33 @@ export default function RankingPage() {
     }
   }, [periodos, periodoId]);
 
+  // Seleccionar nivel por defecto o desde query param
+  useEffect(() => {
+    if (niveles && niveles.length > 0 && !nivelId) {
+      const nivelParam = searchParams.get('nivel');
+      if (nivelParam) {
+        const nivelFromParam = niveles.find((n) => n.id === Number(nivelParam));
+        if (nivelFromParam) {
+          setNivelId(nivelFromParam.id);
+          setActiveTab('niveles');
+          return;
+        }
+      }
+      // Default: primer nivel
+      setNivelId(niveles[0].id);
+    }
+  }, [niveles, nivelId, searchParams]);
+
   // Obtener ranking del grupo seleccionado
   const { data: ranking, isLoading: loadingRanking } = useQuery({
     queryKey: ['ranking-grupo', grupoId, periodoId],
     queryFn: () => gamificacionApi.getRankingGrupo(grupoId!, periodoId || undefined, 50),
-    enabled: !!grupoId,
+    enabled: !!grupoId && activeTab === 'grupos',
   });
 
   const grupoSeleccionado = grupos?.find((g) => g.id === grupoId);
   const periodoSeleccionado = periodos?.find((p) => p.id === periodoId);
+  const nivelSeleccionado = niveles?.find((n) => n.id === nivelId);
 
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
@@ -96,7 +132,29 @@ export default function RankingPage() {
     asistenciasTotales: r.asistenciasTotales || 0,
   }));
 
-  const isLoading = loadingGrupos || loadingPeriodos || loadingRanking;
+  // Convertir ranking de nivel a formato esperado
+  const rankingNivelFormateado = rankingNivel?.map((r) => ({
+    posicion: r.posicion,
+    usuarioId: r.usuarioId,
+    nombre: r.nombre,
+    fotoUrl: r.fotoUrl,
+    nivel: {
+      id: nivelSeleccionado?.id || 0,
+      numero: nivelSeleccionado?.numero || 0,
+      nombre: nivelSeleccionado?.nombre || '',
+      color: nivelSeleccionado?.color || '',
+      xpRequerido: 0,
+    },
+    puntosPeriodo: r.puntosPeriodo,
+    rachaActual: r.rachaActual,
+    asistenciasTotales: r.asistenciasTotales || 0,
+  }));
+
+  const isLoading = loadingGrupos || loadingPeriodos || loadingNiveles ||
+    (activeTab === 'grupos' && loadingRanking) ||
+    (activeTab === 'niveles' && loadingRankingNivel);
+
+  const currentRanking = activeTab === 'niveles' ? rankingNivelFormateado : rankingFormateado;
 
   // Si no hay períodos
   if (!loadingPeriodos && (!periodos || periodos.length === 0)) {
@@ -167,8 +225,50 @@ export default function RankingPage() {
         </div>
       )}
 
+      {/* Tabs principales: Por Nivel / Grupos */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
+        <TabsList className="grid w-full grid-cols-2 max-w-xs">
+          <TabsTrigger value="niveles" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Por Nivel
+          </TabsTrigger>
+          <TabsTrigger value="grupos" className="flex items-center gap-2">
+            <Trophy className="w-4 h-4" />
+            Grupos
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Tabs de niveles */}
+      {activeTab === 'niveles' && niveles && niveles.length > 0 && (
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-2 pb-2">
+            {niveles.map((nivel) => (
+              <button
+                key={nivel.id}
+                onClick={() => {
+                  setNivelId(nivel.id);
+                  setSearchParams({ nivel: nivel.id.toString() });
+                }}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
+                  ${nivelId === nivel.id
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                  }
+                `}
+              >
+                <span className="text-base">{nivel.icono || '🏅'}</span>
+                <span>{nivel.nombre}</span>
+              </button>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      )}
+
       {/* Tabs de grupos de ranking */}
-      {grupos && grupos.length > 0 && (
+      {activeTab === 'grupos' && grupos && grupos.length > 0 && (
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-2 pb-2">
             {grupos.map((grupo) => (
@@ -200,8 +300,13 @@ export default function RankingPage() {
         </ScrollArea>
       )}
 
-      {/* Descripción del grupo seleccionado */}
-      {grupoSeleccionado?.descripcion && (
+      {/* Descripción del nivel o grupo seleccionado */}
+      {activeTab === 'niveles' && nivelSeleccionado?.descripcion && (
+        <p className="text-sm text-muted-foreground italic">
+          {nivelSeleccionado.descripcion}
+        </p>
+      )}
+      {activeTab === 'grupos' && grupoSeleccionado?.descripcion && (
         <p className="text-sm text-muted-foreground italic">
           {grupoSeleccionado.descripcion}
         </p>
@@ -213,21 +318,28 @@ export default function RankingPage() {
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
-      ) : rankingFormateado && rankingFormateado.length > 0 ? (
+      ) : currentRanking && currentRanking.length > 0 ? (
         <>
           <Card>
             <CardContent className="pt-6">
-              <RankingTop3 usuarios={rankingFormateado} />
+              <RankingTop3 usuarios={currentRanking} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Clasificación completa</CardTitle>
+              <CardTitle className="text-lg">
+                Clasificación completa
+                {activeTab === 'niveles' && nivelSeleccionado && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    ({nivelSeleccionado.nombre})
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <RankingTable
-                usuarios={rankingFormateado}
+                usuarios={currentRanking}
                 usuarioActualId={user?.id}
                 startFrom={4}
               />
@@ -239,7 +351,7 @@ export default function RankingPage() {
           <CardContent className="py-12 text-center">
             <Trophy className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              No hay datos de ranking para este grupo
+              No hay datos de ranking para {activeTab === 'niveles' ? 'este nivel' : 'este grupo'}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               Los puntos se acumulan con cada asistencia y participación

@@ -468,6 +468,7 @@ export default function HistorialPuntosPage() {
                     type="number"
                     value={editForm.puntos}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, puntos: parseInt(e.target.value) || 0 }))}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
                 <div className="space-y-2">
@@ -476,6 +477,7 @@ export default function HistorialPuntosPage() {
                     type="number"
                     value={editForm.xp}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, xp: parseInt(e.target.value) || 0 }))}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
               </div>

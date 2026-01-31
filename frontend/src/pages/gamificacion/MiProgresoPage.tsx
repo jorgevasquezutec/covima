@@ -43,6 +43,11 @@ export default function MiProgresoPage() {
     queryFn: gamificacionApi.getMisPosicionesRanking,
   });
 
+  const { data: miPosicionNivel } = useQuery({
+    queryKey: ['mi-posicion-nivel'],
+    queryFn: gamificacionApi.getMiPosicionEnNivel,
+  });
+
   const { data: misPeriodos } = useQuery({
     queryKey: ['mis-periodos'],
     queryFn: gamificacionApi.getMisPeriodos,
@@ -116,9 +121,28 @@ export default function MiProgresoPage() {
       </div>
 
       {/* Rankings compactos */}
-      {posiciones && posiciones.length > 0 && (
+      {(miPosicionNivel || (posiciones && posiciones.length > 0)) && (
         <div className="flex gap-2 flex-wrap">
-          {posiciones.map((pos) => (
+          {/* Posición en mi nivel - destacado */}
+          {miPosicionNivel && (
+            <Link
+              to={`/ranking?nivel=${miPosicionNivel.nivel.id}`}
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 hover:shadow-md transition-all hover:scale-105"
+            >
+              <span className="text-lg">{miPosicionNivel.nivel.icono || '🏅'}</span>
+              <span className="text-sm font-medium truncate max-w-[100px]">
+                Ranking {miPosicionNivel.nivel.nombre}
+              </span>
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                #{miPosicionNivel.posicion}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                de {miPosicionNivel.totalEnNivel}
+              </span>
+            </Link>
+          )}
+          {/* Posiciones en grupos */}
+          {posiciones?.map((pos) => (
             <Link
               key={pos.grupoId}
               to={`/ranking?grupo=${pos.grupoId}`}

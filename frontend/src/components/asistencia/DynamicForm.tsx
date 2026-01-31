@@ -162,6 +162,7 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
                 placeholder={campo.placeholder}
                 {...field}
                 onChange={(e) => field.onChange(e.target.value)}
+                onFocus={(e) => e.target.select()}
               />
             )}
           />

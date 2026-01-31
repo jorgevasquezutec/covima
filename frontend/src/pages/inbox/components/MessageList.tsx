@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2, ChevronUp } from 'lucide-react';
@@ -38,19 +38,48 @@ export function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevMensajesLengthRef = useRef(mensajes.length);
   const isInitialLoad = useRef(true);
+  const isNearBottomRef = useRef(true);
+
+  // Función para obtener el viewport del ScrollArea
+  const getScrollViewport = useCallback(() => {
+    return scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+  }, []);
+
+  // Verificar si está cerca del fondo cuando el usuario hace scroll
+  useEffect(() => {
+    const viewport = getScrollViewport();
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const { scrollHeight, scrollTop, clientHeight } = viewport;
+      isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
+    };
+
+    viewport.addEventListener('scroll', handleScroll);
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, [getScrollViewport]);
+
+  // Resetear estados cuando se cambia de conversación (mensajes se vacían)
+  useEffect(() => {
+    if (mensajes.length === 0) {
+      isInitialLoad.current = true;
+      isNearBottomRef.current = true;
+      prevMensajesLengthRef.current = 0;
+    }
+  }, [mensajes.length]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    if (mensajes.length > prevMensajesLengthRef.current || isInitialLoad.current) {
-      // Solo scroll automático si el usuario está cerca del final
-      const scrollArea = scrollAreaRef.current;
-      if (scrollArea) {
-        const isNearBottom = scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight < 100;
-        if (isNearBottom || isInitialLoad.current) {
+    if (mensajes.length > 0 && (mensajes.length > prevMensajesLengthRef.current || isInitialLoad.current)) {
+      // Solo scroll automático si el usuario está cerca del final o es carga inicial
+      if (isNearBottomRef.current || isInitialLoad.current) {
+        setTimeout(() => {
           bottomRef.current?.scrollIntoView({ behavior: isInitialLoad.current ? 'auto' : 'smooth' });
-        }
+        }, 50);
       }
-      isInitialLoad.current = false;
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+      }
     }
     prevMensajesLengthRef.current = mensajes.length;
   }, [mensajes.length]);

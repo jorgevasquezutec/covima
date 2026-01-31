@@ -302,6 +302,7 @@ export default function PartesProgramaPage() {
                   type="number"
                   value={formData.orden}
                   onChange={(e) => setFormData({ ...formData, orden: Number(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   min={1}
                 />
               </div>
@@ -311,6 +312,7 @@ export default function PartesProgramaPage() {
                   type="number"
                   value={formData.puntos}
                   onChange={(e) => setFormData({ ...formData, puntos: Number(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   min={0}
                 />
               </div>
@@ -320,6 +322,7 @@ export default function PartesProgramaPage() {
                   type="number"
                   value={formData.xp}
                   onChange={(e) => setFormData({ ...formData, xp: Number(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   min={0}
                 />
               </div>

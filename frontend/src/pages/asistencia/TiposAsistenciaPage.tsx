@@ -718,6 +718,7 @@ export default function TiposAsistenciaPage() {
                                         type="number"
                                         value={campoForm.valorMinimo ?? ''}
                                         onChange={(e) => setCampoForm({ ...campoForm, valorMinimo: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        onFocus={(e) => e.target.select()}
                                         placeholder="0"
                                         className="bg-white border-gray-300 text-gray-900"
                                     />
@@ -728,6 +729,7 @@ export default function TiposAsistenciaPage() {
                                         type="number"
                                         value={campoForm.valorMaximo ?? ''}
                                         onChange={(e) => setCampoForm({ ...campoForm, valorMaximo: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        onFocus={(e) => e.target.select()}
                                         placeholder="7"
                                         className="bg-white border-gray-300 text-gray-900"
                                     />

@@ -758,6 +758,28 @@ export const gamificacionApi = {
     return response.data;
   },
 
+  // Rankings por nivel (todos los niveles con sus top 3)
+  getRankingsPorNivel: async (periodoId?: number): Promise<RankingsPorNivelResponse> => {
+    const response = await api.get<RankingsPorNivelResponse>('/gamificacion/ranking-por-nivel', {
+      params: periodoId ? { periodoId } : undefined,
+    });
+    return response.data;
+  },
+
+  // Ranking de un nivel específico
+  getRankingNivel: async (nivelId: number, periodoId?: number, limit?: number): Promise<RankingGrupoUsuario[]> => {
+    const response = await api.get<RankingGrupoUsuario[]>(`/gamificacion/ranking-nivel/${nivelId}`, {
+      params: { periodoId, limit },
+    });
+    return response.data;
+  },
+
+  // Mi posición en mi nivel actual
+  getMiPosicionEnNivel: async (): Promise<PosicionEnNivel | null> => {
+    const response = await api.get<PosicionEnNivel | null>('/gamificacion/mi-posicion-nivel');
+    return response.data;
+  },
+
   // Obtener miembros de un grupo (funciona para sistema y personalizados)
   getMiembrosGrupo: async (grupoId: number): Promise<{ id: number; nombre: string; fotoUrl: string | null; activo: boolean; roles: string[] }[]> => {
     const response = await api.get(`/gamificacion/grupos-ranking/${grupoId}/miembros`);
@@ -863,6 +885,20 @@ export const gamificacionApi = {
     const response = await api.delete(`/gamificacion/admin/historial/${id}`);
     return response.data;
   },
+
+  // === ESTADÍSTICAS DASHBOARD ===
+
+  // Estadísticas para mi dashboard personal
+  getMiDashboard: async (): Promise<EstadisticasDashboard> => {
+    const response = await api.get<EstadisticasDashboard>('/gamificacion/mi-dashboard');
+    return response.data;
+  },
+
+  // Estadísticas globales del equipo (admin/lider)
+  getDashboardEquipo: async (): Promise<EstadisticasDashboard> => {
+    const response = await api.get<EstadisticasDashboard>('/gamificacion/dashboard-equipo');
+    return response.data;
+  },
 };
 
 export const inboxApi = {
@@ -965,6 +1001,29 @@ export const inboxApi = {
   // Utilidades
   getAdminsDisponibles: async (): Promise<AdminDisponible[]> => {
     const response = await api.get<AdminDisponible[]>('/inbox/admins-disponibles');
+    return response.data;
+  },
+
+  // Eliminación
+  eliminarHistorialConversacion: async (
+    conversacionId: number
+  ): Promise<{ success: boolean; mensajesEliminados: number }> => {
+    const response = await api.delete<{ success: boolean; mensajesEliminados: number }>(
+      `/inbox/conversaciones/${conversacionId}/historial`
+    );
+    return response.data;
+  },
+
+  eliminarTodoElHistorial: async (): Promise<{
+    success: boolean;
+    mensajesEliminados: number;
+    conversacionesEliminadas: number;
+  }> => {
+    const response = await api.delete<{
+      success: boolean;
+      mensajesEliminados: number;
+      conversacionesEliminadas: number;
+    }>('/inbox/historial-completo');
     return response.data;
   },
 };

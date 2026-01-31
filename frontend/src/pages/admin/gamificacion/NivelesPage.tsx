@@ -417,6 +417,7 @@ export default function NivelesPage() {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, numero: parseInt(e.target.value) || 1 }))
                 }
+                onFocus={(e) => e.target.select()}
               />
               <p className="text-xs text-muted-foreground">
                 XP requerido: <strong>{xpCalculado.toLocaleString()}</strong> (calculado automáticamente)

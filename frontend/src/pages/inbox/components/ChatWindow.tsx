@@ -33,6 +33,7 @@ export function ChatWindow({
   const { user } = useAuthStore();
   const [showTomarConfirm, setShowTomarConfirm] = useState(false);
   const [showCerrarConfirm, setShowCerrarConfirm] = useState(false);
+  const [showDeleteHistoryConfirm, setShowDeleteHistoryConfirm] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const lastMessageIdRef = useRef<number | null>(null);
@@ -185,6 +186,26 @@ export function ChatWindow({
     }
   }, [conversacion, onConversacionUpdate]);
 
+  const handleDeleteHistoryClick = useCallback(() => {
+    setShowDeleteHistoryConfirm(true);
+  }, []);
+
+  const handleDeleteHistoryConfirm = useCallback(async () => {
+    if (!conversacion) return;
+
+    setActionLoading(true);
+    try {
+      const result = await inboxApi.eliminarHistorialConversacion(conversacion.id);
+      clearMensajes();
+      toast.success(`${result.mensajesEliminados} mensajes eliminados`);
+      setShowDeleteHistoryConfirm(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error al eliminar historial');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [conversacion, clearMensajes]);
+
   // Verificar permisos
   const isMyHandoff = conversacion?.modo === 'HANDOFF' &&
     conversacion?.derivadaA?.id === user?.id;
@@ -212,6 +233,7 @@ export function ChatWindow({
         onTomar={handleTomarClick}
         onCerrar={handleCerrarClick}
         onTransferir={handleTransferClick}
+        onDeleteHistory={handleDeleteHistoryClick}
         onModoRespuestaChange={isMyHandoff ? handleModoRespuestaChange : undefined}
         canTomar={canTomar}
         canCerrar={canCerrar}
@@ -265,6 +287,17 @@ export function ChatWindow({
         title="Cerrar handoff"
         description="Vas a devolver esta conversación al bot. El usuario podrá seguir interactuando con el chatbot automáticamente."
         confirmText="Cerrar handoff"
+        variant="destructive"
+        loading={actionLoading}
+      />
+
+      <ConfirmDialog
+        open={showDeleteHistoryConfirm}
+        onOpenChange={setShowDeleteHistoryConfirm}
+        onConfirm={handleDeleteHistoryConfirm}
+        title="Eliminar historial"
+        description="Se eliminarán todos los mensajes de esta conversación. Esta acción no se puede deshacer."
+        confirmText="Eliminar historial"
         variant="destructive"
         loading={actionLoading}
       />

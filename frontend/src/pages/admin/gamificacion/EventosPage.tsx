@@ -318,6 +318,7 @@ export default function EventosPage() {
                   type="number"
                   value={formData.puntos}
                   onChange={(e) => setFormData({ ...formData, puntos: Number(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   min={0}
                 />
               </div>
@@ -327,6 +328,7 @@ export default function EventosPage() {
                   type="number"
                   value={formData.xp}
                   onChange={(e) => setFormData({ ...formData, xp: Number(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   min={0}
                 />
               </div>

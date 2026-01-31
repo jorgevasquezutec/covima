@@ -277,27 +277,27 @@ export default function GruposRankingPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4 max-w-4xl space-y-6">
-        <Skeleton className="h-10 w-64" />
+      <div className="container mx-auto px-3 py-4 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
+        <Skeleton className="h-10 w-48 sm:w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl space-y-6">
+    <div className="container mx-auto px-3 py-4 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="w-6 h-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
             Grupos de Ranking
           </h1>
           <p className="text-muted-foreground text-sm">
             Administra los grupos para rankings personalizados
           </p>
         </div>
-        <Button onClick={handleOpenCreate}>
+        <Button onClick={handleOpenCreate} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Grupo
         </Button>
@@ -308,47 +308,50 @@ export default function GruposRankingPage() {
         {grupos?.map((grupo) => (
           <Card key={grupo.id} className={!grupo.activo ? 'opacity-50' : ''}>
             <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                {/* Info del grupo */}
+                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                   <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-xl sm:text-2xl shrink-0"
                     style={{ backgroundColor: `${grupo.color}20` }}
                   >
                     {grupo.icono}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{grupo.nombre}</h3>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold truncate">{grupo.nombre}</h3>
                       {grupo.tipo === 'SISTEMA' && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs shrink-0">
                           <Crown className="w-3 h-3 mr-1" />
                           Sistema
                         </Badge>
                       )}
                       {!grupo.esPublico && (
-                        <Badge variant="outline" className="text-xs">Privado</Badge>
+                        <Badge variant="outline" className="text-xs shrink-0">Privado</Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{grupo.codigo}</p>
+                    <p className="text-sm text-muted-foreground truncate">{grupo.codigo}</p>
                     {grupo.descripcion && (
-                      <p className="text-sm text-muted-foreground mt-1">{grupo.descripcion}</p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{grupo.descripcion}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">{grupo.totalMiembros || 0}</p>
+                {/* Miembros y acciones */}
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                  <div className="text-left sm:text-right">
+                    <p className="text-xl sm:text-2xl font-bold">{grupo.totalMiembros || 0}</p>
                     <p className="text-xs text-muted-foreground">miembros</p>
                   </div>
 
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 shrink-0">
                     {/* Ver miembros - disponible para todos los grupos */}
                     <Button
                       size="icon"
                       variant="ghost"
                       onClick={() => handleViewMembers(grupo)}
                       title="Ver miembros"
+                      className="h-8 w-8 sm:h-9 sm:w-9"
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
@@ -359,30 +362,17 @@ export default function GruposRankingPage() {
                         variant="ghost"
                         onClick={() => handleOpenMembers(grupo)}
                         title="Gestionar miembros"
+                        className="h-8 w-8 sm:h-9 sm:w-9"
                       >
                         <UserPlus className="w-4 h-4" />
                       </Button>
                     )}
-                    {/* Comentado: Convertir a personalizado ya no es necesario */}
-                    {/* {grupo.tipo === 'SISTEMA' && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setGrupoToConvert(grupo);
-                          setConvertDialogOpen(true);
-                        }}
-                        title="Convertir a personalizado"
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </Button>
-                    )} */}
                     <Button
                       size="icon"
                       variant="ghost"
                       onClick={() => handleOpenEdit(grupo)}
                       title="Editar grupo"
+                      className="h-8 w-8 sm:h-9 sm:w-9"
                     >
                       <Edit2 className="w-4 h-4" />
                     </Button>
@@ -391,7 +381,7 @@ export default function GruposRankingPage() {
                         size="icon"
                         variant="ghost"
                         onClick={() => handleDelete(grupo)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700 h-8 w-8 sm:h-9 sm:w-9"
                         title="Eliminar grupo"
                       >
                         <Trash2 className="w-4 h-4" />

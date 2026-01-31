@@ -28,6 +28,7 @@ import {
 import * as ExcelJS from 'exceljs';
 import {
   getTodayAsUTC,
+  getTodayString,
   getInicioSemana,
   buildDateFilter,
   calculatePagination,
@@ -195,14 +196,19 @@ export class AsistenciaService {
     const now = new Date();
     const horaActual = now.getHours() * 60 + now.getMinutes();
 
-    // Obtener la fecha de hoy en formato UTC
-    const hoy = getTodayAsUTC();
+    // Obtener el rango del día de hoy en Lima (para manejar diferentes formatos de semanaInicio)
+    const hoyString = getTodayString();
+    const hoyInicio = new Date(hoyString + 'T00:00:00.000Z'); // Inicio del día UTC
+    const hoyFin = new Date(hoyString + 'T23:59:59.999Z'); // Fin del día UTC
 
     // Obtener las asistencias ya registradas por el usuario hoy
     const asistenciasRegistradas = await this.prisma.asistencia.findMany({
       where: {
         usuarioId,
-        semanaInicio: hoy,
+        semanaInicio: {
+          gte: hoyInicio,
+          lte: hoyFin,
+        },
       },
       select: { tipoId: true },
     });
@@ -210,11 +216,14 @@ export class AsistenciaService {
       asistenciasRegistradas.map((a) => a.tipoId),
     );
 
-    // Obtener todos los QRs activos de hoy
+    // Obtener todos los QRs activos de hoy (usando rango para compatibilidad)
     const qrs = await this.prisma.qRAsistencia.findMany({
       where: {
         activo: true,
-        semanaInicio: hoy,
+        semanaInicio: {
+          gte: hoyInicio,
+          lte: hoyFin,
+        },
       },
       include: {
         tipoAsistencia: {
@@ -242,14 +251,18 @@ export class AsistenciaService {
           ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
           : 12 * 60;
 
+      // Aplicar margen temprana: el QR se abre margenTemprana minutos antes de horaInicio
+      const margenTemprana = qr.margenTemprana || 0;
+      const horaAperturaQR = horaInicioQR - margenTemprana;
+
       // Verificar si está en horario (considerando horarios que cruzan medianoche)
       let enHorario: boolean;
-      if (horaFinQR > horaInicioQR) {
-        // Horario normal (ej: 09:00 - 12:00)
-        enHorario = horaActual >= horaInicioQR && horaActual < horaFinQR;
+      if (horaFinQR > horaAperturaQR) {
+        // Horario normal (ej: 08:45 - 12:00 con margen temprana de 15 min)
+        enHorario = horaActual >= horaAperturaQR && horaActual < horaFinQR;
       } else {
-        // Horario que cruza medianoche (ej: 14:00 - 04:00)
-        enHorario = horaActual >= horaInicioQR || horaActual < horaFinQR;
+        // Horario que cruza medianoche
+        enHorario = horaActual >= horaAperturaQR || horaActual < horaFinQR;
       }
 
       // Verificar que no haya registrado este tipo de asistencia
@@ -519,18 +532,30 @@ export class AsistenciaService {
       }
     }
 
-    // Verificar si ya registró esta semana para este tipo
+    // Obtener el teléfono del usuario para validar también los registros del bot
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { telefono: true },
+    });
+
+    // Verificar si ya registró en este QR (tanto por usuarioId como por teléfono del bot)
+    const orConditions: any[] = [{ usuarioId }];
+    if (usuario?.telefono) {
+      // Buscar registros hechos por el bot con el teléfono del usuario
+      orConditions.push({ telefonoRegistro: usuario.telefono });
+      orConditions.push({ telefonoRegistro: { endsWith: usuario.telefono.slice(-9) } });
+    }
+
     const existente = await this.prisma.asistencia.findFirst({
       where: {
-        usuarioId: usuarioId,
-        semanaInicio: semanaInicio,
-        tipoId: tipoId,
+        OR: orConditions,
+        ...(qrId ? { qrId } : { semanaInicio, tipoId }),
       },
     });
 
     if (existente) {
       throw new ConflictException(
-        'Ya registraste asistencia esta semana para este tipo',
+        'Ya registraste asistencia para este QR',
       );
     }
 
@@ -648,6 +673,7 @@ export class AsistenciaService {
     let usuarioId: number | null = null;
     let telefonoRegistro: string | null = null;
     let nombreRegistro: string | null = null;
+    let telefonoUsuario: string | null = null; // Para validación de duplicados
 
     if (dto.usuarioId) {
       // Verificar que el usuario existe
@@ -658,6 +684,7 @@ export class AsistenciaService {
         throw new NotFoundException('Usuario no encontrado');
       }
       usuarioId = dto.usuarioId;
+      telefonoUsuario = usuario.telefono; // Guardar teléfono para validación
     } else if (dto.telefonoManual) {
       // Buscar si existe usuario con ese teléfono
       const usuarioExistente = await this.prisma.usuario.findFirst({
@@ -665,6 +692,7 @@ export class AsistenciaService {
       });
       if (usuarioExistente) {
         usuarioId = usuarioExistente.id;
+        telefonoUsuario = usuarioExistente.telefono;
       } else {
         telefonoRegistro = dto.telefonoManual;
         nombreRegistro = dto.nombreManual || 'Sin nombre';
@@ -678,22 +706,34 @@ export class AsistenciaService {
       );
     }
 
-    // Verificar restricción única (solo si hay usuarioId o telefonoRegistro)
+    // Verificar restricción única por QR específico
+    // Buscar tanto por usuarioId como por telefonoRegistro (el bot puede registrar con teléfono)
     if (usuarioId || telefonoRegistro) {
+      const orConditions: any[] = [];
+
+      if (usuarioId) {
+        orConditions.push({ usuarioId });
+      }
+      if (telefonoRegistro) {
+        orConditions.push({ telefonoRegistro });
+      }
+      // Si hay un usuario con teléfono, también buscar registros hechos por el bot con ese teléfono
+      if (telefonoUsuario) {
+        orConditions.push({ telefonoRegistro: telefonoUsuario });
+        // También buscar con formato de WhatsApp (con código de país)
+        orConditions.push({ telefonoRegistro: { endsWith: telefonoUsuario.slice(-9) } });
+      }
+
       const existente = await this.prisma.asistencia.findFirst({
         where: {
-          semanaInicio,
-          tipoId,
-          OR: [
-            usuarioId ? { usuarioId } : undefined,
-            telefonoRegistro ? { telefonoRegistro } : undefined,
-          ].filter(Boolean) as any[],
+          qrId: qr.id,
+          OR: orConditions,
         },
       });
 
       if (existente) {
         throw new ConflictException(
-          'Ya existe un registro de asistencia para este usuario en esta semana',
+          'Ya existe un registro de asistencia para este usuario en este QR',
         );
       }
     }

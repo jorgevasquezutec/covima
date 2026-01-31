@@ -1714,4 +1714,360 @@ export class GamificacionService {
   async verificarYActualizarNivelPublic(usuarioGamId: number) {
     return this.verificarYActualizarNivel(usuarioGamId);
   }
+
+  // ==================== ESTADÍSTICAS DASHBOARD ====================
+
+  /**
+   * Obtener estadísticas para el dashboard (global o personal)
+   * @param usuarioId - Si se proporciona, filtra por usuario (dashboard personal)
+   */
+  async getEstadisticasDashboard(usuarioId?: number) {
+    // Obtener período activo para filtrar
+    const periodoActivo = await this.getPeriodoActivo();
+
+    // --- Acciones por tipo (de HistorialPuntos agrupado por ConfiguracionPuntaje) ---
+    const whereHistorial: any = periodoActivo
+      ? { periodoRankingId: periodoActivo.id }
+      : {};
+
+    if (usuarioId) {
+      whereHistorial.usuarioGam = { usuarioId };
+    }
+
+    // Agrupar por configPuntajeId
+    const accionesAgrupadas = await this.prisma.historialPuntos.groupBy({
+      by: ['configPuntajeId'],
+      where: whereHistorial,
+      _count: true,
+      _sum: { puntos: true },
+    });
+
+    // Obtener nombres de las acciones
+    const configIds = accionesAgrupadas
+      .filter((a) => a.configPuntajeId !== null)
+      .map((a) => a.configPuntajeId as number);
+
+    const configs = await this.prisma.configuracionPuntaje.findMany({
+      where: { id: { in: configIds } },
+    });
+    const configMap = new Map(configs.map((c) => [c.id, c]));
+
+    const accionesPorTipo = accionesAgrupadas
+      .filter((a) => a.configPuntajeId !== null)
+      .map((a) => {
+        const config = configMap.get(a.configPuntajeId as number);
+        return {
+          codigo: config?.codigo || 'otro',
+          nombre: config?.nombre || 'Otro',
+          cantidad: a._count,
+          puntosTotales: a._sum.puntos || 0,
+          categoria: config?.categoria || 'OTRO',
+        };
+      })
+      .sort((a, b) => b.cantidad - a.cantidad);
+
+    // --- Partes más hechas (de ProgramaAsignacion agrupado por Parte) ---
+    const whereAsignacion: any = {};
+    if (usuarioId) {
+      whereAsignacion.usuarioId = usuarioId;
+    }
+
+    const partesAgrupadas = await this.prisma.programaAsignacion.groupBy({
+      by: ['parteId'],
+      where: whereAsignacion,
+      _count: true,
+    });
+
+    // Obtener nombres de las partes
+    const parteIds = partesAgrupadas.map((p) => p.parteId);
+    const partes = await this.prisma.parte.findMany({
+      where: { id: { in: parteIds } },
+    });
+    const parteMap = new Map(partes.map((p) => [p.id, p]));
+
+    const partesMasHechas = partesAgrupadas
+      .map((p) => {
+        const parte = parteMap.get(p.parteId);
+        return {
+          id: p.parteId,
+          nombre: parte?.nombre || 'Desconocida',
+          cantidad: p._count,
+        };
+      })
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 10); // Top 10 partes
+
+    return {
+      accionesPorTipo,
+      partesMasHechas,
+      periodo: periodoActivo
+        ? { id: periodoActivo.id, nombre: periodoActivo.nombre }
+        : null,
+    };
+  }
+
+  /**
+   * Obtener las posiciones del usuario en todos los grupos de ranking
+   */
+  async getMisPosicionesRanking(usuarioId: number) {
+    const perfil = await this.prisma.usuarioGamificacion.findUnique({
+      where: { usuarioId },
+    });
+
+    if (!perfil) return [];
+
+    const periodoActivo = await this.getPeriodoActivo();
+    if (!periodoActivo) return [];
+
+    // Obtener todos los grupos de ranking activos
+    const grupos = await this.prisma.grupoRanking.findMany({
+      where: { activo: true },
+      orderBy: { orden: 'asc' },
+    });
+
+    const posiciones: {
+      grupoId: number;
+      nombre: string;
+      icono: string | null;
+      posicion: number;
+      totalMiembros: number;
+      puntos: number;
+    }[] = [];
+
+    for (const grupo of grupos) {
+      // Obtener usuarios del grupo
+      const miembros = await this.prisma.grupoRankingMiembro.findMany({
+        where: { grupoId: grupo.id },
+        select: { usuarioId: true },
+      });
+
+      const usuarioIds = miembros.map((m) => m.usuarioId);
+      if (!usuarioIds.includes(usuarioId)) continue; // No está en este grupo
+
+      // Obtener puntos de todos los miembros
+      const puntosPorUsuario = await this.prisma.historialPuntos.groupBy({
+        by: ['usuarioGamId'],
+        where: {
+          periodoRankingId: periodoActivo.id,
+          usuarioGam: { usuarioId: { in: usuarioIds } },
+        },
+        _sum: { puntos: true },
+      });
+
+      // Obtener el perfil del usuario actual
+      const perfilIds = await this.prisma.usuarioGamificacion.findMany({
+        where: { usuarioId: { in: usuarioIds } },
+        select: { id: true, usuarioId: true },
+      });
+
+      const perfilIdMap = new Map(perfilIds.map((p) => [p.id, p.usuarioId]));
+      const miPerfilId = perfilIds.find((p) => p.usuarioId === usuarioId)?.id;
+
+      if (!miPerfilId) continue;
+
+      const misPuntos =
+        puntosPorUsuario.find((p) => p.usuarioGamId === miPerfilId)?._sum
+          .puntos || 0;
+
+      const posicion =
+        puntosPorUsuario.filter((p) => (p._sum.puntos || 0) > misPuntos)
+          .length + 1;
+
+      posiciones.push({
+        grupoId: grupo.id,
+        nombre: grupo.nombre,
+        icono: grupo.icono,
+        posicion,
+        totalMiembros: usuarioIds.length,
+        puntos: misPuntos,
+      });
+    }
+
+    return posiciones;
+  }
+
+  // ==================== RANKING POR NIVEL ====================
+
+  /**
+   * Obtener ranking de un nivel específico
+   */
+  async getRankingNivel(nivelId: number, periodoId?: number, limit: number = 50) {
+    // Determinar el período
+    let periodo: { id: number } | null = null;
+    if (periodoId) {
+      periodo = await this.prisma.periodoRanking.findUnique({
+        where: { id: periodoId },
+      });
+    } else {
+      periodo = await this.getPeriodoActivo();
+    }
+
+    if (!periodo) return [];
+
+    // Obtener todos los usuarios de este nivel
+    const usuariosDelNivel = await this.prisma.usuarioGamificacion.findMany({
+      where: { nivelId },
+      select: { id: true, usuarioId: true },
+    });
+
+    if (usuariosDelNivel.length === 0) return [];
+
+    const usuarioGamIds = usuariosDelNivel.map((u) => u.id);
+
+    // Obtener puntos del período para estos usuarios
+    const puntosAgrupados = await this.prisma.historialPuntos.groupBy({
+      by: ['usuarioGamId'],
+      where: {
+        periodoRankingId: periodo.id,
+        usuarioGamId: { in: usuarioGamIds },
+      },
+      _sum: { puntos: true },
+      orderBy: { _sum: { puntos: 'desc' } },
+      take: limit,
+    });
+
+    // Obtener información completa de los usuarios
+    const perfilesIds = puntosAgrupados.map((p) => p.usuarioGamId);
+    const perfiles = await this.prisma.usuarioGamificacion.findMany({
+      where: { id: { in: perfilesIds } },
+      include: {
+        usuario: { select: { id: true, nombre: true, fotoUrl: true } },
+        nivel: true,
+      },
+    });
+
+    const perfilesMap = new Map(perfiles.map((p) => [p.id, p]));
+
+    return puntosAgrupados.map((p, index) => {
+      const perfil = perfilesMap.get(p.usuarioGamId);
+      return {
+        posicion: index + 1,
+        usuarioId: perfil?.usuario.id,
+        nombre: perfil?.usuario.nombre || 'Usuario',
+        fotoUrl: perfil?.usuario.fotoUrl,
+        nivelNumero: perfil?.nivel.numero,
+        nivelNombre: perfil?.nivel.nombre,
+        nivelColor: perfil?.nivel.color,
+        puntosPeriodo: p._sum.puntos || 0,
+        rachaActual: perfil?.rachaActual || 0,
+        asistenciasTotales: perfil?.asistenciasTotales || 0,
+      };
+    });
+  }
+
+  /**
+   * Obtener rankings de todos los niveles con datos resumidos
+   */
+  async getRankingsPorNivel(periodoId?: number) {
+    // Determinar el período
+    let periodo: { id: number; nombre: string } | null = null;
+    if (periodoId) {
+      periodo = await this.prisma.periodoRanking.findUnique({
+        where: { id: periodoId },
+        select: { id: true, nombre: true },
+      });
+    } else {
+      periodo = await this.getPeriodoActivo();
+    }
+
+    // Obtener todos los niveles activos
+    const niveles = await this.prisma.nivelBiblico.findMany({
+      where: { activo: true },
+      orderBy: { numero: 'asc' },
+      include: {
+        _count: { select: { usuariosEnNivel: true } },
+      },
+    });
+
+    const rankings: {
+      nivel: {
+        id: number;
+        numero: number;
+        nombre: string;
+        icono: string | null;
+        color: string | null;
+      };
+      totalUsuarios: number;
+      top3: any[];
+    }[] = [];
+
+    for (const nivel of niveles) {
+      // Obtener top 3 del nivel (si hay período activo)
+      let top3: any[] = [];
+      if (periodo) {
+        top3 = await this.getRankingNivel(nivel.id, periodo.id, 3);
+      }
+
+      rankings.push({
+        nivel: {
+          id: nivel.id,
+          numero: nivel.numero,
+          nombre: nivel.nombre,
+          icono: nivel.icono,
+          color: nivel.color,
+        },
+        totalUsuarios: nivel._count.usuariosEnNivel,
+        top3,
+      });
+    }
+
+    return {
+      periodo: periodo ? { id: periodo.id, nombre: periodo.nombre } : null,
+      rankings,
+    };
+  }
+
+  /**
+   * Obtener posición del usuario en su nivel actual
+   */
+  async getMiPosicionEnNivel(usuarioId: number) {
+    const perfil = await this.prisma.usuarioGamificacion.findUnique({
+      where: { usuarioId },
+      include: { nivel: true },
+    });
+
+    if (!perfil) return null;
+
+    const periodoActivo = await this.getPeriodoActivo();
+    if (!periodoActivo) {
+      return {
+        nivel: perfil.nivel,
+        posicion: 0,
+        totalEnNivel: 0,
+        puntos: 0,
+      };
+    }
+
+    // Obtener todos los usuarios del mismo nivel
+    const usuariosDelNivel = await this.prisma.usuarioGamificacion.findMany({
+      where: { nivelId: perfil.nivelId },
+      select: { id: true },
+    });
+
+    const usuarioGamIds = usuariosDelNivel.map((u) => u.id);
+
+    // Obtener puntos de todos los usuarios del nivel
+    const puntosAgrupados = await this.prisma.historialPuntos.groupBy({
+      by: ['usuarioGamId'],
+      where: {
+        periodoRankingId: periodoActivo.id,
+        usuarioGamId: { in: usuarioGamIds },
+      },
+      _sum: { puntos: true },
+    });
+
+    const misPuntos =
+      puntosAgrupados.find((p) => p.usuarioGamId === perfil.id)?._sum.puntos ||
+      0;
+
+    const posicion =
+      puntosAgrupados.filter((p) => (p._sum.puntos || 0) > misPuntos).length + 1;
+
+    return {
+      nivel: perfil.nivel,
+      posicion,
+      totalEnNivel: usuariosDelNivel.length,
+      puntos: misPuntos,
+    };
+  }
 }

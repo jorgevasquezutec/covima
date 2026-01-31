@@ -35,6 +35,26 @@ export class GamificacionController {
     return this.gamificacionService.getMiProgreso(req.user.id);
   }
 
+  // Mis posiciones en los rankings de grupos
+  @Get('mis-posiciones-ranking')
+  async getMisPosicionesRanking(@Request() req) {
+    return this.gamificacionService.getMisPosicionesRanking(req.user.id);
+  }
+
+  // Estadísticas para dashboard personal
+  @Get('mi-dashboard')
+  async getMiDashboard(@Request() req) {
+    return this.gamificacionService.getEstadisticasDashboard(req.user.id);
+  }
+
+  // Estadísticas globales del equipo (admin/lider)
+  @Get('dashboard-equipo')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'lider')
+  async getDashboardEquipo() {
+    return this.gamificacionService.getEstadisticasDashboard();
+  }
+
   // Mi historial completo de puntos (con paginación y filtro por período)
   @Get('mi-historial')
   async getMiHistorial(
@@ -61,6 +81,34 @@ export class GamificacionController {
   @Get('ranking')
   async getRanking(@Query() filtros: RankingFilterDto) {
     return this.gamificacionService.getRanking(filtros);
+  }
+
+  // Rankings por nivel (todos los niveles con top 3)
+  @Get('ranking-por-nivel')
+  async getRankingsPorNivel(@Query('periodoId') periodoId?: string) {
+    return this.gamificacionService.getRankingsPorNivel(
+      periodoId ? parseInt(periodoId) : undefined,
+    );
+  }
+
+  // Ranking de un nivel específico
+  @Get('ranking-nivel/:nivelId')
+  async getRankingNivel(
+    @Param('nivelId', ParseIntPipe) nivelId: number,
+    @Query('periodoId') periodoId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.gamificacionService.getRankingNivel(
+      nivelId,
+      periodoId ? parseInt(periodoId) : undefined,
+      limit ? parseInt(limit) : 50,
+    );
+  }
+
+  // Mi posición en mi nivel actual
+  @Get('mi-posicion-nivel')
+  async getMiPosicionEnNivel(@Request() req) {
+    return this.gamificacionService.getMiPosicionEnNivel(req.user.id);
   }
 
   // Lista de niveles

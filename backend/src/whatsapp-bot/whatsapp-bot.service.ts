@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { SendMessageDto } from './dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DireccionMensaje, EstadoMensaje } from '@prisma/client';
+import { InboxGateway } from '../inbox/inbox.gateway';
 
 /**
  * Servicio de mensajería que envía mensajes directamente a WhatsApp API
@@ -29,6 +30,8 @@ export class WhatsappBotService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => InboxGateway))
+    private readonly inboxGateway: InboxGateway,
   ) {
     this.token = this.configService.get<string>('WHATSAPP_TOKEN', '');
     this.phoneNumberId = this.configService.get<string>(
@@ -359,7 +362,7 @@ export class WhatsappBotService {
 
     if (conversacion) {
       // Guardar mensaje saliente del bot
-      await this.prisma.mensaje.create({
+      const mensaje = await this.prisma.mensaje.create({
         data: {
           conversacionId: conversacion.id,
           contenido: content,
@@ -377,6 +380,22 @@ export class WhatsappBotService {
           updatedAt: new Date(),
         },
       });
+
+      // Emitir evento WebSocket para actualizar el inbox en tiempo real
+      try {
+        await this.inboxGateway.emitMensajeNuevo(conversacion.id, {
+          id: mensaje.id,
+          contenido: mensaje.contenido,
+          tipo: mensaje.tipo,
+          direccion: mensaje.direccion,
+          estado: mensaje.estado,
+          createdAt: mensaje.createdAt,
+          leidoAt: null,
+          enviadoPor: null, // Mensaje del bot
+        });
+      } catch (error) {
+        this.logger.warn(`Error emitting WebSocket event: ${error.message}`);
+      }
     }
 
     // Enviar a WhatsApp

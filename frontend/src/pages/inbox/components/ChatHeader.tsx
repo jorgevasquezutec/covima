@@ -1,4 +1,4 @@
-import { Phone, User, Bot, Headphones, MoreVertical, ArrowLeft, Monitor, Smartphone, RefreshCw } from 'lucide-react';
+import { Phone, User, Bot, Headphones, MoreVertical, ArrowLeft, Monitor, Smartphone, RefreshCw, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ interface ChatHeaderProps {
   onTomar?: () => void;
   onCerrar?: () => void;
   onTransferir?: () => void;
+  onDeleteHistory?: () => void;
   onModoRespuestaChange?: (modo: ModoRespuestaHandoff | null) => void;
   canTomar?: boolean;
   canCerrar?: boolean;
@@ -34,6 +35,7 @@ export function ChatHeader({
   onTomar,
   onCerrar,
   onTransferir,
+  onDeleteHistory,
   onModoRespuestaChange,
   canTomar = false,
   canCerrar = false,
@@ -108,7 +110,7 @@ export function ChatHeader({
           </Button>
         )}
 
-        {(canCerrar || canTransferir) && (
+        {(canCerrar || canTransferir || onDeleteHistory) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -153,6 +155,15 @@ export function ChatHeader({
                   {canTransferir && <DropdownMenuSeparator />}
                   <DropdownMenuItem onClick={onCerrar} className="text-red-600">
                     Cerrar handoff
+                  </DropdownMenuItem>
+                </>
+              )}
+              {onDeleteHistory && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onDeleteHistory} className="text-red-600">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Eliminar historial
                   </DropdownMenuItem>
                 </>
               )}
