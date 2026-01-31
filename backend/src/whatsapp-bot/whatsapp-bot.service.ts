@@ -344,10 +344,7 @@ export class WhatsappBotService {
    * Enviar mensaje del bot Y guardarlo en la BD
    * Usar este método para todas las respuestas automáticas del bot
    */
-  async sendBotMessage(
-    conversationId: number,
-    content: string,
-  ): Promise<any> {
+  async sendBotMessage(conversationId: number, content: string): Promise<any> {
     const telefono = this.conversationPhoneMap.get(conversationId);
 
     if (!telefono) {

@@ -139,6 +139,50 @@ export class ConfirmarAsistenciaDto {
   notas?: string;
 }
 
+export class RegistrarAsistenciaHistoricaDto {
+  @ApiProperty({ description: 'Código del QR (puede ser pasado/inactivo)' })
+  @IsString()
+  codigoQR: string;
+
+  @ApiPropertyOptional({
+    description: 'ID del usuario a registrar (si tiene cuenta)',
+  })
+  @IsOptional()
+  @IsInt()
+  usuarioId?: number;
+
+  @ApiPropertyOptional({
+    example: '51987654321',
+    description: 'Teléfono si no tiene cuenta',
+  })
+  @IsOptional()
+  @IsString()
+  telefonoManual?: string;
+
+  @ApiPropertyOptional({
+    example: 'Juan Pérez',
+    description: 'Nombre si no tiene cuenta',
+  })
+  @IsOptional()
+  @IsString()
+  nombreManual?: string;
+
+  @ApiProperty({
+    example: 'temprana',
+    description: 'Tipo de asistencia: temprana, normal o tardia',
+  })
+  @IsString()
+  tipoAsistenciaManual: 'temprana' | 'normal' | 'tardia';
+
+  @ApiPropertyOptional({
+    example: { dias_estudio: 5 },
+    description: 'Datos del formulario dinámico',
+  })
+  @IsOptional()
+  @IsObject()
+  datosFormulario?: Record<string, any>;
+}
+
 export class UpdateQRAsistenciaDto {
   @ApiPropertyOptional({
     example: '2025-01-27',

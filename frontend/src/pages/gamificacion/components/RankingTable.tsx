@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Flame } from 'lucide-react';
 import type { RankingUsuario } from '@/types';
@@ -15,65 +14,62 @@ export function RankingTable({ usuarios, usuarioActualId, startFrom = 4 }: Ranki
 
   if (lista.length === 0) {
     return (
-      <p className="text-center text-muted-foreground py-8">No hay más participantes en el ranking</p>
+      <p className="text-center text-muted-foreground py-6 text-sm">No hay más participantes en el ranking</p>
     );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-16">#</TableHead>
-          <TableHead>Participante</TableHead>
-          <TableHead className="text-center">Nivel</TableHead>
-          <TableHead className="text-center">Racha</TableHead>
-          <TableHead className="text-right">Puntos</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {lista.map((usuario) => (
-          <TableRow
-            key={usuario.usuarioId}
-            className={usuario.usuarioId === usuarioActualId ? 'bg-primary/5 border-l-2 border-l-primary' : ''}
-          >
-            <TableCell className="font-medium">{usuario.posicion}</TableCell>
-            <TableCell>
-              <div className="flex items-center gap-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage src={usuario.fotoUrl} alt={usuario.nombre} />
-                  <AvatarFallback className="text-xs">{usuario.nombre.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium text-sm">
-                    {usuario.nombre}
-                    {usuario.usuarioId === usuarioActualId && (
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        Tú
-                      </Badge>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{usuario.asistenciasTotales} asistencias</p>
-                </div>
-              </div>
-            </TableCell>
-            <TableCell className="text-center">
-              <div className="flex items-center justify-center gap-1">
-                <span>{usuario.nivel?.icono || '🌱'}</span>
-                <span className="text-xs text-muted-foreground">{usuario.nivel?.nombre}</span>
-              </div>
-            </TableCell>
-            <TableCell className="text-center">
-              {usuario.rachaActual > 0 && (
-                <div className="flex items-center justify-center gap-1 text-orange-500">
-                  <Flame className="w-4 h-4" />
-                  <span className="font-medium">{usuario.rachaActual}</span>
-                </div>
+    <div className="space-y-2">
+      {lista.map((usuario) => (
+        <div
+          key={usuario.usuarioId}
+          className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg ${
+            usuario.usuarioId === usuarioActualId
+              ? 'bg-primary/10 ring-1 ring-primary/30'
+              : 'bg-muted/50'
+          }`}
+        >
+          {/* Posición */}
+          <div className="w-6 sm:w-8 text-center font-bold text-sm sm:text-base text-muted-foreground shrink-0">
+            {usuario.posicion}
+          </div>
+
+          {/* Avatar */}
+          <Avatar className="w-8 h-8 sm:w-10 sm:h-10 shrink-0">
+            <AvatarImage src={usuario.fotoUrl} alt={usuario.nombre} />
+            <AvatarFallback className="text-xs sm:text-sm">{usuario.nombre.charAt(0)}</AvatarFallback>
+          </Avatar>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="font-medium text-sm truncate">
+                {usuario.nombre}
+              </p>
+              {usuario.usuarioId === usuarioActualId && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+                  Tú
+                </Badge>
               )}
-            </TableCell>
-            <TableCell className="text-right font-semibold">{usuario.puntosPeriodo.toLocaleString()}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground">
+              <span>{usuario.nivel?.icono || '🌱'} {usuario.nivel?.nombre}</span>
+              {usuario.rachaActual > 0 && (
+                <span className="flex items-center gap-0.5 text-orange-500">
+                  <Flame className="w-3 h-3" />
+                  {usuario.rachaActual}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Puntos */}
+          <div className="text-right shrink-0">
+            <p className="font-bold text-sm sm:text-base">{usuario.puntosPeriodo.toLocaleString()}</p>
+            <p className="text-[10px] text-muted-foreground">pts</p>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

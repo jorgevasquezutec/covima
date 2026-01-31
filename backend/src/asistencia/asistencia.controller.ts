@@ -28,6 +28,7 @@ import {
   UpdateQRAsistenciaDto,
   RegistrarAsistenciaDto,
   RegistrarAsistenciaManualDto,
+  RegistrarAsistenciaHistoricaDto,
   ConfirmarAsistenciaDto,
 } from './dto';
 
@@ -127,6 +128,22 @@ export class AsistenciaController {
     @Request() req: any,
   ) {
     return this.asistenciaService.registrarAsistenciaManual(
+      this.getUserId(req),
+      dto,
+    );
+  }
+
+  @Post('registrar-historica')
+  @Roles('admin')
+  @ApiOperation({
+    summary:
+      'Registrar asistencia en QR histórico con tipo manual (solo admin)',
+  })
+  async registrarAsistenciaHistorica(
+    @Body() dto: RegistrarAsistenciaHistoricaDto,
+    @Request() req: any,
+  ) {
+    return this.asistenciaService.registrarAsistenciaHistorica(
       this.getUserId(req),
       dto,
     );

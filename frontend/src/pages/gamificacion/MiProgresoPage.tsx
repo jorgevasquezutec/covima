@@ -96,10 +96,10 @@ export default function MiProgresoPage() {
   return (
     <div className="container mx-auto p-4 max-w-4xl space-y-6">
       {/* Header compacto con stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Mi Progreso</h1>
-          <p className="text-muted-foreground text-sm">Tu camino en la fe</p>
+          <h1 className="text-2xl font-bold text-gray-900">Mi Progreso</h1>
+          <p className="text-gray-500 mt-1">Tu camino en la fe</p>
         </div>
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-1.5">

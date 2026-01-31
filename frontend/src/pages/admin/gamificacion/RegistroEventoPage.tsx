@@ -105,11 +105,11 @@ export default function RegistroEventoPage() {
   return (
     <div className="container mx-auto p-4 max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Gift className="w-6 h-6" />
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Gift className="w-6 h-6 text-blue-600" />
           Registrar Evento Especial
         </h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-gray-500 mt-1">
           Otorga puntos a los participantes de eventos especiales
         </p>
       </div>

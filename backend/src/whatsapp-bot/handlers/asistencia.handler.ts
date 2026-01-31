@@ -51,8 +51,7 @@ export class AsistenciaHandler {
 
     if (!codigoQR) {
       await this.whatsappService.sendMessage(context.conversationId, {
-        content:
-          '⚠️ No detecté un código QR válido. El formato es: JAXXXXXXXX',
+        content: '⚠️ No detecté un código QR válido. El formato es: JAXXXXXXXX',
       });
       return;
     }
@@ -347,22 +346,29 @@ export class AsistenciaHandler {
       orConditions.push({ usuarioId: usuarioObjetivo.id });
       // También buscar si el bot ya registró con el teléfono del usuario
       orConditions.push({ telefonoRegistro: usuarioObjetivo.telefono });
-      orConditions.push({ telefonoRegistro: { endsWith: usuarioObjetivo.telefono.slice(-9) } });
+      orConditions.push({
+        telefonoRegistro: { endsWith: usuarioObjetivo.telefono.slice(-9) },
+      });
     }
     if (telefonoRegistro) {
       orConditions.push({ telefonoRegistro });
-      orConditions.push({ telefonoRegistro: { endsWith: telefonoRegistro.slice(-9) } });
+      orConditions.push({
+        telefonoRegistro: { endsWith: telefonoRegistro.slice(-9) },
+      });
     }
     if (!usuarioObjetivo && !telefonoRegistro && nombreRegistro) {
       orConditions.push({ nombreRegistro });
     }
 
-    const existente = orConditions.length > 0 ? await this.prisma.asistencia.findFirst({
-      where: {
-        qrId: qr.id,
-        OR: orConditions,
-      },
-    }) : null;
+    const existente =
+      orConditions.length > 0
+        ? await this.prisma.asistencia.findFirst({
+            where: {
+              qrId: qr.id,
+              OR: orConditions,
+            },
+          })
+        : null;
 
     if (existente) {
       await this.whatsappService.sendMessage(context.conversationId, {

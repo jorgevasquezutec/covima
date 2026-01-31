@@ -119,7 +119,9 @@ export class OpenAIService {
     );
     if (registrarManualMatch) {
       // Normalizar código (compatibilidad con formato antiguo con guión)
-      const codigoNormalizado = registrarManualMatch[2].toUpperCase().replace('-', '');
+      const codigoNormalizado = registrarManualMatch[2]
+        .toUpperCase()
+        .replace('-', '');
       return {
         intent: 'registrar_asistencia_manual',
         entities: {
@@ -206,7 +208,9 @@ export class OpenAIService {
 
     // Detectar código de programa sin AI (ej: PMAkEVHD8) - solo si NO es edición
     // Formato: 2-3 letras + 6 caracteres alfanuméricos (debe contener al menos un dígito para no confundir con palabras)
-    const codigoMatch = message.match(/([A-Z]{2,3}(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6})/i);
+    const codigoMatch = message.match(
+      /([A-Z]{2,3}(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6})/i,
+    );
     if (codigoMatch) {
       return {
         intent: 'ver_programa',
@@ -324,7 +328,9 @@ export class OpenAIService {
     );
     if (registrarManualMatchFallback) {
       // Normalizar código (compatibilidad con formato antiguo con guión)
-      const codigoNormalizado = registrarManualMatchFallback[2].toUpperCase().replace('-', '');
+      const codigoNormalizado = registrarManualMatchFallback[2]
+        .toUpperCase()
+        .replace('-', '');
       return {
         intent: 'registrar_asistencia_manual',
         entities: {

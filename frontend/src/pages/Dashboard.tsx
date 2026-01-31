@@ -317,16 +317,16 @@ export default function Dashboard() {
           {resumenInactividad && (resumenInactividad.criticos > 0 || resumenInactividad.enRiesgo > 0) && (
             <Card className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 shadow-sm">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                      <UserSearch className="w-6 h-6 text-orange-600" />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <UserSearch className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                        Seguimiento de Miembros
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-gray-900 flex flex-wrap items-center gap-2">
+                        <span className="whitespace-nowrap">Seguimiento</span>
                         {resumenInactividad.criticos > 0 && (
-                          <Badge className="bg-red-100 text-red-700 border-red-200">
+                          <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">
                             <AlertTriangle className="w-3 h-3 mr-1" />
                             {resumenInactividad.criticos} críticos
                           </Badge>
@@ -335,13 +335,13 @@ export default function Dashboard() {
                       <p className="text-sm text-gray-600 mt-0.5">
                         {resumenInactividad.criticos + resumenInactividad.enRiesgo} miembros necesitan atención
                         {resumenInactividad.enRiesgo > 0 && (
-                          <span className="text-yellow-600 ml-2">({resumenInactividad.enRiesgo} en riesgo)</span>
+                          <span className="text-yellow-600 ml-1">({resumenInactividad.enRiesgo} en riesgo)</span>
                         )}
                       </p>
                     </div>
                   </div>
-                  <Link to="/seguimiento">
-                    <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                  <Link to="/seguimiento" className="flex-shrink-0">
+                    <Button variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-100 w-full sm:w-auto">
                       Ver detalles
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
@@ -542,29 +542,29 @@ export default function Dashboard() {
               {dashboardEquipo.accionesPorTipo.length > 0 && (
                 <Card className="bg-white border-gray-200 shadow-sm">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                    <CardTitle className="text-base font-medium text-gray-900 flex flex-wrap items-center gap-2">
                       <Activity className="w-4 h-4 text-blue-600" />
-                      Acciones del Equipo
+                      <span>Acciones del Equipo</span>
                       {dashboardEquipo.periodo && (
-                        <Badge variant="outline" className="text-xs ml-2">{dashboardEquipo.periodo.nombre}</Badge>
+                        <Badge variant="outline" className="text-xs">{dashboardEquipo.periodo.nombre}</Badge>
                       )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-2 sm:px-6">
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={dashboardEquipo.accionesPorTipo.slice(0, 8)}
                           layout="vertical"
-                          margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                          margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis type="number" />
                           <YAxis
                             dataKey="nombre"
                             type="category"
-                            width={90}
-                            tick={{ fontSize: 11 }}
+                            width={80}
+                            tick={{ fontSize: 10 }}
                           />
                           <Tooltip
                             formatter={(value) => [value ?? 0, 'Cantidad']}
@@ -602,21 +602,21 @@ export default function Dashboard() {
                       Partes Más Realizadas
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-2 sm:px-6">
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={dashboardEquipo.partesMasHechas.slice(0, 8)}
                           layout="vertical"
-                          margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                          margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis type="number" />
                           <YAxis
                             dataKey="nombre"
                             type="category"
-                            width={90}
-                            tick={{ fontSize: 11 }}
+                            width={80}
+                            tick={{ fontSize: 10 }}
                           />
                           <Tooltip
                             formatter={(value) => [value ?? 0, 'Veces']}
@@ -789,21 +789,21 @@ export default function Dashboard() {
           {miDashboard.accionesPorTipo.length > 0 && (
             <Card className="bg-white border-gray-200 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                <CardTitle className="text-base font-medium text-gray-900 flex flex-wrap items-center gap-2">
                   <Activity className="w-4 h-4 text-blue-600" />
-                  Mis Acciones
+                  <span>Mis Acciones</span>
                   {miDashboard.periodo && (
-                    <Badge variant="outline" className="text-xs ml-2">{miDashboard.periodo.nombre}</Badge>
+                    <Badge variant="outline" className="text-xs">{miDashboard.periodo.nombre}</Badge>
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-2 sm:px-6">
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={miDashboard.accionesPorTipo.slice(0, 6)}
                       layout="vertical"
-                      margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" />
@@ -849,13 +849,13 @@ export default function Dashboard() {
                   Mis Partes Realizadas
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-2 sm:px-6">
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={miDashboard.partesMasHechas.slice(0, 6)}
                       layout="vertical"
-                      margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" />

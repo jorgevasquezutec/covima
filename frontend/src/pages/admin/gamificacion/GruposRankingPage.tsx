@@ -287,17 +287,17 @@ export default function GruposRankingPage() {
   return (
     <div className="container mx-auto px-3 py-4 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
             Grupos de Ranking
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-gray-500 mt-1">
             Administra los grupos para rankings personalizados
           </p>
         </div>
-        <Button onClick={handleOpenCreate} className="w-full sm:w-auto">
+        <Button onClick={handleOpenCreate} className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Grupo
         </Button>

@@ -356,18 +356,18 @@ export class UsuariosService {
       },
     });
 
-    // Filtrar por mes
+    // Filtrar por mes (usar UTC para evitar problemas de timezone)
     const cumpleaneros = usuarios
       .filter((u) => {
         if (!u.fechaNacimiento) return false;
-        const mesCumple = u.fechaNacimiento.getMonth() + 1;
+        const mesCumple = u.fechaNacimiento.getUTCMonth() + 1;
         return mesCumple === mesConsulta;
       })
       .map((u) => ({
         id: u.id,
         nombre: u.nombre,
-        dia: u.fechaNacimiento!.getDate(),
-        mes: u.fechaNacimiento!.getMonth() + 1,
+        dia: u.fechaNacimiento!.getUTCDate(),
+        mes: u.fechaNacimiento!.getUTCMonth() + 1,
       }))
       .sort((a, b) => a.dia - b.dia);
 

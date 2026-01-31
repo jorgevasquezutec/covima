@@ -190,7 +190,10 @@ export default function UsuariosPage() {
 
   const formatBirthday = (fechaNacimiento?: string) => {
     if (!fechaNacimiento) return null;
-    const date = new Date(fechaNacimiento);
+    // Parsear fecha evitando problemas de timezone
+    const [datePart] = fechaNacimiento.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
   };
 

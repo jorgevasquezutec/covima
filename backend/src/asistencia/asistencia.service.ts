@@ -12,6 +12,7 @@ import {
   UpdateQRAsistenciaDto,
   RegistrarAsistenciaDto,
   RegistrarAsistenciaManualDto,
+  RegistrarAsistenciaHistoricaDto,
   ConfirmarAsistenciaDto,
   FilterAsistenciasDto,
 } from './dto';
@@ -486,7 +487,11 @@ export class AsistenciaService {
       if (!enHorario) {
         // Mostrar la hora de apertura real (con margen)
         const horaAperturaDate = new Date();
-        horaAperturaDate.setHours(Math.floor(horaAperturaQR / 60), horaAperturaQR % 60, 0);
+        horaAperturaDate.setHours(
+          Math.floor(horaAperturaQR / 60),
+          horaAperturaQR % 60,
+          0,
+        );
         const horaAperturaStr = this.formatHora(horaAperturaDate);
         const horaFinStr = this.formatHora(qr.horaFin);
         throw new BadRequestException(
@@ -543,7 +548,9 @@ export class AsistenciaService {
     if (usuario?.telefono) {
       // Buscar registros hechos por el bot con el teléfono del usuario
       orConditions.push({ telefonoRegistro: usuario.telefono });
-      orConditions.push({ telefonoRegistro: { endsWith: usuario.telefono.slice(-9) } });
+      orConditions.push({
+        telefonoRegistro: { endsWith: usuario.telefono.slice(-9) },
+      });
     }
 
     const existente = await this.prisma.asistencia.findFirst({
@@ -554,9 +561,7 @@ export class AsistenciaService {
     });
 
     if (existente) {
-      throw new ConflictException(
-        'Ya registraste asistencia para este QR',
-      );
+      throw new ConflictException('Ya registraste asistencia para este QR');
     }
 
     const asistencia = await this.prisma.asistencia.create({
@@ -646,7 +651,11 @@ export class AsistenciaService {
       horaActualEnMinutos >= horaFinQR
     ) {
       const horaAperturaDate = new Date();
-      horaAperturaDate.setHours(Math.floor(horaAperturaQR / 60), horaAperturaQR % 60, 0);
+      horaAperturaDate.setHours(
+        Math.floor(horaAperturaQR / 60),
+        horaAperturaQR % 60,
+        0,
+      );
       const horaAperturaStr = this.formatHora(horaAperturaDate);
       const horaFinStr = this.formatHora(qr.horaFin);
       throw new BadRequestException(
@@ -721,7 +730,9 @@ export class AsistenciaService {
       if (telefonoUsuario) {
         orConditions.push({ telefonoRegistro: telefonoUsuario });
         // También buscar con formato de WhatsApp (con código de país)
-        orConditions.push({ telefonoRegistro: { endsWith: telefonoUsuario.slice(-9) } });
+        orConditions.push({
+          telefonoRegistro: { endsWith: telefonoUsuario.slice(-9) },
+        });
       }
 
       const existente = await this.prisma.asistencia.findFirst({
@@ -789,6 +800,178 @@ export class AsistenciaService {
 
     return {
       ...formattedAsistencia,
+      gamificacion: gamificacionResult,
+    };
+  }
+
+  /**
+   * Registrar asistencia histórica (por admin)
+   * Permite registrar en QRs pasados/inactivos con tipo de asistencia manual
+   */
+  async registrarAsistenciaHistorica(
+    registradoPorId: number,
+    dto: RegistrarAsistenciaHistoricaDto,
+  ) {
+    // Buscar el QR (sin validar si está activo)
+    const qr = await this.prisma.qRAsistencia.findUnique({
+      where: { codigo: dto.codigoQR },
+      include: {
+        tipoAsistencia: {
+          include: {
+            campos: {
+              where: { activo: true },
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!qr) {
+      throw new NotFoundException('Código QR no válido');
+    }
+
+    // Usar la fecha del QR como fecha de la asistencia
+    const fechaAsistencia = qr.semanaInicio;
+    const tipoId = qr.tipoId;
+
+    // Validar datos del formulario
+    if (
+      qr.tipoAsistencia &&
+      !qr.tipoAsistencia.soloPresencia &&
+      qr.tipoAsistencia.campos.length > 0
+    ) {
+      this.validateFormularioData(
+        dto.datosFormulario,
+        qr.tipoAsistencia.campos,
+      );
+    }
+
+    // Determinar el usuario a registrar
+    let usuarioId: number | null = null;
+    let telefonoRegistro: string | null = null;
+    let nombreRegistro: string | null = null;
+    let telefonoUsuario: string | null = null;
+
+    if (dto.usuarioId) {
+      const usuario = await this.prisma.usuario.findUnique({
+        where: { id: dto.usuarioId },
+      });
+      if (!usuario) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+      usuarioId = dto.usuarioId;
+      telefonoUsuario = usuario.telefono;
+    } else if (dto.telefonoManual) {
+      const usuarioExistente = await this.prisma.usuario.findFirst({
+        where: { telefono: dto.telefonoManual },
+      });
+      if (usuarioExistente) {
+        usuarioId = usuarioExistente.id;
+        telefonoUsuario = usuarioExistente.telefono;
+      } else {
+        telefonoRegistro = dto.telefonoManual;
+        nombreRegistro = dto.nombreManual || 'Sin nombre';
+      }
+    } else if (dto.nombreManual) {
+      nombreRegistro = dto.nombreManual;
+    } else {
+      throw new BadRequestException(
+        'Debe especificar un usuario, teléfono o nombre',
+      );
+    }
+
+    // Verificar duplicados
+    if (usuarioId || telefonoRegistro) {
+      const orConditions: any[] = [];
+      if (usuarioId) {
+        orConditions.push({ usuarioId });
+      }
+      if (telefonoRegistro) {
+        orConditions.push({ telefonoRegistro });
+      }
+      if (telefonoUsuario) {
+        orConditions.push({ telefonoRegistro: telefonoUsuario });
+        orConditions.push({
+          telefonoRegistro: { endsWith: telefonoUsuario.slice(-9) },
+        });
+      }
+
+      const existente = await this.prisma.asistencia.findFirst({
+        where: {
+          qrId: qr.id,
+          OR: orConditions,
+        },
+      });
+
+      if (existente) {
+        throw new ConflictException(
+          'Ya existe un registro de asistencia para este usuario en este QR',
+        );
+      }
+    }
+
+    // Crear asistencia confirmada
+    const asistencia = await this.prisma.asistencia.create({
+      data: {
+        usuarioId,
+        telefonoRegistro,
+        nombreRegistro,
+        tipoId,
+        fecha: fechaAsistencia,
+        semanaInicio: fechaAsistencia,
+        datosFormulario: dto.datosFormulario || {},
+        metodoRegistro: 'manual_historico',
+        estado: 'confirmado',
+        confirmadoPor: registradoPorId,
+        confirmadoAt: new Date(),
+        qrId: qr.id,
+      },
+      include: {
+        usuario: { select: { id: true, nombre: true, email: true } },
+        tipo: { select: { id: true, nombre: true, label: true, color: true } },
+        qr: { select: { id: true, codigo: true } },
+      },
+    });
+
+    const formattedAsistencia = this.formatAsistencia(asistencia);
+
+    // Asignar puntos usando el tipo de asistencia manual
+    let gamificacionResult: AsignarPuntosResult | null = null;
+    if (usuarioId) {
+      try {
+        // Mapear tipo manual a código de puntaje
+        const codigoPuntaje = {
+          temprana: 'asistencia_temprana',
+          normal: 'asistencia_normal',
+          tardia: 'asistencia_tardia',
+        }[dto.tipoAsistenciaManual];
+
+        gamificacionResult = await this.gamificacionService.asignarPuntos(
+          usuarioId,
+          codigoPuntaje,
+          asistencia.id,
+          'asistencia',
+        );
+
+        // Actualizar contador de asistencias
+        const perfil = await this.prisma.usuarioGamificacion.findUnique({
+          where: { usuarioId },
+        });
+        if (perfil) {
+          await this.prisma.usuarioGamificacion.update({
+            where: { id: perfil.id },
+            data: { asistenciasTotales: { increment: 1 } },
+          });
+        }
+      } catch (error) {
+        console.error('Error asignando puntos de gamificación:', error);
+      }
+    }
+
+    return {
+      ...formattedAsistencia,
+      tipoAsistenciaRegistrada: dto.tipoAsistenciaManual,
       gamificacion: gamificacionResult,
     };
   }

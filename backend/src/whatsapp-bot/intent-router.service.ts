@@ -23,7 +23,7 @@ export class IntentRouterService {
     private readonly programasHandler: ProgramasHandler,
     private readonly notificacionesHandler: NotificacionesHandler,
     private readonly inboxService: InboxService,
-  ) { }
+  ) {}
 
   /**
    * Procesar mensaje entrante y enrutar al handler correcto

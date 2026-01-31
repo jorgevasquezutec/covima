@@ -215,7 +215,9 @@ export class InboxController {
 
   @Delete('conversaciones/:id/historial')
   @Roles('admin')
-  @ApiOperation({ summary: 'Eliminar historial de mensajes de una conversación' })
+  @ApiOperation({
+    summary: 'Eliminar historial de mensajes de una conversación',
+  })
   @ApiParam({ name: 'id', description: 'ID de la conversación' })
   @ApiResponse({ status: 200, description: 'Historial eliminado exitosamente' })
   @ApiResponse({ status: 404, description: 'Conversación no encontrada' })
@@ -226,7 +228,10 @@ export class InboxController {
   @Delete('historial-completo')
   @Roles('admin')
   @ApiOperation({ summary: 'Eliminar todo el historial del inbox' })
-  @ApiResponse({ status: 200, description: 'Todo el historial eliminado exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Todo el historial eliminado exitosamente',
+  })
   async eliminarTodoElHistorial() {
     return this.inboxService.eliminarTodoElHistorial();
   }

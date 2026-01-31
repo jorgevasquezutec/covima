@@ -47,7 +47,7 @@ export class UsuariosHandler {
     // Extraer nombre, teléfono y código de país del mensaje si no están en entities
     let nombre = entities.nombre as string;
     let telefono = entities.telefono as string;
-    let codigoPais = (entities.codigoPais as string) || '51';
+    const codigoPais = (entities.codigoPais as string) || '51';
 
     if (!nombre || !telefono) {
       // Intentar extraer del mensaje

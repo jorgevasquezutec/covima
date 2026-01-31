@@ -174,32 +174,32 @@ export default function RankingPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl space-y-6">
+    <div className="container mx-auto p-3 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-yellow-500" />
-            Ranking
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Compite con tu sociedad y alcanza el primer lugar
-          </p>
-        </div>
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500 shrink-0" />
+              Ranking
+            </h1>
+            <p className="text-gray-500 text-sm mt-0.5 hidden sm:block">
+              Compite con tu sociedad y alcanza el primer lugar
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
           <Select
             value={periodoId?.toString() || ''}
             onValueChange={(v) => setPeriodoId(Number(v))}
           >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Seleccionar período" />
+            <SelectTrigger className="w-[140px] sm:w-[180px] h-9 text-sm shrink-0">
+              <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent>
               {periodos?.map((p) => (
                 <SelectItem key={p.id} value={p.id.toString()}>
                   <div className="flex items-center gap-2">
-                    <span>{p.nombre}</span>
+                    <span className="text-sm">{p.nombre}</span>
                     {p.estado === 'ACTIVO' && (
                       <span className="text-xs text-green-600">●</span>
                     )}
@@ -209,31 +209,31 @@ export default function RankingPage() {
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* Info del período */}
-      {periodoSeleccionado && (
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-4 h-4" />
-            <span>{formatDate(periodoSeleccionado.fechaInicio)}</span>
-            {periodoSeleccionado.fechaFin && (
-              <span>- {formatDate(periodoSeleccionado.fechaFin)}</span>
-            )}
+        {/* Info del período */}
+        {periodoSeleccionado && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span>{formatDate(periodoSeleccionado.fechaInicio)}</span>
+              {periodoSeleccionado.fechaFin && (
+                <span>- {formatDate(periodoSeleccionado.fechaFin)}</span>
+              )}
+            </div>
+            {getEstadoBadge(periodoSeleccionado.estado)}
           </div>
-          {getEstadoBadge(periodoSeleccionado.estado)}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Tabs principales: Por Nivel / Grupos */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
-        <TabsList className="grid w-full grid-cols-2 max-w-xs">
-          <TabsTrigger value="niveles" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
+        <TabsList className="grid w-full grid-cols-2 max-w-[240px] h-9">
+          <TabsTrigger value="niveles" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Por Nivel
           </TabsTrigger>
-          <TabsTrigger value="grupos" className="flex items-center gap-2">
-            <Trophy className="w-4 h-4" />
+          <TabsTrigger value="grupos" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Grupos
           </TabsTrigger>
         </TabsList>
@@ -242,7 +242,7 @@ export default function RankingPage() {
       {/* Tabs de niveles */}
       {activeTab === 'niveles' && niveles && niveles.length > 0 && (
         <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-2 pb-2">
+          <div className="flex gap-1.5 sm:gap-2 pb-2">
             {niveles.map((nivel) => (
               <button
                 key={nivel.id}
@@ -251,14 +251,14 @@ export default function RankingPage() {
                   setSearchParams({ nivel: nivel.id.toString() });
                 }}
                 className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
+                  flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all shrink-0
                   ${nivelId === nivel.id
                     ? 'bg-primary text-primary-foreground shadow-md'
                     : 'bg-muted hover:bg-muted/80 text-muted-foreground'
                   }
                 `}
               >
-                <span className="text-base">{nivel.icono || '🏅'}</span>
+                <span className="text-sm sm:text-base">{nivel.icono || '🏅'}</span>
                 <span>{nivel.nombre}</span>
               </button>
             ))}
@@ -270,7 +270,7 @@ export default function RankingPage() {
       {/* Tabs de grupos de ranking */}
       {activeTab === 'grupos' && grupos && grupos.length > 0 && (
         <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-2 pb-2">
+          <div className="flex gap-1.5 sm:gap-2 pb-2">
             {grupos.map((grupo) => (
               <button
                 key={grupo.id}
@@ -279,17 +279,17 @@ export default function RankingPage() {
                   setSearchParams({ grupo: grupo.id.toString() });
                 }}
                 className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
+                  flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all shrink-0
                   ${grupoId === grupo.id
                     ? 'bg-primary text-primary-foreground shadow-md'
                     : 'bg-muted hover:bg-muted/80 text-muted-foreground'
                   }
                 `}
               >
-                <span className="text-base">{grupo.icono || '📊'}</span>
+                <span className="text-sm sm:text-base">{grupo.icono || '📊'}</span>
                 <span>{grupo.nombre}</span>
                 {grupo.tipo === 'SISTEMA' && grupo.codigo === 'lideres' && (
-                  <Badge variant="outline" className="text-xs px-1.5 py-0">
+                  <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0">
                     {grupo.totalMiembros}
                   </Badge>
                 )}
@@ -302,42 +302,42 @@ export default function RankingPage() {
 
       {/* Descripción del nivel o grupo seleccionado */}
       {activeTab === 'niveles' && nivelSeleccionado?.descripcion && (
-        <p className="text-sm text-muted-foreground italic">
+        <p className="text-xs sm:text-sm text-muted-foreground italic">
           {nivelSeleccionado.descripcion}
         </p>
       )}
       {activeTab === 'grupos' && grupoSeleccionado?.descripcion && (
-        <p className="text-sm text-muted-foreground italic">
+        <p className="text-xs sm:text-sm text-muted-foreground italic">
           {grupoSeleccionado.descripcion}
         </p>
       )}
 
       {/* Contenido del ranking */}
       {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-64 w-full" />
+        <div className="space-y-3 sm:space-y-4">
+          <Skeleton className="h-36 sm:h-40 w-full" />
+          <Skeleton className="h-48 sm:h-64 w-full" />
         </div>
       ) : currentRanking && currentRanking.length > 0 ? (
         <>
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6 pb-4 px-3 sm:px-6">
               <RankingTop3 usuarios={currentRanking} />
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                Clasificación completa
+            <CardHeader className="py-3 sm:py-4 px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">
+                Clasificación
                 {activeTab === 'niveles' && nivelSeleccionado && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  <span className="ml-1.5 text-xs sm:text-sm font-normal text-muted-foreground">
                     ({nivelSeleccionado.nombre})
                   </span>
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6 pb-4">
               <RankingTable
                 usuarios={currentRanking}
                 usuarioActualId={user?.id}
@@ -348,12 +348,12 @@ export default function RankingPage() {
         </>
       ) : (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Trophy className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+          <CardContent className="py-8 sm:py-12 text-center">
+            <Trophy className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+            <p className="text-sm sm:text-base text-muted-foreground">
               No hay datos de ranking para {activeTab === 'niveles' ? 'este nivel' : 'este grupo'}
             </p>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2">
               Los puntos se acumulan con cada asistencia y participación
             </p>
           </CardContent>

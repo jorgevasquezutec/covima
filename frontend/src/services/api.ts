@@ -470,6 +470,18 @@ export const asistenciaApi = {
     return response.data;
   },
 
+  registrarHistorica: async (data: {
+    codigoQR: string;
+    usuarioId?: number;
+    telefonoManual?: string;
+    nombreManual?: string;
+    tipoAsistenciaManual: 'temprana' | 'normal' | 'tardia';
+    datosFormulario?: Record<string, unknown>;
+  }): Promise<Asistencia> => {
+    const response = await api.post<Asistencia>('/asistencia/registrar-historica', data);
+    return response.data;
+  },
+
   getAll: async (params?: {
     page?: number;
     limit?: number;

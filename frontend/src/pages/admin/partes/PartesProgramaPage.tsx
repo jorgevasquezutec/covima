@@ -157,17 +157,17 @@ export default function PartesProgramaPage() {
 
   return (
     <div className="container mx-auto p-4 max-w-5xl space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <LayoutList className="w-6 h-6" />
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <LayoutList className="w-6 h-6 text-blue-600" />
             Partes del Programa
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-gray-500 mt-1">
             Configura las partes disponibles para los programas y sus puntos de gamificación
           </p>
         </div>
-        <Button onClick={handleOpenCreate}>
+        <Button onClick={handleOpenCreate} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
           <Plus className="w-4 h-4 mr-2" />
           Nueva Parte
         </Button>

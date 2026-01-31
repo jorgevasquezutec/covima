@@ -191,13 +191,13 @@ export default function HistorialPuntosPage() {
 
   return (
     <div className="container mx-auto p-4 max-w-6xl space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <History className="w-6 h-6 text-blue-500" />
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <History className="w-6 h-6 text-blue-600" />
             Historial de Puntos
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-gray-500 mt-1">
             Administra y corrige los puntos asignados a los usuarios
           </p>
         </div>

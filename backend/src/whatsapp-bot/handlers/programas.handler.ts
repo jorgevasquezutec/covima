@@ -124,7 +124,9 @@ export class ProgramasHandler {
     message: string,
   ): Promise<void> {
     // Primero intentar buscar por código (formato: XXXXXXXXX sin guión, debe tener al menos un dígito)
-    const codigoMatch = message.match(/([A-Z]{2,3}(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6})/i);
+    const codigoMatch = message.match(
+      /([A-Z]{2,3}(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6})/i,
+    );
     let fecha = this.parseFecha(entities.fecha || message);
     let programa;
 

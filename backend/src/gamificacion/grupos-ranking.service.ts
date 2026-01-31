@@ -83,7 +83,9 @@ export class GruposRankingService {
                 activo: true,
                 participaEnRanking: true,
                 esJA: true,
-                roles: { none: { rol: { nombre: { in: ['admin', 'lider'] } } } },
+                roles: {
+                  none: { rol: { nombre: { in: ['admin', 'lider'] } } },
+                },
                 OR: [
                   { gamificacion: null },
                   { gamificacion: { ocultoEnGeneral: false } },
@@ -149,7 +151,9 @@ export class GruposRankingService {
                 activo: true,
                 participaEnRanking: true,
                 esJA: true,
-                roles: { none: { rol: { nombre: { in: ['admin', 'lider'] } } } },
+                roles: {
+                  none: { rol: { nombre: { in: ['admin', 'lider'] } } },
+                },
                 OR: [
                   { gamificacion: null },
                   { gamificacion: { ocultoEnGeneral: false } },

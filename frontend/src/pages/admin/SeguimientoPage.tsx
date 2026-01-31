@@ -118,13 +118,13 @@ export default function SeguimientoPage() {
   return (
     <div className="container mx-auto p-4 max-w-5xl space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <TrendingDown className="w-6 h-6 text-orange-500" />
             Seguimiento de Miembros
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-gray-500 mt-1">
             Miembros JA que necesitan atención y seguimiento
           </p>
         </div>
