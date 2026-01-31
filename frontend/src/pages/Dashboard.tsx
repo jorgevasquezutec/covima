@@ -27,6 +27,8 @@ import {
   ArrowRight,
   Activity,
   Mic,
+  AlertTriangle,
+  UserSearch,
 } from 'lucide-react';
 import {
   BarChart,
@@ -39,7 +41,7 @@ import {
   Cell,
 } from 'recharts';
 import { programasApi, asistenciaApi, usuariosApi, gamificacionApi } from '@/services/api';
-import type { EstadisticasGenerales, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo, EstadisticasDashboard, PosicionEnNivel } from '@/types';
+import type { EstadisticasGenerales, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo, EstadisticasDashboard, PosicionEnNivel, ResumenInactividad } from '@/types';
 import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
 
 interface ProximaAsignacion {
@@ -91,6 +93,9 @@ export default function Dashboard() {
   // Dashboard charts
   const [dashboardEquipo, setDashboardEquipo] = useState<EstadisticasDashboard | null>(null);
   const [miDashboard, setMiDashboard] = useState<EstadisticasDashboard | null>(null);
+
+  // Seguimiento de inactividad
+  const [resumenInactividad, setResumenInactividad] = useState<ResumenInactividad | null>(null);
 
   const isAdminOrLider = user?.roles?.some(r => ['admin', 'lider'].includes(r));
 
@@ -155,6 +160,7 @@ export default function Dashboard() {
             asistenciaApi.getEstadisticasGenerales().catch(() => null),
             usuariosApi.getCumpleanosDelMes().catch(() => null),
             gamificacionApi.getDashboardEquipo().catch(() => null), // Dashboard equipo
+            usuariosApi.getResumenInactividad().catch(() => null), // Resumen inactividad
           );
         }
 
@@ -172,6 +178,7 @@ export default function Dashboard() {
           setEstadisticasGenerales(results[8]);
           setCumpleanosMes(results[9]);
           setDashboardEquipo(results[10]);
+          setResumenInactividad(results[11]);
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -305,6 +312,44 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Widget de Seguimiento de Inactividad */}
+          {resumenInactividad && (resumenInactividad.criticos > 0 || resumenInactividad.enRiesgo > 0) && (
+            <Card className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                      <UserSearch className="w-6 h-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        Seguimiento de Miembros
+                        {resumenInactividad.criticos > 0 && (
+                          <Badge className="bg-red-100 text-red-700 border-red-200">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            {resumenInactividad.criticos} críticos
+                          </Badge>
+                        )}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-0.5">
+                        {resumenInactividad.criticos + resumenInactividad.enRiesgo} miembros necesitan atención
+                        {resumenInactividad.enRiesgo > 0 && (
+                          <span className="text-yellow-600 ml-2">({resumenInactividad.enRiesgo} en riesgo)</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <Link to="/seguimiento">
+                    <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                      Ver detalles
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Cumpleaños del Mes - Siempre visible con navegación */}
           <Card className="bg-white border-gray-200 shadow-sm">

@@ -416,6 +416,259 @@ export class UsuariosService {
     await this.assignRoles(usuarioId, roleNames);
   }
 
+  // ==================== SEGUIMIENTO DE INACTIVIDAD ====================
+
+  async getUsuariosInactivos(options?: {
+    nivel?: 'critico' | 'en_riesgo' | 'activo' | 'todos';
+    nivelGamificacionId?: number;
+    ordenarPor?: 'ultimaAsistencia' | 'ultimaActividad' | 'nombre';
+    orden?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }) {
+    const {
+      nivel = 'todos',
+      nivelGamificacionId,
+      ordenarPor = 'ultimaAsistencia',
+      orden = 'asc',
+      page = 1,
+      limit = 20,
+    } = options || {};
+
+    const ahora = new Date();
+    const hace4Semanas = new Date(ahora.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
+    const hace2Semanas = new Date(ahora.getTime() - 2 * 7 * 24 * 60 * 60 * 1000);
+
+    // Base: usuarios activos que son JA y tienen perfil de gamificación
+    const whereBase: any = {
+      activo: true,
+      esJA: true,
+      gamificacion: {
+        isNot: null,
+      },
+    };
+
+    // Filtro por nivel de gamificación
+    if (nivelGamificacionId) {
+      whereBase.gamificacion = {
+        ...whereBase.gamificacion,
+        nivelId: nivelGamificacionId,
+      };
+    }
+
+    // Obtener todos los usuarios con sus datos de gamificación
+    const usuarios = await this.prisma.usuario.findMany({
+      where: whereBase,
+      include: {
+        gamificacion: {
+          include: {
+            nivel: true,
+          },
+        },
+        roles: {
+          include: { rol: true },
+        },
+      },
+    });
+
+    // Obtener la última actividad (punto generado) de cada usuario
+    const usuariosGamIds = usuarios
+      .map((u) => u.gamificacion?.id)
+      .filter(Boolean) as number[];
+
+    const ultimasActividades = await this.prisma.historialPuntos.groupBy({
+      by: ['usuarioGamId'],
+      where: {
+        usuarioGamId: { in: usuariosGamIds },
+      },
+      _max: {
+        createdAt: true,
+      },
+    });
+
+    const actividadMap = new Map(
+      ultimasActividades.map((a) => [a.usuarioGamId, a._max.createdAt]),
+    );
+
+    // Procesar y clasificar usuarios
+    const usuariosProcesados = usuarios
+      .map((u) => {
+        const gam = u.gamificacion;
+        if (!gam) return null;
+
+        const ultimaAsistencia = gam.ultimaSemanaAsistio;
+        const ultimaActividad = actividadMap.get(gam.id) || null;
+
+        // Determinar si está inactivo
+        const sinAsistencia4Semanas =
+          !ultimaAsistencia || ultimaAsistencia < hace4Semanas;
+        const sinActividad4Semanas =
+          !ultimaActividad || ultimaActividad < hace4Semanas;
+        const sinAsistencia2Semanas =
+          !ultimaAsistencia || ultimaAsistencia < hace2Semanas;
+        const sinActividad2Semanas =
+          !ultimaActividad || ultimaActividad < hace2Semanas;
+
+        // Clasificación
+        let nivelInactividad: 'critico' | 'en_riesgo' | 'activo';
+        if (sinAsistencia4Semanas && sinActividad4Semanas) {
+          nivelInactividad = 'critico';
+        } else if (sinAsistencia2Semanas || sinActividad2Semanas || gam.rachaActual === 0) {
+          nivelInactividad = 'en_riesgo';
+        } else {
+          nivelInactividad = 'activo';
+        }
+
+        // Calcular días desde última actividad
+        const diasSinAsistencia = ultimaAsistencia
+          ? Math.floor((ahora.getTime() - ultimaAsistencia.getTime()) / (24 * 60 * 60 * 1000))
+          : null;
+        const diasSinActividad = ultimaActividad
+          ? Math.floor((ahora.getTime() - ultimaActividad.getTime()) / (24 * 60 * 60 * 1000))
+          : null;
+
+        return {
+          id: u.id,
+          nombre: u.nombre,
+          telefono: u.telefono,
+          codigoPais: u.codigoPais,
+          fotoUrl: u.fotoUrl,
+          roles: u.roles.map((r) => r.rol.nombre),
+          nivel: {
+            id: gam.nivel.id,
+            nombre: gam.nivel.nombre,
+            icono: gam.nivel.icono,
+            color: gam.nivel.color,
+          },
+          ultimaAsistencia,
+          ultimaActividad,
+          diasSinAsistencia,
+          diasSinActividad,
+          rachaActual: gam.rachaActual,
+          rachaPerdida: gam.rachaActual === 0 && gam.rachaMejor > 0,
+          rachaMejor: gam.rachaMejor,
+          asistenciasTotales: gam.asistenciasTotales,
+          nivelInactividad,
+        };
+      })
+      .filter(Boolean) as any[];
+
+    // Filtrar por nivel de inactividad
+    let usuariosFiltrados = usuariosProcesados;
+    if (nivel === 'critico') {
+      usuariosFiltrados = usuariosProcesados.filter((u) => u.nivelInactividad === 'critico');
+    } else if (nivel === 'en_riesgo') {
+      usuariosFiltrados = usuariosProcesados.filter(
+        (u) => u.nivelInactividad === 'critico' || u.nivelInactividad === 'en_riesgo',
+      );
+    } else if (nivel === 'activo') {
+      usuariosFiltrados = usuariosProcesados.filter((u) => u.nivelInactividad === 'activo');
+    }
+    // 'todos' - muestra todos (críticos, en riesgo y activos)
+
+    // Ordenar
+    usuariosFiltrados.sort((a, b) => {
+      let comparison = 0;
+      if (ordenarPor === 'ultimaAsistencia') {
+        const dateA = a.ultimaAsistencia?.getTime() || 0;
+        const dateB = b.ultimaAsistencia?.getTime() || 0;
+        comparison = dateA - dateB;
+      } else if (ordenarPor === 'ultimaActividad') {
+        const dateA = a.ultimaActividad?.getTime() || 0;
+        const dateB = b.ultimaActividad?.getTime() || 0;
+        comparison = dateA - dateB;
+      } else {
+        comparison = a.nombre.localeCompare(b.nombre);
+      }
+      return orden === 'desc' ? -comparison : comparison;
+    });
+
+    // Contar por nivel
+    const conteo = {
+      critico: usuariosProcesados.filter((u) => u.nivelInactividad === 'critico').length,
+      enRiesgo: usuariosProcesados.filter((u) => u.nivelInactividad === 'en_riesgo').length,
+      activos: usuariosProcesados.filter((u) => u.nivelInactividad === 'activo').length,
+    };
+
+    // Paginar
+    const total = usuariosFiltrados.length;
+    const skip = (page - 1) * limit;
+    const usuariosPaginados = usuariosFiltrados.slice(skip, skip + limit);
+
+    return {
+      data: usuariosPaginados,
+      conteo,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getResumenInactividad() {
+    const ahora = new Date();
+    const hace4Semanas = new Date(ahora.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
+    const hace2Semanas = new Date(ahora.getTime() - 2 * 7 * 24 * 60 * 60 * 1000);
+
+    // Contar usuarios activos JA
+    const totalJA = await this.prisma.usuario.count({
+      where: { activo: true, esJA: true, gamificacion: { isNot: null } },
+    });
+
+    // Usuarios con gamificación
+    const usuariosGam = await this.prisma.usuarioGamificacion.findMany({
+      where: {
+        usuario: { activo: true, esJA: true },
+      },
+      select: {
+        id: true,
+        ultimaSemanaAsistio: true,
+        rachaActual: true,
+      },
+    });
+
+    const usuariosGamIds = usuariosGam.map((u) => u.id);
+
+    // Última actividad de cada uno
+    const ultimasActividades = await this.prisma.historialPuntos.groupBy({
+      by: ['usuarioGamId'],
+      where: { usuarioGamId: { in: usuariosGamIds } },
+      _max: { createdAt: true },
+    });
+
+    const actividadMap = new Map(
+      ultimasActividades.map((a) => [a.usuarioGamId, a._max.createdAt]),
+    );
+
+    let criticos = 0;
+    let enRiesgo = 0;
+
+    for (const u of usuariosGam) {
+      const ultimaAsistencia = u.ultimaSemanaAsistio;
+      const ultimaActividad = actividadMap.get(u.id) || null;
+
+      const sinAsistencia4Semanas = !ultimaAsistencia || ultimaAsistencia < hace4Semanas;
+      const sinActividad4Semanas = !ultimaActividad || ultimaActividad < hace4Semanas;
+      const sinAsistencia2Semanas = !ultimaAsistencia || ultimaAsistencia < hace2Semanas;
+      const sinActividad2Semanas = !ultimaActividad || ultimaActividad < hace2Semanas;
+
+      if (sinAsistencia4Semanas && sinActividad4Semanas) {
+        criticos++;
+      } else if (sinAsistencia2Semanas || sinActividad2Semanas || u.rachaActual === 0) {
+        enRiesgo++;
+      }
+    }
+
+    return {
+      total: totalJA,
+      criticos,
+      enRiesgo,
+      activos: totalJA - criticos - enRiesgo,
+    };
+  }
+
   private formatUsuario(usuario: any) {
     return {
       id: usuario.id,

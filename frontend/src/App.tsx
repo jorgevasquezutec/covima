@@ -18,6 +18,7 @@ import InboxPage from '@/pages/inbox/InboxPage';
 import { RankingPage, MiProgresoPage } from '@/pages/gamificacion';
 import { ConfigPuntajesPage, RegistroEventoPage, EventosPage, PeriodosRankingPage, GruposRankingPage, NivelesPage, HistorialPuntosPage } from '@/pages/admin/gamificacion';
 import { PartesProgramaPage } from '@/pages/admin/partes';
+import SeguimientoPage from '@/pages/admin/SeguimientoPage';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -214,6 +215,16 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <PartesProgramaPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/seguimiento"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <SeguimientoPage />
               </MainLayout>
             </ProtectedRoute>
           }

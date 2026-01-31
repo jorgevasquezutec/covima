@@ -183,7 +183,7 @@ export const usuariosApi = {
   // ==================== SEGUIMIENTO DE INACTIVIDAD ====================
 
   getUsuariosInactivos: async (params?: {
-    nivel?: 'critico' | 'en_riesgo' | 'todos';
+    nivel?: 'critico' | 'en_riesgo' | 'activo' | 'todos';
     nivelGamificacionId?: number;
     ordenarPor?: 'ultimaAsistencia' | 'ultimaActividad' | 'nombre';
     orden?: 'asc' | 'desc';

@@ -23,6 +23,7 @@ import {
   LayoutList,
   Medal,
   History,
+  UserSearch,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -60,6 +61,7 @@ const navSections: NavSection[] = [
       { label: 'Programas', icon: Calendar, href: '/programas' },
       { label: 'Partes Programa', icon: LayoutList, href: '/admin/partes-programa', roles: ['admin'] },
       { label: 'Asistencia', icon: ClipboardCheck, href: '/asistencias' },
+      { label: 'Seguimiento', icon: UserSearch, href: '/seguimiento' },
       { label: 'Inbox', icon: Inbox, href: '/inbox' },
     ],
   },
