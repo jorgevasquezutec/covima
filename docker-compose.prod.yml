@@ -56,9 +56,7 @@ services:
 
   # === BACKEND ===
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/jorgevasquezutec/covima/backend:latest
     container_name: covima-backend
     restart: always
     depends_on:
@@ -85,11 +83,7 @@ services:
 
   # === FRONTEND ===
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ${BACKEND_URL}/api
+    image: ghcr.io/jorgevasquezutec/covima/frontend:latest
     container_name: covima-frontend
     restart: always
     networks:

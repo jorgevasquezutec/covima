@@ -173,23 +173,34 @@ export class UsuariosController {
   @Get('inactivos')
   @Roles('admin', 'lider')
   @ApiOperation({ summary: 'Listar usuarios por nivel de actividad' })
-  @ApiQuery({ name: 'nivel', required: false, enum: ['critico', 'en_riesgo', 'activo', 'todos'] })
+  @ApiQuery({
+    name: 'nivel',
+    required: false,
+    enum: ['critico', 'en_riesgo', 'activo', 'todos'],
+  })
   @ApiQuery({ name: 'nivelGamificacionId', required: false, type: Number })
-  @ApiQuery({ name: 'ordenarPor', required: false, enum: ['ultimaAsistencia', 'ultimaActividad', 'nombre'] })
+  @ApiQuery({
+    name: 'ordenarPor',
+    required: false,
+    enum: ['ultimaAsistencia', 'ultimaActividad', 'nombre'],
+  })
   @ApiQuery({ name: 'orden', required: false, enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async getUsuariosInactivos(
     @Query('nivel') nivel?: 'critico' | 'en_riesgo' | 'activo' | 'todos',
     @Query('nivelGamificacionId') nivelGamificacionId?: string,
-    @Query('ordenarPor') ordenarPor?: 'ultimaAsistencia' | 'ultimaActividad' | 'nombre',
+    @Query('ordenarPor')
+    ordenarPor?: 'ultimaAsistencia' | 'ultimaActividad' | 'nombre',
     @Query('orden') orden?: 'asc' | 'desc',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.usuariosService.getUsuariosInactivos({
       nivel,
-      nivelGamificacionId: nivelGamificacionId ? parseInt(nivelGamificacionId, 10) : undefined,
+      nivelGamificacionId: nivelGamificacionId
+        ? parseInt(nivelGamificacionId, 10)
+        : undefined,
       ordenarPor,
       orden,
       page: page ? parseInt(page, 10) : 1,

@@ -896,7 +896,9 @@ export class GamificacionService {
       where: { numero: dto.numero },
     });
     if (existeNumero) {
-      throw new BadRequestException(`Ya existe un nivel con el número ${dto.numero}`);
+      throw new BadRequestException(
+        `Ya existe un nivel con el número ${dto.numero}`,
+      );
     }
 
     // Verificar que el nombre no exista
@@ -904,7 +906,9 @@ export class GamificacionService {
       where: { nombre: dto.nombre },
     });
     if (existeNombre) {
-      throw new BadRequestException(`Ya existe un nivel con el nombre "${dto.nombre}"`);
+      throw new BadRequestException(
+        `Ya existe un nivel con el nombre "${dto.nombre}"`,
+      );
     }
 
     // Calcular XP automáticamente basado en el número de nivel
@@ -948,7 +952,9 @@ export class GamificacionService {
         where: { numero: dto.numero },
       });
       if (existeNumero) {
-        throw new BadRequestException(`Ya existe un nivel con el número ${dto.numero}`);
+        throw new BadRequestException(
+          `Ya existe un nivel con el número ${dto.numero}`,
+        );
       }
     }
 
@@ -958,7 +964,9 @@ export class GamificacionService {
         where: { nombre: dto.nombre },
       });
       if (existeNombre) {
-        throw new BadRequestException(`Ya existe un nivel con el nombre "${dto.nombre}"`);
+        throw new BadRequestException(
+          `Ya existe un nivel con el nombre "${dto.nombre}"`,
+        );
       }
     }
 
@@ -1498,7 +1506,15 @@ export class GamificacionService {
     page?: number;
     limit?: number;
   }) {
-    const { usuarioId, periodoId, categoria, fechaDesde, fechaHasta, page = 1, limit = 20 } = filtros;
+    const {
+      usuarioId,
+      periodoId,
+      categoria,
+      fechaDesde,
+      fechaHasta,
+      page = 1,
+      limit = 20,
+    } = filtros;
 
     const where: any = {};
 
@@ -1544,7 +1560,8 @@ export class GamificacionService {
         id: item.id,
         usuario: item.usuarioGam.usuario,
         categoria: item.configPuntaje?.categoria || 'OTRO',
-        accion: item.configPuntaje?.nombre || item.descripcion || 'Acción manual',
+        accion:
+          item.configPuntaje?.nombre || item.descripcion || 'Acción manual',
         descripcion: item.descripcion,
         puntos: item.puntos,
         xp: item.xp,
@@ -1651,11 +1668,13 @@ export class GamificacionService {
 
     // Si es una asistencia, eliminar también el registro de Asistencia
     if (entry.referenciaTipo === 'asistencia' && entry.referenciaId) {
-      await this.prisma.asistencia.delete({
-        where: { id: entry.referenciaId },
-      }).catch(() => {
-        // Si la asistencia ya fue eliminada, continuar
-      });
+      await this.prisma.asistencia
+        .delete({
+          where: { id: entry.referenciaId },
+        })
+        .catch(() => {
+          // Si la asistencia ya fue eliminada, continuar
+        });
 
       // Decrementar contador de asistencias
       await this.prisma.usuarioGamificacion.update({
@@ -1891,7 +1910,11 @@ export class GamificacionService {
   /**
    * Obtener ranking de un nivel específico
    */
-  async getRankingNivel(nivelId: number, periodoId?: number, limit: number = 50) {
+  async getRankingNivel(
+    nivelId: number,
+    periodoId?: number,
+    limit: number = 50,
+  ) {
     // Determinar el período
     let periodo: { id: number } | null = null;
     if (periodoId) {
@@ -2061,7 +2084,8 @@ export class GamificacionService {
       0;
 
     const posicion =
-      puntosAgrupados.filter((p) => (p._sum.puntos || 0) > misPuntos).length + 1;
+      puntosAgrupados.filter((p) => (p._sum.puntos || 0) > misPuntos).length +
+      1;
 
     return {
       nivel: perfil.nivel,

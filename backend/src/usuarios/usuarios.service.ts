@@ -436,8 +436,12 @@ export class UsuariosService {
     } = options || {};
 
     const ahora = new Date();
-    const hace4Semanas = new Date(ahora.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
-    const hace2Semanas = new Date(ahora.getTime() - 2 * 7 * 24 * 60 * 60 * 1000);
+    const hace4Semanas = new Date(
+      ahora.getTime() - 4 * 7 * 24 * 60 * 60 * 1000,
+    );
+    const hace2Semanas = new Date(
+      ahora.getTime() - 2 * 7 * 24 * 60 * 60 * 1000,
+    );
 
     // Base: usuarios activos que son JA y tienen perfil de gamificación
     const whereBase: any = {
@@ -513,7 +517,11 @@ export class UsuariosService {
         let nivelInactividad: 'critico' | 'en_riesgo' | 'activo';
         if (sinAsistencia4Semanas && sinActividad4Semanas) {
           nivelInactividad = 'critico';
-        } else if (sinAsistencia2Semanas || sinActividad2Semanas || gam.rachaActual === 0) {
+        } else if (
+          sinAsistencia2Semanas ||
+          sinActividad2Semanas ||
+          gam.rachaActual === 0
+        ) {
           nivelInactividad = 'en_riesgo';
         } else {
           nivelInactividad = 'activo';
@@ -521,10 +529,16 @@ export class UsuariosService {
 
         // Calcular días desde última actividad
         const diasSinAsistencia = ultimaAsistencia
-          ? Math.floor((ahora.getTime() - ultimaAsistencia.getTime()) / (24 * 60 * 60 * 1000))
+          ? Math.floor(
+              (ahora.getTime() - ultimaAsistencia.getTime()) /
+                (24 * 60 * 60 * 1000),
+            )
           : null;
         const diasSinActividad = ultimaActividad
-          ? Math.floor((ahora.getTime() - ultimaActividad.getTime()) / (24 * 60 * 60 * 1000))
+          ? Math.floor(
+              (ahora.getTime() - ultimaActividad.getTime()) /
+                (24 * 60 * 60 * 1000),
+            )
           : null;
 
         return {
@@ -556,13 +570,19 @@ export class UsuariosService {
     // Filtrar por nivel de inactividad
     let usuariosFiltrados = usuariosProcesados;
     if (nivel === 'critico') {
-      usuariosFiltrados = usuariosProcesados.filter((u) => u.nivelInactividad === 'critico');
+      usuariosFiltrados = usuariosProcesados.filter(
+        (u) => u.nivelInactividad === 'critico',
+      );
     } else if (nivel === 'en_riesgo') {
       usuariosFiltrados = usuariosProcesados.filter(
-        (u) => u.nivelInactividad === 'critico' || u.nivelInactividad === 'en_riesgo',
+        (u) =>
+          u.nivelInactividad === 'critico' ||
+          u.nivelInactividad === 'en_riesgo',
       );
     } else if (nivel === 'activo') {
-      usuariosFiltrados = usuariosProcesados.filter((u) => u.nivelInactividad === 'activo');
+      usuariosFiltrados = usuariosProcesados.filter(
+        (u) => u.nivelInactividad === 'activo',
+      );
     }
     // 'todos' - muestra todos (críticos, en riesgo y activos)
 
@@ -585,9 +605,14 @@ export class UsuariosService {
 
     // Contar por nivel
     const conteo = {
-      critico: usuariosProcesados.filter((u) => u.nivelInactividad === 'critico').length,
-      enRiesgo: usuariosProcesados.filter((u) => u.nivelInactividad === 'en_riesgo').length,
-      activos: usuariosProcesados.filter((u) => u.nivelInactividad === 'activo').length,
+      critico: usuariosProcesados.filter(
+        (u) => u.nivelInactividad === 'critico',
+      ).length,
+      enRiesgo: usuariosProcesados.filter(
+        (u) => u.nivelInactividad === 'en_riesgo',
+      ).length,
+      activos: usuariosProcesados.filter((u) => u.nivelInactividad === 'activo')
+        .length,
     };
 
     // Paginar
@@ -609,8 +634,12 @@ export class UsuariosService {
 
   async getResumenInactividad() {
     const ahora = new Date();
-    const hace4Semanas = new Date(ahora.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
-    const hace2Semanas = new Date(ahora.getTime() - 2 * 7 * 24 * 60 * 60 * 1000);
+    const hace4Semanas = new Date(
+      ahora.getTime() - 4 * 7 * 24 * 60 * 60 * 1000,
+    );
+    const hace2Semanas = new Date(
+      ahora.getTime() - 2 * 7 * 24 * 60 * 60 * 1000,
+    );
 
     // Contar usuarios activos JA
     const totalJA = await this.prisma.usuario.count({
@@ -649,14 +678,22 @@ export class UsuariosService {
       const ultimaAsistencia = u.ultimaSemanaAsistio;
       const ultimaActividad = actividadMap.get(u.id) || null;
 
-      const sinAsistencia4Semanas = !ultimaAsistencia || ultimaAsistencia < hace4Semanas;
-      const sinActividad4Semanas = !ultimaActividad || ultimaActividad < hace4Semanas;
-      const sinAsistencia2Semanas = !ultimaAsistencia || ultimaAsistencia < hace2Semanas;
-      const sinActividad2Semanas = !ultimaActividad || ultimaActividad < hace2Semanas;
+      const sinAsistencia4Semanas =
+        !ultimaAsistencia || ultimaAsistencia < hace4Semanas;
+      const sinActividad4Semanas =
+        !ultimaActividad || ultimaActividad < hace4Semanas;
+      const sinAsistencia2Semanas =
+        !ultimaAsistencia || ultimaAsistencia < hace2Semanas;
+      const sinActividad2Semanas =
+        !ultimaActividad || ultimaActividad < hace2Semanas;
 
       if (sinAsistencia4Semanas && sinActividad4Semanas) {
         criticos++;
-      } else if (sinAsistencia2Semanas || sinActividad2Semanas || u.rachaActual === 0) {
+      } else if (
+        sinAsistencia2Semanas ||
+        sinActividad2Semanas ||
+        u.rachaActual === 0
+      ) {
         enRiesgo++;
       }
     }

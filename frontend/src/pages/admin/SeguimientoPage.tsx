@@ -226,36 +226,38 @@ export default function SeguimientoPage() {
       )}
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <Select value={filtroNivelGam} onValueChange={(v) => { setFiltroNivelGam(v); setPage(1); }}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filtrar por nivel" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los niveles</SelectItem>
-            {niveles?.map((n) => (
-              <SelectItem key={n.id} value={n.id.toString()}>
-                <span className="flex items-center gap-2">
-                  <span>{n.icono}</span>
-                  <span>{n.nombre}</span>
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex gap-2 flex-1">
+          <Select value={filtroNivelGam} onValueChange={(v) => { setFiltroNivelGam(v); setPage(1); }}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <SelectValue placeholder="Filtrar por nivel" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los niveles</SelectItem>
+              {niveles?.map((n) => (
+                <SelectItem key={n.id} value={n.id.toString()}>
+                  <span className="flex items-center gap-2">
+                    <span>{n.icono}</span>
+                    <span>{n.nombre}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={ordenarPor} onValueChange={(v: any) => setOrdenarPor(v)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Ordenar por" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ultimaAsistencia">Última asistencia</SelectItem>
-            <SelectItem value="ultimaActividad">Última actividad</SelectItem>
-            <SelectItem value="nombre">Nombre</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={ordenarPor} onValueChange={(v: any) => setOrdenarPor(v)}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ultimaAsistencia">Última asistencia</SelectItem>
+              <SelectItem value="ultimaActividad">Última actividad</SelectItem>
+              <SelectItem value="nombre">Nombre</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <span className="text-sm text-muted-foreground ml-auto">
+        <span className="text-sm text-muted-foreground text-right">
           {data?.meta.total || 0} usuario(s)
         </span>
       </div>
@@ -272,93 +274,89 @@ export default function SeguimientoPage() {
           {data.data.map((usuario) => (
             <Card key={usuario.id} className="overflow-hidden">
               <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  {/* Avatar y nombre */}
-                  <Avatar className="w-12 h-12">
+                {/* Header: Avatar + Nombre + Estado */}
+                <div className="flex items-center gap-3 mb-3">
+                  <Avatar className="w-10 h-10 shrink-0">
                     <AvatarImage src={usuario.fotoUrl} />
-                    <AvatarFallback>
+                    <AvatarFallback className="text-sm">
                       {usuario.nombre.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
-
                   <div className="flex-1 min-w-0">
-                    {/* Header */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={getNivelColor(usuario.nivelInactividad)}>
+                    <h3 className="font-semibold truncate">{usuario.nombre}</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge className={`${getNivelColor(usuario.nivelInactividad)} text-xs`}>
                         {getNivelIcon(usuario.nivelInactividad)}
                         <span className="ml-1">
                           {usuario.nivelInactividad === 'critico' ? 'Crítico' :
                            usuario.nivelInactividad === 'en_riesgo' ? 'En riesgo' : 'Activo'}
                         </span>
                       </Badge>
-                      <h3 className="font-semibold">{usuario.nombre}</h3>
                       <Badge variant="outline" className="text-xs">
-                        <span className="mr-1">{usuario.nivel.icono}</span>
-                        {usuario.nivel.nombre}
+                        {usuario.nivel.icono} {usuario.nivel.nombre}
                       </Badge>
                     </div>
+                  </div>
+                </div>
 
-                    {/* Métricas */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-sm">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Calendar className="w-4 h-4 text-blue-500" />
-                        <span>Asistencia: {formatFecha(usuario.ultimaAsistencia)}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Clock className="w-4 h-4 text-purple-500" />
-                        <span>Actividad: {formatFecha(usuario.ultimaActividad)}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Flame className="w-4 h-4 text-orange-500" />
-                        <span>
-                          Racha: {usuario.rachaActual}
-                          {usuario.rachaPerdida && (
-                            <span className="text-red-500 ml-1">(perdió {usuario.rachaMejor})</span>
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Users className="w-4 h-4 text-green-500" />
-                        <span>Total asist: {usuario.asistenciasTotales}</span>
-                      </div>
-                    </div>
-
-                    {/* Días específicos - solo mostrar para inactivos */}
-                    {usuario.nivelInactividad !== 'activo' && (usuario.diasSinAsistencia !== null || usuario.diasSinActividad !== null) && (
-                      <div className="mt-2 flex gap-4 text-xs">
-                        {usuario.diasSinAsistencia !== null && (
-                          <span className="text-red-600 font-medium">
-                            {usuario.diasSinAsistencia} días sin asistir
-                          </span>
-                        )}
-                        {usuario.diasSinActividad !== null && (
-                          <span className="text-orange-600 font-medium">
-                            {usuario.diasSinActividad} días sin generar puntos
-                          </span>
-                        )}
-                      </div>
+                {/* Métricas en grid compacto */}
+                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    <span className="truncate">Asist: {formatFecha(usuario.ultimaAsistencia)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                    <span className="truncate">Activ: {formatFecha(usuario.ultimaActividad)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                    <span>Racha: {usuario.rachaActual}</span>
+                    {usuario.rachaPerdida && (
+                      <span className="text-red-500">(perdió {usuario.rachaMejor})</span>
                     )}
                   </div>
-
-                  {/* Acciones */}
-                  <div className="flex flex-col gap-2">
-                    <a
-                      href={getWhatsAppLink(usuario.codigoPais, usuario.telefono)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700 w-full">
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        WhatsApp
-                      </Button>
-                    </a>
-                    <a href={`tel:+${usuario.codigoPais}${usuario.telefono}`}>
-                      <Button size="sm" variant="outline" className="w-full">
-                        <Phone className="w-4 h-4 mr-1" />
-                        Llamar
-                      </Button>
-                    </a>
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                    <span>Total: {usuario.asistenciasTotales} asist</span>
                   </div>
+                </div>
+
+                {/* Días específicos - solo mostrar para inactivos */}
+                {usuario.nivelInactividad !== 'activo' && (usuario.diasSinAsistencia !== null || usuario.diasSinActividad !== null) && (
+                  <div className="flex flex-wrap gap-2 text-xs mb-3">
+                    {usuario.diasSinAsistencia !== null && (
+                      <span className="text-red-600 font-medium">
+                        {usuario.diasSinAsistencia} días sin asistir
+                      </span>
+                    )}
+                    {usuario.diasSinActividad !== null && (
+                      <span className="text-orange-600 font-medium">
+                        {usuario.diasSinActividad} días sin puntos
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Botones de acción */}
+                <div className="flex gap-2">
+                  <a
+                    href={getWhatsAppLink(usuario.codigoPais, usuario.telefono)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700 w-full">
+                      <MessageCircle className="w-4 h-4 mr-1" />
+                      WhatsApp
+                    </Button>
+                  </a>
+                  <a href={`tel:+${usuario.codigoPais}${usuario.telefono}`} className="flex-1">
+                    <Button size="sm" variant="outline" className="w-full">
+                      <Phone className="w-4 h-4 mr-1" />
+                      Llamar
+                    </Button>
+                  </a>
                 </div>
               </CardContent>
             </Card>
