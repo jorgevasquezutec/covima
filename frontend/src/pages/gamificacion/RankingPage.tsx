@@ -56,6 +56,7 @@ export default function RankingPage() {
         const grupoFromParam = grupos.find((g) => g.id === Number(grupoParam));
         if (grupoFromParam) {
           setGrupoId(grupoFromParam.id);
+          setActiveTab('grupos'); // Cambiar a tab de grupos cuando viene por URL
           return;
         }
       }
