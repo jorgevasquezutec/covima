@@ -380,7 +380,7 @@ export default function NivelesPage() {
 
       {/* Modal de crear/editar */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {nivelToEdit ? 'Editar Nivel' : 'Nuevo Nivel'}
@@ -487,19 +487,20 @@ export default function NivelesPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModalOpen(false)}>
-              Cancelar
-            </Button>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button
               onClick={handleSubmit}
               disabled={crearMutation.isPending || actualizarMutation.isPending}
+              className="w-full sm:w-auto"
             >
               {crearMutation.isPending || actualizarMutation.isPending
                 ? 'Guardando...'
                 : nivelToEdit
                   ? 'Actualizar'
                   : 'Crear'}
+            </Button>
+            <Button variant="outline" onClick={() => setModalOpen(false)} className="w-full sm:w-auto">
+              Cancelar
             </Button>
           </DialogFooter>
         </DialogContent>

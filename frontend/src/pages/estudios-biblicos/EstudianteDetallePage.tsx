@@ -313,7 +313,7 @@ export default function EstudianteDetallePage() {
           </Card>
 
           {/* Baptism Button */}
-          {!estudiante.fechaBautismo && porcentaje === 100 && (
+          {!estudiante.fechaBautismo && (
             <Button
               onClick={() => {
                 setFechaBautismo(new Date().toISOString().split('T')[0]);

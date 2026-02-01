@@ -281,8 +281,8 @@ export default function EventosPage() {
 
           {/* Paginación */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t mt-4">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t mt-4">
+              <p className="text-sm text-muted-foreground text-center sm:text-left">
                 Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, eventos?.length || 0)} de {eventos?.length || 0} eventos
               </p>
               <div className="flex gap-2">
