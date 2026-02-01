@@ -137,6 +137,61 @@ export class ProgramasController {
     return this.programasService.deleteParte(id);
   }
 
+  // ==================== PLANTILLAS ====================
+
+  @Get('plantillas')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Listar plantillas de programa activas' })
+  async getPlantillas() {
+    return this.programasService.getPlantillas();
+  }
+
+  @Get('plantillas/:id')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Obtener plantilla con sus partes' })
+  async getPlantilla(@Param('id', ParseIntPipe) id: number) {
+    return this.programasService.getPlantilla(id);
+  }
+
+  @Post('plantillas')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Crear nueva plantilla de programa' })
+  async createPlantilla(
+    @Body()
+    body: {
+      nombre: string;
+      descripcion?: string;
+      parteIds: number[];
+      esDefault?: boolean;
+    },
+  ) {
+    return this.programasService.createPlantilla(body);
+  }
+
+  @Put('plantillas/:id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Actualizar plantilla de programa' })
+  async updatePlantilla(
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      nombre?: string;
+      descripcion?: string;
+      activo?: boolean;
+      esDefault?: boolean;
+      parteIds?: number[];
+    },
+  ) {
+    return this.programasService.updatePlantilla(id, body);
+  }
+
+  @Delete('plantillas/:id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Eliminar plantilla de programa' })
+  async deletePlantilla(@Param('id', ParseIntPipe) id: number) {
+    return this.programasService.deletePlantilla(id);
+  }
+
   @Get('usuarios')
   @Roles('admin', 'lider')
   @ApiOperation({ summary: 'Obtener usuarios disponibles para asignar' })

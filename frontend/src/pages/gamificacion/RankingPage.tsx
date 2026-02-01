@@ -89,8 +89,31 @@ export default function RankingPage() {
     }
   }, [periodos, periodoId]);
 
-  // Seleccionar nivel por defecto
+  // Seleccionar nivel por defecto o desde query param
   useEffect(() => {
+    // Verificar si viene nivel por URL (aplica a todos)
+    const nivelParam = searchParams.get('nivel');
+    if (nivelParam) {
+      const nivelIdParam = Number(nivelParam);
+      // Para participantes, validar que sea su nivel
+      if (!isAdminOrLider && miProgreso?.nivel?.actual) {
+        if (miProgreso.nivel.actual.id === nivelIdParam) {
+          setNivelId(nivelIdParam);
+          setActiveTab('niveles');
+          return;
+        }
+      }
+      // Para admin/líder
+      if (isAdminOrLider && niveles) {
+        const nivelFromParam = niveles.find((n) => n.id === nivelIdParam);
+        if (nivelFromParam) {
+          setNivelId(nivelIdParam);
+          setActiveTab('niveles');
+          return;
+        }
+      }
+    }
+
     if (nivelId) return; // Ya hay nivel seleccionado
 
     // Para participantes: usar su nivel actual
@@ -99,18 +122,8 @@ export default function RankingPage() {
       return;
     }
 
-    // Para admin/líder: usar query param o primer nivel
+    // Para admin/líder: usar primer nivel
     if (isAdminOrLider && niveles && niveles.length > 0) {
-      const nivelParam = searchParams.get('nivel');
-      if (nivelParam) {
-        const nivelFromParam = niveles.find((n) => n.id === Number(nivelParam));
-        if (nivelFromParam) {
-          setNivelId(nivelFromParam.id);
-          setActiveTab('niveles');
-          return;
-        }
-      }
-      // Default: primer nivel
       setNivelId(niveles[0].id);
     }
   }, [niveles, nivelId, searchParams, isAdminOrLider, miProgreso]);

@@ -238,8 +238,8 @@ export default function AsistenciaRoom() {
         );
     }
 
-    // Mostrar mensaje si el QR ha expirado
-    if (qrExpiredStatus.expired) {
+    // Mostrar mensaje si el QR ha expirado (solo para usuarios sin permisos)
+    if (qrExpiredStatus.expired && !canConfirm) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <Card className="bg-white border-gray-200 shadow-lg max-w-md w-full">
@@ -315,6 +315,19 @@ export default function AsistenciaRoom() {
             </header>
 
             <div className="max-w-7xl mx-auto p-4 lg:p-6">
+                {/* Banner de aviso si el QR expiró (solo visible para admin/líder) */}
+                {qrExpiredStatus.expired && canConfirm && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0" />
+                        <div className="text-sm">
+                            <p className="font-medium text-yellow-800">Room finalizado</p>
+                            <p className="text-yellow-700">
+                                El horario de este QR finalizó. Puedes ver las asistencias registradas.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Panel izquierdo: QR y estadísticas */}
                     <div className="space-y-6">
@@ -507,49 +520,51 @@ export default function AsistenciaRoom() {
                 </div>
             </div>
 
-            {/* Modal QR Expandido - Maximiza el QR */}
+            {/* Modal QR Expandido */}
             <Dialog open={qrExpanded} onOpenChange={setQrExpanded}>
-                <DialogContent
-                    className="p-3 bg-white border-gray-200 overflow-hidden"
-                    style={{
-                        width: 'min(96vw, calc(96vh - 100px))',
-                        maxWidth: 'min(96vw, calc(96vh - 100px))',
-                        maxHeight: '96vh',
-                    }}
-                >
-                    <DialogHeader className="text-center pb-1">
-                        <DialogTitle className="text-base font-bold text-gray-900">
+                <DialogContent className="w-[92vw] max-w-sm sm:max-w-md bg-white border-gray-200 p-4 sm:p-6 overflow-hidden">
+                    <DialogHeader className="text-center">
+                        <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">
                             {qr.tipoAsistencia?.label || 'Asistencia'}
                         </DialogTitle>
-                        <DialogDescription className="text-gray-500 text-xs">
+                        <DialogDescription className="text-gray-500">
                             Escanea para registrar tu asistencia
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex items-center justify-center">
+                    <div className="flex flex-col items-center w-full overflow-hidden">
                         {(qr.urlWhatsapp || qr.urlGenerada) && (
-                            <div className="bg-white rounded-lg border-2 border-gray-100 shadow-lg w-full aspect-square">
+                            <div className="bg-white p-2 sm:p-4 rounded-2xl border-4 border-gray-100 shadow-lg w-fit max-w-full">
                                 <QRCodeSVG
                                     value={qr.urlWhatsapp || qr.urlGenerada || ''}
-                                    size={1000}
+                                    size={256}
                                     level="H"
                                     includeMargin={true}
                                     bgColor="#ffffff"
                                     fgColor={tipoColor}
-                                    style={{ width: '100%', height: '100%' }}
+                                    className="max-w-full h-auto"
                                 />
                             </div>
                         )}
-                    </div>
-                    <div className="pt-1 text-center">
-                        <p className="text-xs font-medium text-gray-900">
-                            {parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', {
-                                weekday: 'long',
-                                day: 'numeric',
-                                month: 'long',
-                            })}
-                            {' · '}
-                            <Clock className="w-3 h-3 inline" /> {formatHora(qr.horaInicio)} - {formatHora(qr.horaFin)}
-                        </p>
+                        <div className="mt-4 sm:mt-6 text-center">
+                            <p className="text-base sm:text-lg font-medium text-gray-900">
+                                {parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', {
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                })}
+                            </p>
+                            <p className="text-gray-500 mt-1 text-sm sm:text-base">
+                                <Clock className="w-4 h-4 inline mr-1" />
+                                Válido de {formatHora(qr.horaInicio)} a {formatHora(qr.horaFin)}
+                            </p>
+                            <Badge
+                                className="mt-3 sm:mt-4"
+                                style={{ backgroundColor: tipoColor, color: 'white' }}
+                            >
+                                {qr.tipoAsistencia?.label}
+                            </Badge>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

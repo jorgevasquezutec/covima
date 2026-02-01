@@ -343,6 +343,43 @@ export const programasApi = {
     const response = await api.get('/programas/estadisticas-admin');
     return response.data;
   },
+
+  // ==================== PLANTILLAS ====================
+
+  getPlantillas: async (): Promise<PlantillaPrograma[]> => {
+    const response = await api.get<PlantillaPrograma[]>('/programas/plantillas');
+    return response.data;
+  },
+
+  getPlantilla: async (id: number): Promise<PlantillaPrograma> => {
+    const response = await api.get<PlantillaPrograma>(`/programas/plantillas/${id}`);
+    return response.data;
+  },
+
+  createPlantilla: async (data: {
+    nombre: string;
+    descripcion?: string;
+    parteIds: number[];
+    esDefault?: boolean;
+  }): Promise<PlantillaPrograma> => {
+    const response = await api.post<PlantillaPrograma>('/programas/plantillas', data);
+    return response.data;
+  },
+
+  updatePlantilla: async (id: number, data: {
+    nombre?: string;
+    descripcion?: string;
+    activo?: boolean;
+    esDefault?: boolean;
+    parteIds?: number[];
+  }): Promise<PlantillaPrograma> => {
+    const response = await api.put<PlantillaPrograma>(`/programas/plantillas/${id}`, data);
+    return response.data;
+  },
+
+  deletePlantilla: async (id: number): Promise<void> => {
+    await api.delete(`/programas/plantillas/${id}`);
+  },
 };
 
 // ==================== TIPOS DE ASISTENCIA API ====================

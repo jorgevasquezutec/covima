@@ -135,6 +135,24 @@ export interface UpdateParteRequest {
   xp?: number;
 }
 
+export interface PlantillaParte {
+  id: number;
+  plantillaId: number;
+  parteId: number;
+  orden: number;
+  parte: Parte;
+}
+
+export interface PlantillaPrograma {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  activo: boolean;
+  esDefault: boolean;
+  orden: number;
+  partes: PlantillaParte[];
+}
+
 export interface ProgramaParte {
   id: number;
   parteId: number;

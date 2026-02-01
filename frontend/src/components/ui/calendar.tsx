@@ -13,30 +13,174 @@ import {
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
+type CalendarView = "days" | "months" | "years"
+
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
-  captionLayout = "label",
+  captionLayout = "dropdown",
   buttonVariant = "ghost",
   formatters,
   components,
+  startMonth,
+  endMonth,
+  month: controlledMonth,
+  onMonthChange,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
+  const [view, setView] = React.useState<CalendarView>("days")
+  const [internalMonth, setInternalMonth] = React.useState(controlledMonth || new Date())
+  const [yearRangeStart, setYearRangeStart] = React.useState(
+    Math.floor(new Date().getFullYear() / 12) * 12
+  )
+
+  const currentMonth = controlledMonth || internalMonth
+
+  const handleMonthChange = (newMonth: Date) => {
+    setInternalMonth(newMonth)
+    onMonthChange?.(newMonth)
+  }
+
+  const defaultStartMonth = startMonth || new Date(1900, 0)
+  const defaultEndMonth = endMonth || new Date(2100, 11)
   const defaultClassNames = getDefaultClassNames()
+
+  // Year grid picker
+  if (view === "years") {
+    const years = Array.from({ length: 12 }, (_, i) => yearRangeStart + i)
+    const currentYear = currentMonth.getFullYear()
+
+    return (
+      <div className={cn("bg-background p-3", className)} data-slot="calendar">
+        <div className="flex items-center justify-between mb-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => setYearRangeStart(yearRangeStart - 12)}
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <span className="text-sm font-medium">
+            {yearRangeStart} - {yearRangeStart + 11}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => setYearRangeStart(yearRangeStart + 12)}
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {years.map((year) => (
+            <Button
+              key={year}
+              variant={year === currentYear ? "default" : "ghost"}
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                const newDate = new Date(currentMonth)
+                newDate.setFullYear(year)
+                handleMonthChange(newDate)
+                setView("days")
+              }}
+            >
+              {year}
+            </Button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Month grid picker
+  if (view === "months") {
+    const months = [
+      "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+    ]
+    const currentMonthIndex = currentMonth.getMonth()
+    const currentYear = currentMonth.getFullYear()
+
+    return (
+      <div className={cn("bg-background p-3", className)} data-slot="calendar">
+        <div className="flex items-center justify-between mb-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => {
+              const newDate = new Date(currentMonth)
+              newDate.setFullYear(currentYear - 1)
+              handleMonthChange(newDate)
+            }}
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setYearRangeStart(Math.floor(currentYear / 12) * 12)
+              setView("years")
+            }}
+          >
+            {currentYear}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => {
+              const newDate = new Date(currentMonth)
+              newDate.setFullYear(currentYear + 1)
+              handleMonthChange(newDate)
+            }}
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {months.map((month, index) => (
+            <Button
+              key={month}
+              variant={index === currentMonthIndex ? "default" : "ghost"}
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                const newDate = new Date(currentMonth)
+                newDate.setMonth(index)
+                handleMonthChange(newDate)
+                setView("days")
+              }}
+            >
+              {month}
+            </Button>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      captionLayout="label"
+      startMonth={defaultStartMonth}
+      endMonth={defaultEndMonth}
+      month={currentMonth}
+      onMonthChange={handleMonthChange}
       className={cn(
         "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
       )}
-      captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
           date.toLocaleString("default", { month: "short" }),
@@ -80,10 +224,7 @@ function Calendar({
           defaultClassNames.dropdown
         ),
         caption_label: cn(
-          "select-none font-medium",
-          captionLayout === "label"
-            ? "text-sm"
-            : "rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-muted-foreground [&>svg]:size-3.5",
+          "select-none font-medium text-sm",
           defaultClassNames.caption_label
         ),
         table: "w-full border-collapse",
@@ -158,6 +299,33 @@ function Calendar({
 
           return (
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
+          )
+        },
+        MonthCaption: ({ calendarMonth }) => {
+          const month = calendarMonth.date.toLocaleString("es", { month: "long" })
+          const year = calendarMonth.date.getFullYear()
+          return (
+            <div className="flex items-center justify-center h-8 gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 font-medium capitalize"
+                onClick={() => setView("months")}
+              >
+                {month}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 font-medium"
+                onClick={() => {
+                  setYearRangeStart(Math.floor(year / 12) * 12)
+                  setView("years")
+                }}
+              >
+                {year}
+              </Button>
+            </div>
           )
         },
         DayButton: CalendarDayButton,

@@ -2174,7 +2174,18 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
       const telefono = `${notif.usuario.codigoPais}${notif.usuario.telefono}`;
 
       try {
-        // === MODO PRUEBA: Comentado para probar el frontend ===
+        // Generar el contenido del mensaje para guardar en el inbox
+        const mensajeParaInbox = `📋 *Recordatorio de Programa*
+
+¡Hola ${notif.usuario.nombre}! 👋
+
+Has sido asignado/a para el programa del *${fechaFormateada}*.
+
+📌 *Tus partes:* ${notif.partes.join(', ')}
+🔖 *Código:* ${preview.programa.codigo}
+
+¡Que Dios te bendiga! 🙏`;
+
         // Usar plantilla aprobada de WhatsApp
         // Parámetros: {{1}}=nombre, {{2}}=fecha, {{3}}=partes, {{4}}=código
         const result = await this.whatsappService.sendTemplateToPhone(
@@ -2187,6 +2198,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
             notif.partes.join(', '), // {{3}} partes asignadas
             preview.programa.codigo, // {{4}} código del programa
           ],
+          mensajeParaInbox, // Guardar en inbox
         );
 
         // SIMULACIÓN: Siempre éxito para pruebas
@@ -2423,5 +2435,184 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
       },
       detalles: resultados,
     };
+  }
+
+  // ==================== PLANTILLAS DE PROGRAMA ====================
+
+  /**
+   * Obtener todas las plantillas activas
+   */
+  async getPlantillas() {
+    return this.prisma.plantillaPrograma.findMany({
+      where: { activo: true },
+      orderBy: [{ esDefault: 'desc' }, { orden: 'asc' }, { nombre: 'asc' }],
+      include: {
+        partes: {
+          orderBy: { orden: 'asc' },
+          include: {
+            parte: {
+              select: { id: true, nombre: true, descripcion: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Obtener una plantilla por ID con sus partes
+   */
+  async getPlantilla(id: number) {
+    const plantilla = await this.prisma.plantillaPrograma.findUnique({
+      where: { id },
+      include: {
+        partes: {
+          orderBy: { orden: 'asc' },
+          include: {
+            parte: true,
+          },
+        },
+      },
+    });
+
+    if (!plantilla) {
+      throw new NotFoundException('Plantilla no encontrada');
+    }
+
+    return plantilla;
+  }
+
+  /**
+   * Crear nueva plantilla de programa
+   */
+  async createPlantilla(data: {
+    nombre: string;
+    descripcion?: string;
+    parteIds: number[];
+    esDefault?: boolean;
+  }) {
+    const { nombre, descripcion, parteIds, esDefault } = data;
+
+    // Si es default, quitar el flag de las demás
+    if (esDefault) {
+      await this.prisma.plantillaPrograma.updateMany({
+        where: { esDefault: true },
+        data: { esDefault: false },
+      });
+    }
+
+    // Obtener el máximo orden actual
+    const maxOrden = await this.prisma.plantillaPrograma.aggregate({
+      _max: { orden: true },
+    });
+
+    const plantilla = await this.prisma.plantillaPrograma.create({
+      data: {
+        nombre,
+        descripcion,
+        esDefault: esDefault || false,
+        orden: (maxOrden._max.orden || 0) + 1,
+        partes: {
+          create: parteIds.map((parteId, index) => ({
+            parteId,
+            orden: index + 1,
+          })),
+        },
+      },
+      include: {
+        partes: {
+          orderBy: { orden: 'asc' },
+          include: { parte: true },
+        },
+      },
+    });
+
+    return plantilla;
+  }
+
+  /**
+   * Actualizar plantilla de programa
+   */
+  async updatePlantilla(
+    id: number,
+    data: {
+      nombre?: string;
+      descripcion?: string;
+      activo?: boolean;
+      esDefault?: boolean;
+      parteIds?: number[];
+    },
+  ) {
+    const { parteIds, esDefault, ...updateData } = data;
+
+    // Si es default, quitar el flag de las demás
+    if (esDefault) {
+      await this.prisma.plantillaPrograma.updateMany({
+        where: { esDefault: true, id: { not: id } },
+        data: { esDefault: false },
+      });
+    }
+
+    // Actualizar datos básicos
+    const plantilla = await this.prisma.plantillaPrograma.update({
+      where: { id },
+      data: {
+        ...updateData,
+        ...(esDefault !== undefined && { esDefault }),
+      },
+    });
+
+    // Si se proporcionan parteIds, actualizar las partes
+    if (parteIds !== undefined) {
+      // Eliminar partes actuales
+      await this.prisma.plantillaParte.deleteMany({
+        where: { plantillaId: id },
+      });
+
+      // Crear nuevas partes
+      if (parteIds.length > 0) {
+        await this.prisma.plantillaParte.createMany({
+          data: parteIds.map((parteId, index) => ({
+            plantillaId: id,
+            parteId,
+            orden: index + 1,
+          })),
+        });
+      }
+    }
+
+    // Retornar plantilla actualizada
+    return this.getPlantilla(id);
+  }
+
+  /**
+   * Eliminar plantilla de programa
+   */
+  async deletePlantilla(id: number) {
+    const plantilla = await this.prisma.plantillaPrograma.findUnique({
+      where: { id },
+    });
+
+    if (!plantilla) {
+      throw new NotFoundException('Plantilla no encontrada');
+    }
+
+    // No permitir eliminar si es la única plantilla activa
+    const countActivas = await this.prisma.plantillaPrograma.count({
+      where: { activo: true },
+    });
+
+    if (countActivas <= 1 && plantilla.activo) {
+      throw new BadRequestException(
+        'No se puede eliminar la única plantilla activa',
+      );
+    }
+
+    // Eliminar (cascade eliminará las partes)
+    await this.prisma.plantillaPrograma.delete({
+      where: { id },
+    });
+
+    return { message: 'Plantilla eliminada correctamente' };
   }
 }

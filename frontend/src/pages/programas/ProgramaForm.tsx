@@ -32,6 +32,9 @@ import {
     ExternalLink,
     GripVertical,
     ChevronDown,
+    LayoutTemplate,
+    FileText,
+    Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -47,7 +50,7 @@ import { Badge } from '@/components/ui/badge';
 import UserAutocomplete from '@/components/UserAutocomplete';
 import { programasApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
-import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto } from '@/types';
+import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, PlantillaPrograma } from '@/types';
 
 interface ParteEnPrograma {
     id: string; // Unique ID for drag & drop
@@ -291,6 +294,10 @@ export default function ProgramaForm() {
     const [usuarios, setUsuarios] = useState<UsuarioSimple[]>([]);
     const [todasLasPartes, setTodasLasPartes] = useState<Parte[]>([]);
 
+    // Template selector state (only for new programs)
+    const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+    const [plantillas, setPlantillas] = useState<PlantillaPrograma[]>([]);
+
     // Form state
     const [fecha, setFecha] = useState('');
     const [titulo, setTitulo] = useState('Programa Maranatha Adoración');
@@ -313,16 +320,18 @@ export default function ProgramaForm() {
     const loadInitialData = async () => {
         try {
             setLoading(true);
-            const [obligatorias, opcionales, usuariosData] = await Promise.all([
+            const [obligatorias, opcionales, usuariosData, plantillasData] = await Promise.all([
                 programasApi.getPartesObligatorias(),
                 programasApi.getPartesOpcionales(),
                 programasApi.getUsuarios(),
+                !isEditing ? programasApi.getPlantillas() : Promise.resolve([]),
             ]);
 
             // Combinar todas las partes
             const todas = [...obligatorias, ...opcionales];
             setTodasLasPartes(todas);
             setUsuarios(usuariosData);
+            setPlantillas(plantillasData);
 
             if (isEditing) {
                 const programaData = await programasApi.getOne(parseInt(id!));
@@ -371,44 +380,22 @@ export default function ProgramaForm() {
 
                 setPartesEnPrograma(programaPartes);
             } else {
-                // New program: start with template de partes en orden específico
-                const templateNombres = [
-                    'Bienvenida',
-                    'Oración Inicial',
-                    'Espacio de Cantos',
-                    'Oración Intercesora',
-                    'Revivados',
-                    'Tema',
-                    'Recojo de Ofrendas',
-                    'Himno Final',
-                    'Oración Final',
-                ];
-
-                // Combinar todas las partes disponibles
-                const todasPartes = [...obligatorias, ...opcionales];
-
-                // Filtrar y ordenar según el template
-                const partesOrdenadas: typeof todasPartes = [];
-                for (const nombre of templateNombres) {
-                    const parte = todasPartes.find(p =>
-                        p.nombre.toLowerCase() === nombre.toLowerCase() ||
-                        p.nombre.toLowerCase().includes(nombre.toLowerCase())
-                    );
-                    if (parte && !partesOrdenadas.some(p => p.id === parte.id)) {
-                        partesOrdenadas.push(parte);
-                    }
-                }
-
-                const initialPartes: ParteEnPrograma[] = partesOrdenadas.map((parte) => ({
-                    id: `parte-${parte.id}`,
-                    parteId: parte.id,
-                    parte,
-                    usuarioIds: [],
-                    nombresLibres: [],
-                    links: [],
-                }));
-                setPartesEnPrograma(initialPartes);
+                // New program: show template selector
                 setFecha(getFechaActual());
+
+                // If there are plantillas available, show selector
+                if (plantillasData.length > 0) {
+                    setShowTemplateSelector(true);
+
+                    // Auto-select default template if exists
+                    const defaultPlantilla = plantillasData.find(p => p.esDefault);
+                    if (defaultPlantilla) {
+                        loadPlantillaPartes(defaultPlantilla, todas);
+                    }
+                } else {
+                    // Fallback: empty program
+                    setPartesEnPrograma([]);
+                }
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Error al cargar datos');
@@ -420,6 +407,38 @@ export default function ProgramaForm() {
 
     const getFechaActual = (): string => {
         return new Date().toISOString().split('T')[0];
+    };
+
+    /**
+     * Load partes from a selected plantilla
+     */
+    const loadPlantillaPartes = (plantilla: PlantillaPrograma, allPartes?: Parte[]) => {
+        const partesDisponibles = allPartes || todasLasPartes;
+
+        const initialPartes: ParteEnPrograma[] = plantilla.partes
+            .sort((a, b) => a.orden - b.orden)
+            .map((pp) => {
+                // Find the full parte data
+                const parteCompleta = partesDisponibles.find(p => p.id === pp.parteId) || pp.parte;
+                return {
+                    id: `parte-${pp.parteId}`,
+                    parteId: pp.parteId,
+                    parte: parteCompleta,
+                    usuarioIds: [],
+                    nombresLibres: [],
+                    links: [],
+                };
+            });
+
+        setPartesEnPrograma(initialPartes);
+    };
+
+    /**
+     * Handle template selection
+     */
+    const handleSelectPlantilla = (plantilla: PlantillaPrograma) => {
+        loadPlantillaPartes(plantilla);
+        setShowTemplateSelector(false);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -672,6 +691,99 @@ export default function ProgramaForm() {
         );
     }
 
+    // Template selector for new programs
+    if (showTemplateSelector && !isEditing && plantillas.length > 0) {
+        return (
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center gap-4">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate('/programas')}
+                        className="hover:bg-gray-100"
+                    >
+                        <ArrowLeft className="h-5 w-5 text-gray-500" />
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            <LayoutTemplate className="h-6 w-6 text-blue-600" />
+                            Seleccionar Plantilla
+                        </h1>
+                        <p className="text-gray-500 mt-1">
+                            Elige una plantilla para tu nuevo programa
+                        </p>
+                    </div>
+                </div>
+
+                {/* Template Cards */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {plantillas.map((plantilla) => (
+                        <Card
+                            key={plantilla.id}
+                            className={`cursor-pointer transition-all hover:shadow-md hover:border-blue-300 ${
+                                plantilla.esDefault ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'
+                            }`}
+                            onClick={() => handleSelectPlantilla(plantilla)}
+                        >
+                            <CardHeader className="pb-3">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                                            <FileText className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-lg text-gray-900">
+                                                {plantilla.nombre}
+                                            </CardTitle>
+                                            {plantilla.esDefault && (
+                                                <Badge className="mt-1 bg-blue-100 text-blue-700 border-blue-200">
+                                                    Recomendado
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {plantilla.esDefault && (
+                                        <Check className="h-5 w-5 text-blue-600" />
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {plantilla.descripcion && (
+                                    <p className="text-sm text-gray-500 mb-3">
+                                        {plantilla.descripcion}
+                                    </p>
+                                )}
+                                <div className="text-sm text-gray-600">
+                                    <span className="font-medium">{plantilla.partes.length}</span> partes incluidas
+                                </div>
+                                {plantilla.partes.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                        {plantilla.partes.slice(0, 4).map((pp) => (
+                                            <Badge
+                                                key={pp.id}
+                                                variant="outline"
+                                                className="text-xs bg-gray-50"
+                                            >
+                                                {pp.parte.nombre}
+                                            </Badge>
+                                        ))}
+                                        {plantilla.partes.length > 4 && (
+                                            <Badge variant="outline" className="text-xs bg-gray-50">
+                                                +{plantilla.partes.length - 4} más
+                                            </Badge>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {/* Header */}
@@ -696,23 +808,36 @@ export default function ProgramaForm() {
                         </p>
                     </div>
                 </div>
-                <Button
-                    type="submit"
-                    disabled={saving}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                >
-                    {saving ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Guardando...
-                        </>
-                    ) : (
-                        <>
-                            <Save className="h-4 w-4 mr-2" />
-                            Guardar Programa
-                        </>
+                <div className="flex gap-2">
+                    {!isEditing && plantillas.length > 1 && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowTemplateSelector(true)}
+                            className="border-gray-300"
+                        >
+                            <LayoutTemplate className="h-4 w-4 mr-2" />
+                            Cambiar Plantilla
+                        </Button>
                     )}
-                </Button>
+                    <Button
+                        type="submit"
+                        disabled={saving}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                        {saving ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Guardando...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="h-4 w-4 mr-2" />
+                                Guardar Programa
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             {/* Datos básicos */}

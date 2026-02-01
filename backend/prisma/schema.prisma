@@ -58,6 +58,7 @@ model Usuario {
   fechaNacimiento      DateTime?        @map("fecha_nacimiento") @db.Date
   direccion            String?          @db.VarChar(200)
   biografia            String?          @db.Text
+  genero               String?          @db.VarChar(20) // 'M', 'F', etc.
   activo               Boolean          @default(true)
   debeCambiarPassword  Boolean          @default(true) @map("debe_cambiar_password")
   ultimoLogin          DateTime?        @map("ultimo_login")
@@ -140,6 +141,7 @@ model Parte {
   asignaciones  ProgramaAsignacion[]
   links         ProgramaLink[]
   programaPartes ProgramaParte[]
+  plantillaPartes PlantillaParte[]
 
   @@map("partes")
 }
@@ -233,6 +235,36 @@ model ProgramaLink {
   agregador   Usuario? @relation(fields: [agregadoPor], references: [id])
 
   @@map("programa_links")
+}
+
+// ==================== PLANTILLAS DE PROGRAMA ====================
+
+model PlantillaPrograma {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @db.VarChar(100) // "Programa JA Estándar", "Culto Divino"
+  descripcion String?   @db.VarChar(255)
+  activo      Boolean   @default(true)
+  esDefault   Boolean   @default(false) @map("es_default") // Plantilla seleccionada por defecto
+  orden       Int       @default(0) // Orden en el selector
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  partes      PlantillaParte[]
+
+  @@map("plantillas_programa")
+}
+
+model PlantillaParte {
+  id           Int      @id @default(autoincrement())
+  plantillaId  Int      @map("plantilla_id")
+  parteId      Int      @map("parte_id")
+  orden        Int      // Orden de esta parte en la plantilla
+
+  plantilla    PlantillaPrograma @relation(fields: [plantillaId], references: [id], onDelete: Cascade)
+  parte        Parte             @relation(fields: [parteId], references: [id])
+
+  @@unique([plantillaId, parteId])
+  @@map("plantilla_partes")
 }
 
 model QRAsistencia {

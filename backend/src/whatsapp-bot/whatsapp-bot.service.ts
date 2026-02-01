@@ -284,12 +284,14 @@ export class WhatsappBotService {
    * @param templateName Nombre de la plantilla aprobada en Meta
    * @param languageCode Código de idioma (ej: es_PE)
    * @param bodyParameters Parámetros del cuerpo de la plantilla
+   * @param messageContentForInbox Contenido del mensaje para guardar en inbox (opcional)
    */
   async sendTemplateToPhone(
     phoneNumber: string,
     templateName: string,
     languageCode: string,
     bodyParameters: string[],
+    messageContentForInbox?: string,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
     const normalizedPhone = phoneNumber.replace(/[\s+\-]/g, '');
@@ -323,6 +325,12 @@ export class WhatsappBotService {
       this.logger.log(
         `Template "${templateName}" sent to ${normalizedPhone}: ${messageId}`,
       );
+
+      // Guardar el mensaje en el inbox si se proporciona el contenido
+      if (messageContentForInbox) {
+        await this.saveOutgoingMessageToInbox(normalizedPhone, messageContentForInbox);
+      }
+
       return { success: true, messageId };
     } catch (error) {
       this.logger.error(
@@ -337,6 +345,85 @@ export class WhatsappBotService {
         success: false,
         error: error.response?.data?.error?.message || error.message,
       };
+    }
+  }
+
+  /**
+   * Guardar un mensaje saliente en el inbox
+   * Busca o crea la conversación y guarda el mensaje
+   */
+  private async saveOutgoingMessageToInbox(
+    phoneNumber: string,
+    content: string,
+  ): Promise<void> {
+    try {
+      // Normalizar teléfono (extraer últimos 9 dígitos para buscar)
+      const telefonoCorto = phoneNumber.slice(-9);
+
+      // Buscar conversación existente
+      let conversacion = await this.prisma.conversacion.findFirst({
+        where: {
+          telefono: { endsWith: telefonoCorto },
+        },
+      });
+
+      // Si no existe, crear una nueva
+      if (!conversacion) {
+        // Buscar usuario por teléfono
+        const usuario = await this.prisma.usuario.findFirst({
+          where: { telefono: { endsWith: telefonoCorto } },
+        });
+
+        conversacion = await this.prisma.conversacion.create({
+          data: {
+            telefono: phoneNumber,
+            estado: 'inicio',
+            ultimoMensajeAt: new Date(),
+            usuarioId: usuario?.id,
+          },
+        });
+      }
+
+      // Guardar mensaje saliente
+      const mensaje = await this.prisma.mensaje.create({
+        data: {
+          conversacionId: conversacion.id,
+          contenido: content,
+          direccion: DireccionMensaje.SALIENTE,
+          tipo: 'bot',
+          estado: EstadoMensaje.ENVIADO,
+        },
+      });
+
+      // Actualizar último mensaje de la conversación
+      await this.prisma.conversacion.update({
+        where: { id: conversacion.id },
+        data: {
+          ultimoMensaje: content.substring(0, 500),
+          ultimoMensajeAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      // Emitir evento WebSocket
+      try {
+        await this.inboxGateway.emitMensajeNuevo(conversacion.id, {
+          id: mensaje.id,
+          contenido: mensaje.contenido,
+          tipo: mensaje.tipo,
+          direccion: mensaje.direccion,
+          estado: mensaje.estado,
+          createdAt: mensaje.createdAt,
+        });
+      } catch {
+        // Ignorar errores de WebSocket
+      }
+
+      this.logger.debug(`Mensaje guardado en inbox para ${phoneNumber}`);
+    } catch (error) {
+      this.logger.error(
+        `Error guardando mensaje en inbox para ${phoneNumber}: ${error.message}`,
+      );
     }
   }
 
