@@ -67,15 +67,19 @@ export default function RankingPage() {
         const grupoFromParam = grupos.find((g) => g.id === Number(grupoParam));
         if (grupoFromParam) {
           setGrupoId(grupoFromParam.id);
-          setActiveTab('grupos'); // Cambiar a tab de grupos cuando viene por URL
+          setActiveTab('grupos');
           return;
         }
       }
       // Default: grupo general
       const general = grupos.find((g) => g.codigo === 'general');
       setGrupoId(general?.id || grupos[0].id);
+      // Para participantes, mostrar grupos primero por defecto
+      if (!isAdminOrLider) {
+        setActiveTab('grupos');
+      }
     }
-  }, [grupos, grupoId, searchParams]);
+  }, [grupos, grupoId, searchParams, isAdminOrLider]);
 
   // Seleccionar período activo por defecto
   useEffect(() => {
@@ -254,27 +258,11 @@ export default function RankingPage() {
         )}
       </div>
 
-      {/* Para participantes: tabs con su nivel + grupos disponibles */}
+      {/* Para participantes: tabs con grupos + su nivel */}
       {!isAdminOrLider && (nivelSeleccionado || (grupos && grupos.length > 0)) && (
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-1.5 sm:gap-2 pb-2">
-            {/* Tab de su nivel */}
-            {nivelSeleccionado && (
-              <button
-                onClick={() => setActiveTab('niveles')}
-                className={`
-                  flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all shrink-0
-                  ${activeTab === 'niveles'
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                  }
-                `}
-              >
-                <span className="text-sm sm:text-base">{nivelSeleccionado.icono || '🏅'}</span>
-                <span>{nivelSeleccionado.nombre}</span>
-              </button>
-            )}
-            {/* Tabs de grupos visibles */}
+            {/* Tabs de grupos visibles (primero) */}
             {grupos?.map((grupo) => (
               <button
                 key={grupo.id}
@@ -294,6 +282,22 @@ export default function RankingPage() {
                 <span>{grupo.nombre}</span>
               </button>
             ))}
+            {/* Tab de su nivel (después) */}
+            {nivelSeleccionado && (
+              <button
+                onClick={() => setActiveTab('niveles')}
+                className={`
+                  flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all shrink-0
+                  ${activeTab === 'niveles'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                  }
+                `}
+              >
+                <span className="text-sm sm:text-base">{nivelSeleccionado.icono || '🏅'}</span>
+                <span>{nivelSeleccionado.nombre}</span>
+              </button>
+            )}
           </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
