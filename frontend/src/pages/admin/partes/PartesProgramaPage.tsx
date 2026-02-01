@@ -148,7 +148,7 @@ export default function PartesProgramaPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4 max-w-5xl space-y-6">
+      <div className="p-4 space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -156,7 +156,7 @@ export default function PartesProgramaPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-5xl space-y-6">
+    <div className="p-4 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

@@ -151,7 +151,7 @@ export default function ConfigPuntajesPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4 max-w-4xl space-y-6">
+      <div className="p-4 space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -159,7 +159,7 @@ export default function ConfigPuntajesPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl space-y-6">
+    <div className="p-4 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Settings className="w-6 h-6 text-blue-600" />

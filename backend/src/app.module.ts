@@ -13,6 +13,7 @@ import { TiposAsistenciaModule } from './tipos-asistencia/tipos-asistencia.modul
 import { WhatsappBotModule } from './whatsapp-bot/whatsapp-bot.module';
 import { InboxModule } from './inbox/inbox.module';
 import { GamificacionModule } from './gamificacion/gamificacion.module';
+import { EstudiosBiblicosModule } from './estudios-biblicos/estudios-biblicos.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { GamificacionModule } from './gamificacion/gamificacion.module';
     WhatsappBotModule,
     InboxModule,
     GamificacionModule,
+    EstudiosBiblicosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

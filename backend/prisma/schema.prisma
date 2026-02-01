@@ -105,6 +105,9 @@ model Usuario {
   gruposRankingCreados    GrupoRanking[]   @relation("GrupoRankingCreador")
   miembrosAgregados       GrupoRankingMiembro[] @relation("MiembroAgregadoPor")
 
+  // === RELACIONES ESTUDIOS BÍBLICOS ===
+  estudiantesBiblicos     EstudianteBiblico[] @relation("EstudiantesBiblicos")
+
   @@map("usuarios")
 }
 
@@ -709,4 +712,66 @@ model GrupoRankingMiembro {
   @@index([grupoId])
   @@index([usuarioId])
   @@map("grupos_ranking_miembros")
+}
+
+// ==================== ESTUDIOS BÍBLICOS ====================
+
+model CursoBiblico {
+  id              Int       @id @default(autoincrement())
+  nombre          String    @unique @db.VarChar(100) // "La fe de Jesús", etc.
+  descripcion     String?   @db.VarChar(255)
+  totalLecciones  Int       @default(20) @map("total_lecciones")
+  orden           Int       @default(0)
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  estudiantes     EstudianteBiblico[]
+
+  @@map("cursos_biblicos")
+}
+
+model EstudianteBiblico {
+  id              Int       @id @default(autoincrement())
+  nombre          String    @db.VarChar(150)
+  fechaNacimiento DateTime? @map("fecha_nacimiento") @db.Date
+  estadoCivil     String?   @map("estado_civil") @db.VarChar(30) // Soltero, Casado, Viudo, Divorciado
+  telefono        String?   @db.VarChar(20)
+  direccion       String?   @db.VarChar(255)
+  notas           String?   @db.Text
+
+  // Relación con curso
+  cursoId         Int       @map("curso_id")
+
+  // Instructor (usuario que lo registró)
+  instructorId    Int       @map("instructor_id")
+
+  // Fecha de bautismo (cuando se bautiza)
+  fechaBautismo   DateTime? @map("fecha_bautismo") @db.Date
+
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  curso           CursoBiblico @relation(fields: [cursoId], references: [id])
+  instructor      Usuario      @relation("EstudiantesBiblicos", fields: [instructorId], references: [id])
+  progreso        ProgresoLeccion[]
+
+  @@index([instructorId])
+  @@index([cursoId])
+  @@map("estudiantes_biblicos")
+}
+
+model ProgresoLeccion {
+  id              Int       @id @default(autoincrement())
+  estudianteId    Int       @map("estudiante_id")
+  leccion         Int       // Número de lección (1-20)
+  completada      Boolean   @default(true)
+  fechaCompletada DateTime  @default(now()) @map("fecha_completada") @db.Date
+  notas           String?   @db.VarChar(255)
+
+  estudiante      EstudianteBiblico @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+
+  @@unique([estudianteId, leccion])
+  @@index([estudianteId])
+  @@map("progreso_lecciones")
 }

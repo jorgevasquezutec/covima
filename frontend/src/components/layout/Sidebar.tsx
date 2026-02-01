@@ -25,6 +25,7 @@ import {
   Medal,
   History,
   UserSearch,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -51,6 +52,7 @@ const navSections: NavSection[] = [
       { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
       { label: 'Ranking', icon: Trophy, href: '/ranking' },
       { label: 'Mi Progreso', icon: Star, href: '/mi-progreso' },
+      { label: 'Mis Estudiantes', icon: BookOpen, href: '/mis-estudiantes' },
     ],
   },
   {

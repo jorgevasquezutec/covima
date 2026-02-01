@@ -2,46 +2,56 @@
 
 ## 1. Resumen Ejecutivo
 
-Sistema para gestionar premios físicos que se otorgan a los ganadores de los rankings al finalizar cada período. Los premios se configuran por período y pueden variar según el grupo de ranking.
+Sistema para configurar y gestionar premios físicos que se otorgan a los ganadores de los rankings al finalizar cada período. Los premios se configuran por período y pueden asignarse a:
+- **Ranking por Nivel**: Premios para los mejores de cada nivel bíblico (Discípulo, Diácono, etc.)
+- **Ranking de Grupos**: Premios para grupos específicos (Líderes, Equipo Música, etc.)
+
+### Lo que YA existe (no modificar):
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ✅ NivelBiblico (10 niveles)                               │
+│     Discípulo → Diácono → Anciano → Levita → Sacerdote     │
+│     → Profeta → Apóstol → Evangelista → Querubín → Serafín │
+│                                                             │
+│  ✅ Ranking por Nivel                                       │
+│     Los usuarios compiten con otros de su mismo nivel       │
+│                                                             │
+│  ✅ Grupos de Ranking                                       │
+│     General, Líderes, personalizados                        │
+│                                                             │
+│  ✅ Períodos de Ranking                                     │
+│     Configurables con fecha inicio/fin                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Lo que se AGREGA:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🆕 PremioRanking                                           │
+│     Configurar premios por período/nivel/grupo              │
+│                                                             │
+│  🆕 PremioGanador                                           │
+│     Registrar ganadores y estado de entrega                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 2. Requisitos
-
-### 2.1 Requisitos Funcionales
+## 2. Requisitos Funcionales
 
 | ID | Requisito | Prioridad |
 |----|-----------|-----------|
 | RF01 | Los premios se configuran por período de ranking | Alta |
-| RF02 | Cada grupo de ranking puede tener premios diferentes | Alta |
-| RF03 | La cantidad de posiciones premiadas es configurable | Alta |
-| RF04 | Los premios son físicos (no digitales) | Alta |
-| RF05 | La entrega de premios es manual (no automática) | Alta |
-| RF06 | Al cerrar un período, se registran los ganadores automáticamente | Alta |
-| RF07 | Se debe poder marcar un premio como "entregado" | Alta |
-| RF08 | Historial de premios ganados por usuario | Media |
-| RF09 | Reportes de premios pendientes de entrega | Media |
-
-### 2.2 Casos de Uso
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        ADMIN                                 │
-├─────────────────────────────────────────────────────────────┤
-│  • Crear/editar premios para un período                     │
-│  • Asignar premios a grupos de ranking específicos          │
-│  • Definir qué posiciones reciben qué premio                │
-│  • Cerrar período (auto-registra ganadores)                 │
-│  • Marcar premio como entregado                             │
-│  • Ver reportes de premios pendientes                       │
-├─────────────────────────────────────────────────────────────┤
-│                       USUARIO                                │
-├─────────────────────────────────────────────────────────────┤
-│  • Ver premios disponibles del período actual               │
-│  • Ver historial de premios ganados                         │
-│  • Ver estado de entrega de sus premios                     │
-└─────────────────────────────────────────────────────────────┘
-```
+| RF02 | Premios pueden asignarse a niveles bíblicos específicos | Alta |
+| RF03 | Premios pueden asignarse a grupos de ranking | Alta |
+| RF04 | La cantidad de posiciones premiadas es configurable (1°, 2°, 3°...) | Alta |
+| RF05 | Al cerrar período, se registran ganadores automáticamente | Alta |
+| RF06 | Se debe poder marcar un premio como "entregado" | Alta |
+| RF07 | Historial de premios ganados por usuario | Media |
+| RF08 | Notificación por WhatsApp a ganadores | Media |
+| RF09 | Reportes de premios pendientes de entrega | Baja |
 
 ---
 
@@ -50,73 +60,74 @@ Sistema para gestionar premios físicos que se otorgan a los ganadores de los ra
 ### 3.1 Diagrama Entidad-Relación
 
 ```
-┌──────────────────┐         ┌──────────────────┐
-│  PeriodoRanking  │         │   GrupoRanking   │
-│  ──────────────  │         │   ────────────   │
-│  id              │         │   id             │
-│  nombre          │         │   codigo         │
-│  estado          │         │   nombre         │
-│  fechaInicio     │         │   tipo           │
-│  fechaFin        │         │                  │
-└────────┬─────────┘         └────────┬─────────┘
-         │                            │
-         │    ┌───────────────────────┘
-         │    │
-         ▼    ▼
-┌──────────────────────────────────────────────────┐
-│              PremioRanking                        │
-│              ──────────────                       │
-│  id                                              │
-│  periodoId        → PeriodoRanking.id            │
-│  grupoRankingId?  → GrupoRanking.id (nullable)   │
-│  posicion         (1, 2, 3, etc.)                │
-│  nombre           ("Biblia de Estudio")          │
-│  descripcion      ("Biblia RVR1960 tapa dura")   │
-│  imagenUrl?       (foto del premio)              │
-│  activo           (true/false)                   │
-│  createdAt                                       │
-│  updatedAt                                       │
-└────────────────────┬─────────────────────────────┘
-                     │
-                     │ (se crea al cerrar período)
-                     ▼
-┌──────────────────────────────────────────────────┐
-│              PremioGanador                        │
-│              ─────────────                        │
-│  id                                              │
-│  premioRankingId  → PremioRanking.id             │
-│  usuarioId        → Usuario.id                   │
-│  posicionFinal    (posición en que quedó)        │
-│  puntosFinales    (puntos al cerrar período)     │
-│  estado           (PENDIENTE/ENTREGADO)          │
-│  fechaRegistro    (cuando se cerró el período)   │
-│  fechaEntrega?    (cuando se entregó)            │
-│  entregadoPorId?  → Usuario.id (admin)           │
-│  notas?           (observaciones de entrega)     │
-│  createdAt                                       │
-│  updatedAt                                       │
-└──────────────────────────────────────────────────┘
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  PeriodoRanking  │     │   NivelBiblico   │     │   GrupoRanking   │
+│  ──────────────  │     │   ────────────   │     │   ────────────   │
+│  id              │     │   id             │     │   id             │
+│  nombre          │     │   nombre         │     │   codigo         │
+│  estado          │     │   numero         │     │   nombre         │
+│  fechaInicio     │     │   icono          │     │   tipo           │
+│  fechaFin        │     │                  │     │                  │
+└────────┬─────────┘     └────────┬─────────┘     └────────┬─────────┘
+         │                        │                        │
+         │         ┌──────────────┴────────────────────────┘
+         │         │
+         ▼         ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      PremioRanking                            │
+│                      ──────────────                           │
+│  id                                                          │
+│  periodoId          → PeriodoRanking.id                      │
+│  nivelId?           → NivelBiblico.id (null = no aplica)     │
+│  grupoRankingId?    → GrupoRanking.id (null = no aplica)     │
+│  posicion           (1 = 1° lugar, 2 = 2° lugar, etc.)       │
+│  nombre             ("Biblia de Estudio")                    │
+│  descripcion        ("Biblia RVR1960 tapa dura")             │
+│  imagenUrl?         (foto del premio)                        │
+│  activo             (true/false)                             │
+└────────────────────────────┬─────────────────────────────────┘
+                             │
+                             │ (se crea al cerrar período)
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      PremioGanador                            │
+│                      ─────────────                            │
+│  id                                                          │
+│  premioRankingId    → PremioRanking.id                       │
+│  usuarioId          → Usuario.id                             │
+│  posicionFinal      (posición en que quedó)                  │
+│  puntosFinales      (puntos al cerrar período)               │
+│  estado             (PENDIENTE / ENTREGADO)                  │
+│  fechaRegistro      (cuando se cerró el período)             │
+│  fechaEntrega?      (cuando se entregó físicamente)          │
+│  entregadoPorId?    → Usuario.id (admin que entregó)         │
+│  notas?             (observaciones)                          │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### 3.2 Esquema Prisma
 
 ```prisma
-// Configuración de premios por período y grupo
+// Configuración de premios por período
 model PremioRanking {
   id              Int           @id @default(autoincrement())
 
-  // Relaciones
+  // Período al que pertenece
   periodoId       Int
   periodo         PeriodoRanking @relation(fields: [periodoId], references: [id])
 
-  grupoRankingId  Int?          // null = aplica a TODOS los grupos
+  // A quién aplica el premio (solo uno debe tener valor)
+  nivelId         Int?          // Premio para ranking de este nivel
+  nivel           NivelBiblico? @relation(fields: [nivelId], references: [id])
+
+  grupoRankingId  Int?          // Premio para este grupo de ranking
   grupoRanking    GrupoRanking? @relation(fields: [grupoRankingId], references: [id])
 
   // Configuración del premio
   posicion        Int           // 1 = primer lugar, 2 = segundo, etc.
-  nombre          String        // "Biblia de Estudio"
-  descripcion     String?       // Descripción detallada
-  imagenUrl       String?       // URL de imagen del premio
+  nombre          String        @db.VarChar(100)
+  descripcion     String?       @db.Text
+  imagenUrl       String?       @db.VarChar(500)
 
   activo          Boolean       @default(true)
   createdAt       DateTime      @default(now())
@@ -125,11 +136,14 @@ model PremioRanking {
   // Ganadores de este premio
   ganadores       PremioGanador[]
 
-  @@unique([periodoId, grupoRankingId, posicion]) // Un premio por posición por grupo
+  // Un premio por posición por nivel/grupo en un período
+  @@unique([periodoId, nivelId, posicion])
+  @@unique([periodoId, grupoRankingId, posicion])
+  @@index([periodoId])
   @@map("premios_ranking")
 }
 
-// Registro de ganadores (se crea al cerrar período)
+// Registro de ganadores
 model PremioGanador {
   id               Int            @id @default(autoincrement())
 
@@ -146,22 +160,24 @@ model PremioGanador {
 
   // Estado de entrega
   estado           EstadoPremio   @default(PENDIENTE)
-  fechaRegistro    DateTime       @default(now()) // Cuando se cerró el período
-  fechaEntrega     DateTime?      // Cuando se entregó físicamente
+  fechaRegistro    DateTime       @default(now())
+  fechaEntrega     DateTime?
   entregadoPorId   Int?
   entregadoPor     Usuario?       @relation("PremioEntregadoPor", fields: [entregadoPorId], references: [id])
-  notas            String?        // Observaciones
+  notas            String?        @db.Text
 
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  @@unique([premioRankingId, usuarioId]) // Un usuario solo puede ganar un premio específico una vez
+  @@unique([premioRankingId, usuarioId])
+  @@index([usuarioId])
+  @@index([estado])
   @@map("premios_ganadores")
 }
 
 enum EstadoPremio {
-  PENDIENTE   // Aún no se ha entregado
-  ENTREGADO   // Ya se entregó físicamente
+  PENDIENTE
+  ENTREGADO
 }
 ```
 
@@ -179,40 +195,56 @@ enum EstadoPremio {
 │  2. Selecciona "Gestionar Premios"                          │
 │                           │                                  │
 │                           ▼                                  │
-│  3. Para cada grupo de ranking (o "Todos"):                 │
+│  3. Configura premios por nivel bíblico:                    │
 │     ┌─────────────────────────────────────────────┐        │
-│     │  • Posición 1: [Nombre] [Descripción] [Foto]│        │
-│     │  • Posición 2: [Nombre] [Descripción] [Foto]│        │
-│     │  • Posición 3: [Nombre] [Descripción] [Foto]│        │
-│     │  • + Agregar posición                        │        │
+│     │  Nivel Sacerdote:                            │        │
+│     │  • 1° lugar: Biblia de Estudio [+ imagen]   │        │
+│     │  • 2° lugar: Libro devocional  [+ imagen]   │        │
+│     │  [+ Agregar posición]                        │        │
 │     └─────────────────────────────────────────────┘        │
 │                           │                                  │
 │                           ▼                                  │
-│  4. Guardar configuración                                   │
+│  4. Configura premios por grupo:                            │
+│     ┌─────────────────────────────────────────────┐        │
+│     │  Grupo Líderes:                              │        │
+│     │  • 1° lugar: Kit de liderazgo [+ imagen]    │        │
+│     │  [+ Agregar posición]                        │        │
+│     └─────────────────────────────────────────────┘        │
+│                           │                                  │
+│                           ▼                                  │
+│  5. Guardar configuración                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Cierre de Período y Asignación de Ganadores
+### 4.2 Cierre de Período (Automático)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  1. Admin cierra el período de ranking                      │
 │                           │                                  │
 │                           ▼                                  │
-│  2. Sistema obtiene ranking final de cada grupo             │
-│                           │                                  │
-│                           ▼                                  │
-│  3. Para cada PremioRanking configurado:                    │
+│  2. Sistema procesa premios por NIVEL:                      │
 │     ┌─────────────────────────────────────────────┐        │
-│     │  a. Obtener usuario en esa posición         │        │
-│     │  b. Crear registro PremioGanador            │        │
-│     │     - estado: PENDIENTE                     │        │
-│     │     - posicionFinal: posición del usuario   │        │
-│     │     - puntosFinales: puntos del usuario     │        │
+│     │  Para cada nivel con premios configurados:  │        │
+│     │  a. Obtener ranking del nivel               │        │
+│     │  b. Para cada posición premiada:            │        │
+│     │     - Obtener usuario en esa posición       │        │
+│     │     - Crear PremioGanador (PENDIENTE)       │        │
 │     └─────────────────────────────────────────────┘        │
 │                           │                                  │
 │                           ▼                                  │
-│  4. Notificar a ganadores (opcional)                        │
+│  3. Sistema procesa premios por GRUPO:                      │
+│     ┌─────────────────────────────────────────────┐        │
+│     │  Para cada grupo con premios configurados:  │        │
+│     │  a. Obtener ranking del grupo               │        │
+│     │  b. Para cada posición premiada:            │        │
+│     │     - Obtener usuario en esa posición       │        │
+│     │     - Crear PremioGanador (PENDIENTE)       │        │
+│     └─────────────────────────────────────────────┘        │
+│                           │                                  │
+│                           ▼                                  │
+│  4. Notificar ganadores por WhatsApp                        │
+│     "🎉 ¡Felicidades! Ganaste el 1° lugar..."              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -223,7 +255,7 @@ enum EstadoPremio {
 │  1. Admin ve lista de premios pendientes                    │
 │                           │                                  │
 │                           ▼                                  │
-│  2. Filtrar por período/grupo/estado                        │
+│  2. Filtrar por período / nivel / grupo / estado            │
 │                           │                                  │
 │                           ▼                                  │
 │  3. Seleccionar premio a entregar                           │
@@ -235,9 +267,6 @@ enum EstadoPremio {
 │     │  • Notas: [opcional]                        │        │
 │     │  • Entregado por: [auto: admin actual]      │        │
 │     └─────────────────────────────────────────────┘        │
-│                           │                                  │
-│                           ▼                                  │
-│  5. Guardar y actualizar estado                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -249,11 +278,14 @@ enum EstadoPremio {
 
 ```
 POST   /api/gamificacion/premios
-       Crear premio para un período/grupo/posición
-       Body: { periodoId, grupoRankingId?, posicion, nombre, descripcion?, imagenUrl? }
+       Crear premio para un período
+       Body: { periodoId, nivelId?, grupoRankingId?, posicion, nombre, descripcion?, imagenUrl? }
 
-GET    /api/gamificacion/premios?periodoId=X&grupoRankingId=Y
-       Listar premios configurados
+GET    /api/gamificacion/premios?periodoId=X
+       Listar premios configurados para un período
+
+GET    /api/gamificacion/premios/:id
+       Obtener detalle de un premio
 
 PUT    /api/gamificacion/premios/:id
        Actualizar premio
@@ -266,7 +298,7 @@ DELETE /api/gamificacion/premios/:id
 
 ```
 GET    /api/gamificacion/premios/ganadores?periodoId=X&estado=PENDIENTE
-       Listar ganadores (filtrable por período, grupo, estado)
+       Listar ganadores (filtrable por período, nivel, grupo, estado)
 
 PUT    /api/gamificacion/premios/ganadores/:id/entregar
        Marcar premio como entregado
@@ -282,86 +314,115 @@ GET    /api/gamificacion/premios/ganadores/pendientes
 GET    /api/gamificacion/mis-premios
        Historial de premios ganados por el usuario actual
 
-GET    /api/gamificacion/premios/periodo/:periodoId/disponibles
-       Ver premios disponibles en el período actual (motivación)
+GET    /api/gamificacion/premios/disponibles?periodoId=X
+       Ver premios disponibles en el período actual (para motivación)
 ```
 
 ---
 
 ## 6. Interfaces de Usuario
 
-### 6.1 Admin: Configuración de Premios
+### 6.1 Usuario: Vista en Ranking
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Premios - Período Q1 2026                            [+ Nuevo]│
+│  📊 Ranking Sacerdotes - Enero 2026                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌─── Ranking General ───────────────────────────────────┐ │
-│  │ 🥇 1° lugar: Biblia de Estudio Thompson    [Editar]   │ │
-│  │ 🥈 2° lugar: Libro "El Conflicto"          [Editar]   │ │
-│  │ 🥉 3° lugar: Cuaderno de notas premium     [Editar]   │ │
-│  │                                    [+ Agregar premio]  │ │
-│  └───────────────────────────────────────────────────────┘ │
+│  🏆 PREMIOS DISPONIBLES                                     │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 🥇 1° lugar: Biblia de Estudio Thompson             │   │
+│  │ 🥈 2° lugar: Libro "El Conflicto"                   │   │
+│  │ 🥉 3° lugar: Cuaderno de notas premium              │   │
+│  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  ┌─── Ranking Líderes ───────────────────────────────────┐ │
-│  │ 🥇 1° lugar: Kit de liderazgo              [Editar]   │ │
-│  │ 🥈 2° lugar: Libro "Liderazgo 101"         [Editar]   │ │
-│  │                                    [+ Agregar premio]  │ │
-│  └───────────────────────────────────────────────────────┘ │
-│                                                             │
-│  ┌─── Sin grupo (aplica a todos) ────────────────────────┐ │
-│  │ (vacío)                            [+ Agregar premio]  │ │
-│  └───────────────────────────────────────────────────────┘ │
+│  RANKING:                                                   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  🥇 1. María García      ████████████████  850 pts  │   │
+│  │  🥈 2. Juan Pérez        ██████████████    720 pts  │   │
+│  │  🥉 3. Pedro López       █████████████     680 pts  │   │
+│  │     4. Ana Martínez      ████████████      620 pts  │   │
+│  │     ...                                              │   │
+│  │    12. TÚ                ████████          420 pts ◄│   │
+│  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 Admin: Entrega de Premios
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Entrega de Premios                                         │
-├─────────────────────────────────────────────────────────────┤
-│  Período: [Q1 2026 ▼]  Grupo: [Todos ▼]  Estado: [Pendiente ▼]│
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐ │
-│  │ 👤 María García                                       │ │
-│  │    🏆 1° lugar - Ranking General                      │ │
-│  │    🎁 Biblia de Estudio Thompson                      │ │
-│  │    📊 2,450 puntos                                    │ │
-│  │    ⏳ Pendiente                      [Marcar Entregado]│ │
-│  └───────────────────────────────────────────────────────┘ │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐ │
-│  │ 👤 Juan Pérez                                         │ │
-│  │    🏆 2° lugar - Ranking General                      │ │
-│  │    🎁 Libro "El Conflicto"                            │ │
-│  │    📊 2,280 puntos                                    │ │
-│  │    ⏳ Pendiente                      [Marcar Entregado]│ │
-│  └───────────────────────────────────────────────────────┘ │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 6.3 Usuario: Mis Premios
+### 6.2 Usuario: Mis Premios
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  🏆 Mis Premios                                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌─── Q4 2025 ───────────────────────────────────────────┐ │
-│  │ 🥇 1° lugar en Ranking General                        │ │
-│  │    Premio: Biblia de Estudio Thompson                 │ │
-│  │    ✅ Entregado el 15 de enero 2026                   │ │
+│  ┌─── Enero 2026 ───────────────────────────────────────┐  │
+│  │ 🥇 1° lugar en Ranking Sacerdotes                    │  │
+│  │    🎁 Biblia de Estudio Thompson                     │  │
+│  │    ✅ Entregado el 15 de febrero 2026                │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌─── Diciembre 2025 ───────────────────────────────────┐  │
+│  │ 🥉 3° lugar en Ranking Líderes                       │  │
+│  │    🎁 Cuaderno de notas premium                      │  │
+│  │    ⏳ Pendiente de entrega                           │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 6.3 Admin: Configuración de Premios
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Premios - Período Enero 2026                     [+ Nuevo] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  POR NIVEL BÍBLICO:                                         │
+│  ┌─── 🙏 Sacerdote ─────────────────────────────────────┐  │
+│  │ 🥇 1° lugar: Biblia de Estudio Thompson  [Editar][X] │  │
+│  │ 🥈 2° lugar: Libro "El Conflicto"        [Editar][X] │  │
+│  │                                  [+ Agregar premio]   │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌─── 📜 Profeta ───────────────────────────────────────┐  │
+│  │ 🥇 1° lugar: Viaje a retiro          [Editar][X]     │  │
+│  │                                  [+ Agregar premio]   │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│  POR GRUPO:                                                 │
+│  ┌─── 👑 Líderes ───────────────────────────────────────┐  │
+│  │ 🥇 1° lugar: Kit de liderazgo        [Editar][X]     │  │
+│  │ 🥈 2° lugar: Libro "Liderazgo 101"   [Editar][X]     │  │
+│  │                                  [+ Agregar premio]   │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 6.4 Admin: Entrega de Premios
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Entrega de Premios                                         │
+├─────────────────────────────────────────────────────────────┤
+│  Período: [Enero 2026 ▼]  Estado: [Pendiente ▼]             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │ 👤 María García                                       │ │
+│  │    🏆 1° lugar - Ranking Sacerdotes                   │ │
+│  │    🎁 Biblia de Estudio Thompson                      │ │
+│  │    📊 850 puntos                                      │ │
+│  │    ⏳ Pendiente                     [Marcar Entregado] │ │
 │  └───────────────────────────────────────────────────────┘ │
 │                                                             │
-│  ┌─── Q3 2025 ───────────────────────────────────────────┐ │
-│  │ 🥉 3° lugar en Ranking Líderes                        │ │
-│  │    Premio: Cuaderno de notas premium                  │ │
-│  │    ✅ Entregado el 10 de octubre 2025                 │ │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │ 👤 Juan Pérez                                         │ │
+│  │    🏆 1° lugar - Grupo Líderes                        │ │
+│  │    🎁 Kit de liderazgo                                │ │
+│  │    📊 1,280 puntos                                    │ │
+│  │    ⏳ Pendiente                     [Marcar Entregado] │ │
 │  └───────────────────────────────────────────────────────┘ │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -388,16 +449,23 @@ async cerrarPeriodo(periodoId: number, adminId: number) {
 private async asignarPremiosGanadores(periodoId: number) {
   // 1. Obtener todos los premios configurados para este período
   const premios = await this.prisma.premioRanking.findMany({
-    where: { periodoId, activo: true }
+    where: { periodoId, activo: true },
+    include: { nivel: true, grupoRanking: true }
   });
 
-  // 2. Para cada premio, obtener el ranking correspondiente
   for (const premio of premios) {
-    const ranking = await this.getRankingGrupo(
-      premio.grupoRankingId,
-      periodoId,
-      premio.posicion // limit
-    );
+    let ranking: any[];
+
+    // 2. Obtener ranking correspondiente
+    if (premio.nivelId) {
+      // Premio por nivel bíblico
+      ranking = await this.getRankingNivel(premio.nivelId, periodoId);
+    } else if (premio.grupoRankingId) {
+      // Premio por grupo
+      ranking = await this.getRankingGrupo(premio.grupoRankingId, periodoId);
+    } else {
+      continue; // No tiene nivel ni grupo, saltar
+    }
 
     // 3. Obtener usuario en la posición del premio
     const ganador = ranking.find(r => r.posicion === premio.posicion);
@@ -413,6 +481,9 @@ private async asignarPremiosGanadores(periodoId: number) {
           estado: 'PENDIENTE'
         }
       });
+
+      // 5. Notificar por WhatsApp
+      await this.notificarPremioGanado(ganador.usuarioId, premio);
     }
   }
 }
@@ -420,6 +491,7 @@ private async asignarPremiosGanadores(periodoId: number) {
 
 ### 7.2 Validaciones
 
+- Premio debe tener `nivelId` O `grupoRankingId`, no ambos
 - No se puede eliminar un `PremioRanking` si tiene `PremioGanador` asociados
 - No se pueden crear premios para períodos ya cerrados
 - No se puede marcar como entregado un premio que ya está entregado
@@ -442,30 +514,47 @@ CREATE INDEX idx_premios_ganadores_usuario ON premios_ganadores(usuario_id);
 
 ## 8. Plan de Implementación
 
-### Fase 1: Base de Datos (Backend)
-- [ ] Crear migración Prisma con modelos
-- [ ] Actualizar relaciones en modelos existentes
+### Fase 1: Base de Datos
+- [ ] Crear modelo `PremioRanking` en Prisma
+- [ ] Crear modelo `PremioGanador` en Prisma
+- [ ] Crear enum `EstadoPremio`
+- [ ] Agregar relaciones a `NivelBiblico`, `GrupoRanking`, `PeriodoRanking`
+- [ ] Crear y ejecutar migración
 
 ### Fase 2: API Backend
 - [ ] CRUD de PremioRanking
-- [ ] Gestión de PremioGanador
-- [ ] Integrar con cierre de período
-- [ ] Endpoint mis-premios para usuarios
+- [ ] Endpoints de gestión de PremioGanador
+- [ ] Integrar con `cerrarPeriodo()` para asignar ganadores
+- [ ] Endpoint `/mis-premios` para usuarios
+- [ ] Endpoint `/premios/disponibles` para mostrar en rankings
 
-### Fase 3: Frontend Admin
+### Fase 3: Notificaciones
+- [ ] Mensaje WhatsApp cuando gana un premio
+- [ ] Mensaje WhatsApp cuando se entrega el premio
+
+### Fase 4: Frontend Admin
 - [ ] Página de configuración de premios por período
-- [ ] Página de entrega de premios
-- [ ] Integrar en dashboard de admin
+- [ ] Página de entrega de premios (lista + marcar entregado)
+- [ ] Integrar en menú de administración
 
-### Fase 4: Frontend Usuario
+### Fase 5: Frontend Usuario
+- [ ] Mostrar premios disponibles en vista de ranking
 - [ ] Sección "Mis Premios" en Mi Progreso
-- [ ] Mostrar premios disponibles en ranking actual
+- [ ] Badge/indicador cuando tiene premio pendiente
 
 ---
 
-## 9. Preguntas Pendientes
+## 9. Preguntas Resueltas
 
-1. ¿Se deben notificar a los ganadores por WhatsApp/email?
-2. ¿Se requiere foto de evidencia al entregar el premio?
-3. ¿Los premios deben tener un valor monetario estimado para reportes?
-4. ¿Se necesita un catálogo de premios reutilizables entre períodos?
+| Pregunta | Decisión |
+|----------|----------|
+| ¿Notificar ganadores por WhatsApp? | ✅ Sí |
+| ¿Sistema de ligas con descenso? | ❌ No - El ranking por nivel ya funciona bien |
+| ¿Premios digitales o físicos? | Físicos (entrega manual) |
+
+## 10. Preguntas Pendientes
+
+1. ¿Se requiere foto de evidencia al entregar el premio?
+2. ¿Los premios deben tener un valor monetario estimado para reportes?
+3. ¿Se necesita un catálogo de premios reutilizables entre períodos?
+4. ¿Qué pasa si hay empate en puntos para una posición premiada?

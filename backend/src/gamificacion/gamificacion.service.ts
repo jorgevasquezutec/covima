@@ -1908,12 +1908,13 @@ export class GamificacionService {
   // ==================== RANKING POR NIVEL ====================
 
   /**
-   * Obtener ranking de un nivel específico
+   * Obtener ranking de un nivel específico con paginación
    */
   async getRankingNivel(
     nivelId: number,
     periodoId?: number,
-    limit: number = 50,
+    page: number = 1,
+    limit: number = 20,
   ) {
     // Determinar el período
     let periodo: { id: number } | null = null;
@@ -1925,7 +1926,9 @@ export class GamificacionService {
       periodo = await this.getPeriodoActivo();
     }
 
-    if (!periodo) return [];
+    if (!periodo) {
+      return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+    }
 
     // Obtener todos los usuarios de este nivel
     const usuariosDelNivel = await this.prisma.usuarioGamificacion.findMany({
@@ -1933,11 +1936,13 @@ export class GamificacionService {
       select: { id: true, usuarioId: true },
     });
 
-    if (usuariosDelNivel.length === 0) return [];
+    if (usuariosDelNivel.length === 0) {
+      return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+    }
 
     const usuarioGamIds = usuariosDelNivel.map((u) => u.id);
 
-    // Obtener puntos del período para estos usuarios
+    // Obtener puntos del período para estos usuarios (todos para ordenar correctamente)
     const puntosAgrupados = await this.prisma.historialPuntos.groupBy({
       by: ['usuarioGamId'],
       where: {
@@ -1946,11 +1951,15 @@ export class GamificacionService {
       },
       _sum: { puntos: true },
       orderBy: { _sum: { puntos: 'desc' } },
-      take: limit,
     });
 
+    const total = puntosAgrupados.length;
+    const totalPages = Math.ceil(total / limit);
+    const skip = (page - 1) * limit;
+    const paginados = puntosAgrupados.slice(skip, skip + limit);
+
     // Obtener información completa de los usuarios
-    const perfilesIds = puntosAgrupados.map((p) => p.usuarioGamId);
+    const perfilesIds = paginados.map((p) => p.usuarioGamId);
     const perfiles = await this.prisma.usuarioGamificacion.findMany({
       where: { id: { in: perfilesIds } },
       include: {
@@ -1961,10 +1970,10 @@ export class GamificacionService {
 
     const perfilesMap = new Map(perfiles.map((p) => [p.id, p]));
 
-    return puntosAgrupados.map((p, index) => {
+    const data = paginados.map((p, index) => {
       const perfil = perfilesMap.get(p.usuarioGamId);
       return {
-        posicion: index + 1,
+        posicion: skip + index + 1,
         usuarioId: perfil?.usuario.id,
         nombre: perfil?.usuario.nombre || 'Usuario',
         fotoUrl: perfil?.usuario.fotoUrl,
@@ -1976,6 +1985,8 @@ export class GamificacionService {
         asistenciasTotales: perfil?.asistenciasTotales || 0,
       };
     });
+
+    return { data, meta: { total, page, limit, totalPages } };
   }
 
   /**
@@ -2018,7 +2029,8 @@ export class GamificacionService {
       // Obtener top 3 del nivel (si hay período activo)
       let top3: any[] = [];
       if (periodo) {
-        top3 = await this.getRankingNivel(nivel.id, periodo.id, 3);
+        const rankingResult = await this.getRankingNivel(nivel.id, periodo.id, 1, 3);
+        top3 = rankingResult.data;
       }
 
       rankings.push({

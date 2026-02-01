@@ -10,9 +10,9 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { LayoutTemplate, Plus, Edit2, Trash2, Star, GripVertical, Check } from 'lucide-react';
+import { LayoutTemplate, Plus, Edit2, Trash2, Star, GripVertical } from 'lucide-react';
 import { programasApi } from '@/services/api';
-import type { PlantillaPrograma, Parte } from '@/types';
+import type { PlantillaPrograma, PlantillaParte, Parte } from '@/types';
 import { toast } from 'sonner';
 import {
   DndContext,
@@ -321,7 +321,7 @@ export default function PlantillasProgramaPage() {
                     <span className="font-medium">{plantilla.partes.length}</span> partes
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    {plantilla.partes.slice(0, 5).map((pp) => (
+                    {plantilla.partes.slice(0, 5).map((pp: PlantillaParte) => (
                       <Badge key={pp.id} variant="outline" className="text-xs bg-gray-50">
                         {pp.parte.nombre}
                       </Badge>

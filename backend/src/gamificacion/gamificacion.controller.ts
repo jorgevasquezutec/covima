@@ -96,12 +96,14 @@ export class GamificacionController {
   async getRankingNivel(
     @Param('nivelId', ParseIntPipe) nivelId: number,
     @Query('periodoId') periodoId?: string,
+    @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.gamificacionService.getRankingNivel(
       nivelId,
       periodoId ? parseInt(periodoId) : undefined,
-      limit ? parseInt(limit) : 50,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
     );
   }
 
@@ -188,8 +190,12 @@ export class GamificacionController {
 
   // Eventos especiales disponibles
   @Get('eventos-especiales')
-  async getEventosEspeciales() {
-    return this.gamificacionService.getEventosEspeciales();
+  async getEventosEspeciales(
+    @Query('incluirInactivos') incluirInactivos?: string,
+  ) {
+    return this.gamificacionService.getEventosEspeciales(
+      incluirInactivos === 'true',
+    );
   }
 
   // === ADMIN ENDPOINTS ===

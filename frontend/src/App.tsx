@@ -19,6 +19,7 @@ import { RankingPage, MiProgresoPage } from '@/pages/gamificacion';
 import { ConfigPuntajesPage, RegistroEventoPage, EventosPage, PeriodosRankingPage, GruposRankingPage, NivelesPage, HistorialPuntosPage } from '@/pages/admin/gamificacion';
 import { PartesProgramaPage } from '@/pages/admin/partes';
 import { PlantillasProgramaPage } from '@/pages/admin/plantillas';
+import { MisEstudiantesPage, EstudianteDetallePage } from '@/pages/estudios-biblicos';
 import SeguimientoPage from '@/pages/admin/SeguimientoPage';
 
 function App() {
@@ -135,6 +136,27 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <MiProgresoPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Estudios Bíblicos */}
+        <Route
+          path="/mis-estudiantes"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <MisEstudiantesPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mis-estudiantes/:id"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <EstudianteDetallePage />
               </MainLayout>
             </ProtectedRoute>
           }

@@ -70,6 +70,7 @@ export class GruposRankingController {
   async getRankingGrupo(
     @Param('id', ParseIntPipe) id: number,
     @Query('periodoId') periodoId?: string,
+    @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Request() req?,
   ) {
@@ -77,7 +78,8 @@ export class GruposRankingController {
       id,
       req.user.id,
       periodoId ? parseInt(periodoId) : undefined,
-      limit ? parseInt(limit) : 50,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
     );
   }
 

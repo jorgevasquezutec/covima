@@ -38,10 +38,20 @@ export default function EventosPage() {
     color: '#2563EB',
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const { data: eventos, isLoading } = useQuery({
     queryKey: ['eventos-especiales-admin'],
-    queryFn: gamificacionApi.getEventosEspeciales,
+    queryFn: () => gamificacionApi.getEventosEspeciales(true),
   });
+
+  // Paginación
+  const totalPages = eventos ? Math.ceil(eventos.length / itemsPerPage) : 0;
+  const paginatedEventos = eventos?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const crearMutation = useMutation({
     mutationFn: gamificacionApi.crearEvento,
@@ -166,7 +176,7 @@ export default function EventosPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4 max-w-4xl space-y-6">
+      <div className="p-4 space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -174,7 +184,7 @@ export default function EventosPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl space-y-6">
+    <div className="p-4 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -207,7 +217,7 @@ export default function EventosPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {eventos?.map((evento) => (
+              {paginatedEventos?.map((evento) => (
                 <TableRow key={evento.id} className={!evento.activo ? 'opacity-50' : ''}>
                   <TableCell>
                     <div
@@ -268,6 +278,46 @@ export default function EventosPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t mt-4">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, eventos?.length || 0)} de {eventos?.length || 0} eventos
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-8 h-8 p-0"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

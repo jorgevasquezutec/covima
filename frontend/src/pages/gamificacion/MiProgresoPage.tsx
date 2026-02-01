@@ -71,7 +71,7 @@ export default function MiProgresoPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-3 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
+      <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -80,7 +80,7 @@ export default function MiProgresoPage() {
 
   if (!progreso) {
     return (
-      <div className="container mx-auto p-3 sm:p-4 max-w-4xl">
+      <div className="p-3 sm:p-4">
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Error al cargar tu progreso</p>
@@ -94,7 +94,7 @@ export default function MiProgresoPage() {
   const nivelesOrdenados = niveles ? [...niveles].sort((a, b) => b.numero - a.numero) : [];
 
   return (
-    <div className="container mx-auto p-3 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
       {/* Header compacto con stats */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>

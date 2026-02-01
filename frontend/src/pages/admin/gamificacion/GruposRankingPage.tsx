@@ -277,7 +277,7 @@ export default function GruposRankingPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-3 py-4 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
+      <div className="px-3 py-4 sm:p-4 space-y-4 sm:space-y-6">
         <Skeleton className="h-10 w-48 sm:w-64" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -285,7 +285,7 @@ export default function GruposRankingPage() {
   }
 
   return (
-    <div className="container mx-auto px-3 py-4 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
+    <div className="px-3 py-4 sm:p-4 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

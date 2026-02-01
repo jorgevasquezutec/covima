@@ -15,6 +15,7 @@ import type {
   RankingsPorNivelResponse,
   PosicionEnNivel,
   EstadisticasDashboard,
+  PlantillaPrograma,
 } from '@/types';
 
 // En desarrollo, usar la misma IP/host del navegador para la API
@@ -382,6 +383,85 @@ export const programasApi = {
   },
 };
 
+// ==================== ESTUDIOS BÍBLICOS API ====================
+
+import type {
+  CursoBiblico,
+  EstudianteBiblico,
+  EstadisticasEstudiosBiblicos,
+} from '@/types';
+
+export const estudiosBiblicosApi = {
+  getCursos: async (): Promise<CursoBiblico[]> => {
+    const response = await api.get<CursoBiblico[]>('/estudios-biblicos/cursos');
+    return response.data;
+  },
+
+  getMisEstudiantes: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    cursoId?: number;
+  }): Promise<PaginatedResponse<EstudianteBiblico>> => {
+    const response = await api.get<PaginatedResponse<EstudianteBiblico>>(
+      '/estudios-biblicos/mis-estudiantes',
+      { params }
+    );
+    return response.data;
+  },
+
+  getEstudiante: async (id: number): Promise<EstudianteBiblico> => {
+    const response = await api.get<EstudianteBiblico>(`/estudios-biblicos/estudiantes/${id}`);
+    return response.data;
+  },
+
+  createEstudiante: async (data: {
+    nombre: string;
+    fechaNacimiento?: string;
+    estadoCivil?: string;
+    telefono?: string;
+    direccion?: string;
+    notas?: string;
+    cursoId: number;
+  }): Promise<EstudianteBiblico> => {
+    const response = await api.post<EstudianteBiblico>('/estudios-biblicos/estudiantes', data);
+    return response.data;
+  },
+
+  updateEstudiante: async (id: number, data: {
+    nombre?: string;
+    fechaNacimiento?: string;
+    estadoCivil?: string;
+    telefono?: string;
+    direccion?: string;
+    notas?: string;
+    cursoId?: number;
+    fechaBautismo?: string;
+  }): Promise<EstudianteBiblico> => {
+    const response = await api.put<EstudianteBiblico>(`/estudios-biblicos/estudiantes/${id}`, data);
+    return response.data;
+  },
+
+  deleteEstudiante: async (id: number): Promise<void> => {
+    await api.delete(`/estudios-biblicos/estudiantes/${id}`);
+  },
+
+  toggleLeccion: async (estudianteId: number, leccion: number): Promise<{
+    leccion: number;
+    completada: boolean;
+    fechaCompletada?: string;
+    message: string;
+  }> => {
+    const response = await api.post(`/estudios-biblicos/estudiantes/${estudianteId}/lecciones/${leccion}/toggle`);
+    return response.data;
+  },
+
+  getEstadisticas: async (): Promise<EstadisticasEstudiosBiblicos> => {
+    const response = await api.get<EstadisticasEstudiosBiblicos>('/estudios-biblicos/estadisticas');
+    return response.data;
+  },
+};
+
 // ==================== TIPOS DE ASISTENCIA API ====================
 
 import type {
@@ -695,8 +775,9 @@ export const gamificacionApi = {
     return response.data;
   },
 
-  getEventosEspeciales: async (): Promise<EventoEspecialConfig[]> => {
-    const response = await api.get<EventoEspecialConfig[]>('/gamificacion/eventos-especiales');
+  getEventosEspeciales: async (incluirInactivos = false): Promise<EventoEspecialConfig[]> => {
+    const params = incluirInactivos ? { incluirInactivos: 'true' } : {};
+    const response = await api.get<EventoEspecialConfig[]>('/gamificacion/eventos-especiales', { params });
     return response.data;
   },
 
@@ -823,10 +904,10 @@ export const gamificacionApi = {
     return response.data;
   },
 
-  // Obtener ranking de un grupo
-  getRankingGrupo: async (grupoId: number, periodoId?: number, limit?: number): Promise<RankingGrupoUsuario[]> => {
-    const response = await api.get<RankingGrupoUsuario[]>(`/gamificacion/grupos-ranking/${grupoId}/ranking`, {
-      params: { periodoId, limit },
+  // Obtener ranking de un grupo con paginación
+  getRankingGrupo: async (grupoId: number, params?: { periodoId?: number; page?: number; limit?: number }): Promise<PaginatedResponse<RankingGrupoUsuario>> => {
+    const response = await api.get<PaginatedResponse<RankingGrupoUsuario>>(`/gamificacion/grupos-ranking/${grupoId}/ranking`, {
+      params,
     });
     return response.data;
   },
@@ -839,10 +920,10 @@ export const gamificacionApi = {
     return response.data;
   },
 
-  // Ranking de un nivel específico
-  getRankingNivel: async (nivelId: number, periodoId?: number, limit?: number): Promise<RankingGrupoUsuario[]> => {
-    const response = await api.get<RankingGrupoUsuario[]>(`/gamificacion/ranking-nivel/${nivelId}`, {
-      params: { periodoId, limit },
+  // Ranking de un nivel específico con paginación
+  getRankingNivel: async (nivelId: number, params?: { periodoId?: number; page?: number; limit?: number }): Promise<PaginatedResponse<RankingGrupoUsuario>> => {
+    const response = await api.get<PaginatedResponse<RankingGrupoUsuario>>(`/gamificacion/ranking-nivel/${nivelId}`, {
+      params,
     });
     return response.data;
   },

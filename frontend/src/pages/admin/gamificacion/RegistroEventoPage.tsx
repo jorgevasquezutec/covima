@@ -28,7 +28,7 @@ export default function RegistroEventoPage() {
 
   const { data: eventos, isLoading: loadingEventos } = useQuery({
     queryKey: ['eventos-especiales'],
-    queryFn: gamificacionApi.getEventosEspeciales,
+    queryFn: () => gamificacionApi.getEventosEspeciales(),
   });
 
   const { data: usuariosData, isLoading: loadingUsuarios } = useQuery({
@@ -95,7 +95,7 @@ export default function RegistroEventoPage() {
 
   if (loadingEventos) {
     return (
-      <div className="container mx-auto p-4 max-w-4xl space-y-6">
+      <div className="p-4 space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -103,7 +103,7 @@ export default function RegistroEventoPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl space-y-6">
+    <div className="p-4 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Gift className="w-6 h-6 text-blue-600" />

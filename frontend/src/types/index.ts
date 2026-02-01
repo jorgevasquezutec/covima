@@ -153,6 +153,61 @@ export interface PlantillaPrograma {
   partes: PlantillaParte[];
 }
 
+// ==================== ESTUDIOS BÍBLICOS ====================
+
+export interface CursoBiblico {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  totalLecciones: number;
+  orden: number;
+  activo: boolean;
+}
+
+export interface EstudianteBiblico {
+  id: number;
+  nombre: string;
+  fechaNacimiento?: string;
+  estadoCivil?: string;
+  telefono?: string;
+  direccion?: string;
+  notas?: string;
+  cursoId: number;
+  curso: CursoBiblico;
+  instructorId: number;
+  fechaBautismo?: string;
+  activo: boolean;
+  createdAt: string;
+  // Campos calculados
+  leccionesCompletadas?: number;
+  totalLecciones?: number;
+  progreso?: ProgresoLeccion[];
+  lecciones?: LeccionEstado[];
+}
+
+export interface ProgresoLeccion {
+  id: number;
+  estudianteId: number;
+  leccion: number;
+  completada: boolean;
+  fechaCompletada?: string;
+  notas?: string;
+}
+
+export interface LeccionEstado {
+  numero: number;
+  completada: boolean;
+  fechaCompletada?: string;
+}
+
+export interface EstadisticasEstudiosBiblicos {
+  totalEstudiantes: number;
+  bautizados: number;
+  enProgreso: number;
+  sinIniciar: number;
+  promedioProgreso: number;
+}
+
 export interface ProgramaParte {
   id: number;
   parteId: number;

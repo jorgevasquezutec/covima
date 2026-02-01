@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Calendar, AlertCircle, Users } from 'lucide-react';
+import { Trophy, Calendar, AlertCircle, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { gamificacionApi } from '@/services/api';
 import { RankingTop3, RankingTable } from './components';
 import { useAuthStore } from '@/store/auth';
@@ -22,6 +23,8 @@ export default function RankingPage() {
   const [grupoId, setGrupoId] = useState<number | null>(null);
   const [nivelId, setNivelId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('niveles');
+  const [page, setPage] = useState(1);
+  const limit = 20;
 
   // Verificar si es admin o líder
   const isAdminOrLider = user?.roles?.some(r => ['admin', 'lider'].includes(r)) || false;
@@ -52,10 +55,10 @@ export default function RankingPage() {
     enabled: isAdminOrLider,
   });
 
-  // Obtener ranking del nivel seleccionado
-  const { data: rankingNivel, isLoading: loadingRankingNivel } = useQuery({
-    queryKey: ['ranking-nivel', nivelId, periodoId],
-    queryFn: () => gamificacionApi.getRankingNivel(nivelId!, periodoId || undefined, 50),
+  // Obtener ranking del nivel seleccionado con paginación
+  const { data: rankingNivelData, isLoading: loadingRankingNivel } = useQuery({
+    queryKey: ['ranking-nivel', nivelId, periodoId, page],
+    queryFn: () => gamificacionApi.getRankingNivel(nivelId!, { periodoId: periodoId || undefined, page, limit }),
     enabled: !!nivelId && activeTab === 'niveles',
   });
 
@@ -128,10 +131,15 @@ export default function RankingPage() {
     }
   }, [niveles, nivelId, searchParams, isAdminOrLider, miProgreso]);
 
-  // Obtener ranking del grupo seleccionado
-  const { data: ranking, isLoading: loadingRanking } = useQuery({
-    queryKey: ['ranking-grupo', grupoId, periodoId],
-    queryFn: () => gamificacionApi.getRankingGrupo(grupoId!, periodoId || undefined, 50),
+  // Resetear página cuando cambian filtros
+  useEffect(() => {
+    setPage(1);
+  }, [grupoId, nivelId, periodoId, activeTab]);
+
+  // Obtener ranking del grupo seleccionado con paginación
+  const { data: rankingGrupoData, isLoading: loadingRanking } = useQuery({
+    queryKey: ['ranking-grupo', grupoId, periodoId, page],
+    queryFn: () => gamificacionApi.getRankingGrupo(grupoId!, { periodoId: periodoId || undefined, page, limit }),
     enabled: !!grupoId && activeTab === 'grupos',
   });
 
@@ -156,7 +164,7 @@ export default function RankingPage() {
   };
 
   // Convertir ranking de grupo a formato esperado por componentes
-  const rankingFormateado = ranking?.map((r) => ({
+  const rankingFormateado = rankingGrupoData?.data?.map((r) => ({
     posicion: r.posicion,
     usuarioId: r.usuarioId,
     nombre: r.nombre,
@@ -174,7 +182,7 @@ export default function RankingPage() {
   }));
 
   // Convertir ranking de nivel a formato esperado
-  const rankingNivelFormateado = rankingNivel?.map((r) => ({
+  const rankingNivelFormateado = rankingNivelData?.data?.map((r) => ({
     posicion: r.posicion,
     usuarioId: r.usuarioId,
     nombre: r.nombre,
@@ -191,6 +199,10 @@ export default function RankingPage() {
     asistenciasTotales: r.asistenciasTotales || 0,
   }));
 
+  // Metadata de paginación
+  const currentMeta = activeTab === 'niveles' ? rankingNivelData?.meta : rankingGrupoData?.meta;
+  const totalPages = currentMeta?.totalPages || 1;
+
   const isLoading = loadingPeriodos || loadingGrupos ||
     (!isAdminOrLider && (loadingMiProgreso || loadingRankingNivel)) ||
     (isAdminOrLider && loadingNiveles) ||
@@ -205,7 +217,7 @@ export default function RankingPage() {
   // Si no hay períodos
   if (!loadingPeriodos && (!periodos || periodos.length === 0)) {
     return (
-      <div className="container mx-auto p-4 max-w-4xl">
+      <div className="p-4">
         <Card>
           <CardContent className="py-12 text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
@@ -220,7 +232,7 @@ export default function RankingPage() {
   }
 
   return (
-    <div className="container mx-auto p-3 sm:p-4 max-w-4xl space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-2">
@@ -413,11 +425,14 @@ export default function RankingPage() {
         </div>
       ) : currentRanking && currentRanking.length > 0 ? (
         <>
-          <Card>
-            <CardContent className="pt-4 sm:pt-6 pb-4 px-3 sm:px-6">
-              <RankingTop3 usuarios={currentRanking} />
-            </CardContent>
-          </Card>
+          {/* Top 3 solo en primera página */}
+          {page === 1 && (
+            <Card>
+              <CardContent className="pt-4 sm:pt-6 pb-4 px-3 sm:px-6">
+                <RankingTop3 usuarios={currentRanking} />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="py-3 sm:py-4 px-3 sm:px-6">
@@ -425,12 +440,42 @@ export default function RankingPage() {
             </CardHeader>
             <CardContent className="px-3 sm:px-6 pb-4">
               <RankingTable
-                usuarios={currentRanking}
+                usuarios={page === 1 ? currentRanking.slice(3) : currentRanking}
                 usuarioActualId={user?.id}
-                startFrom={4}
+                startFrom={1}
               />
             </CardContent>
           </Card>
+
+          {/* Paginación */}
+          {currentMeta && totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Mostrando {currentRanking.length} de {currentMeta.total}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  {page} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <Card>

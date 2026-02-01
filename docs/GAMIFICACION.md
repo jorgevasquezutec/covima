@@ -1,7 +1,7 @@
 # Sistema de Gamificacion - Covima JA
 
 > Documento de analisis y seguimiento para la implementacion del sistema de gamificacion.
-> Ultima actualizacion: 2026-01-27
+> Ultima actualizacion: 2026-02-01
 
 ## Tabla de Contenidos
 
@@ -2068,50 +2068,72 @@ export class GamificacionService {
 
 ## Tareas Pendientes
 
-### Fase 1: Base de Datos (Prioridad Alta)
-- [ ] Agregar tablas de gamificacion a schema.prisma
-- [ ] Crear migracion
-- [ ] Crear seed de puntajes iniciales
-- [ ] Crear seed de niveles biblicos
+> **Ultima actualizacion:** 2026-02-01
 
-### Fase 2: Backend - Servicios (Prioridad Alta)
-- [ ] Crear GamificacionModule
-- [ ] Implementar GamificacionService
-- [ ] Implementar GamificacionController
-- [ ] Crear DTOs necesarios
-- [ ] Integrar con AsistenciaService (confirmar = asignar puntos)
+### Fase 1: Base de Datos (Prioridad Alta) ✅ COMPLETADO
+- [x] Agregar tablas de gamificacion a schema.prisma
+- [x] Crear migracion
+- [x] Crear seed de puntajes iniciales
+- [x] Crear seed de niveles biblicos
+
+### Fase 2: Backend - Servicios (Prioridad Alta) ✅ COMPLETADO
+- [x] Crear GamificacionModule
+- [x] Implementar GamificacionService
+- [x] Implementar GamificacionController
+- [x] Crear DTOs necesarios
+- [x] Integrar con AsistenciaService (confirmar = asignar puntos)
 
 ### Fase 3: Modulos Adicionales (Prioridad Media)
-- [ ] Crear ReavivadosModule
-- [ ] Crear EscuelaSabaticaModule
-- [ ] Implementar registro de D13
+- [x] Implementar registro de eventos especiales (EventosPage + RegistroEventoPage)
+- [ ] Crear ReavivadosModule (modulo separado)
+- [ ] Crear EscuelaSabaticaModule (modulo separado)
 
-### Fase 4: Frontend - Vistas (Prioridad Alta)
-- [ ] Pagina de Ranking
-- [ ] Pagina Mi Progreso
-- [ ] Componente NivelBadge
-- [ ] Widget en Dashboard
+### Fase 4: Frontend - Vistas (Prioridad Alta) ✅ COMPLETADO
+- [x] Pagina de Ranking (`/gamificacion/ranking`)
+- [x] Pagina Mi Progreso (`/gamificacion/mi-progreso`)
+- [x] Componente NivelBadge
+- [x] Widget en Dashboard
 
-### Fase 5: Admin (Prioridad Media)
-- [ ] Panel de configuracion de puntajes
-- [ ] Registro manual de eventos especiales
-- [ ] Vista de historial de puntos
+### Fase 5: Admin (Prioridad Media) ✅ COMPLETADO
+- [x] Panel de configuracion de puntajes (`/admin/gamificacion/config-puntajes`)
+- [x] Registro manual de eventos especiales (`/admin/gamificacion/registro-evento`)
+- [x] Vista de historial de puntos (`/admin/gamificacion/historial-puntos`)
+- [x] Gestion de niveles (`/admin/gamificacion/niveles`)
+- [x] Gestion de periodos de ranking (`/admin/gamificacion/periodos-ranking`)
+- [x] Gestion de grupos de ranking (`/admin/gamificacion/grupos-ranking`)
+- [x] Gestion de eventos especiales (`/admin/gamificacion/eventos`)
 
-### Fase 6: Insignias (Prioridad Baja)
-- [ ] Diseñar sistema de condiciones
-- [ ] Crear insignias iniciales
-- [ ] Implementar verificacion automatica
+### Fase 6: Insignias (Prioridad Baja) ✅ COMPLETADO
+- [x] Diseñar sistema de condiciones
+- [x] Crear insignias iniciales (seed)
+- [x] Implementar verificacion automatica (`verificarInsignias()`)
+- [x] Modelo UsuarioInsignia para rastrear insignias desbloqueadas
 
-### Fase 7: Seguimiento Pastoral (Prioridad Alta)
-- [ ] Crear tabla SeguimientoPastoral
-- [ ] Agregar campos estadoMiembro, ultimaAsistencia a Usuario
-- [ ] Crear job/cron para actualizar estados automaticamente
-- [ ] Crear panel de seguimiento para lideres
-- [ ] Implementar registro de seguimientos
+### Fase 7: Seguimiento Pastoral (Prioridad Alta) - PARCIAL
+- [x] Calcular estado de inactividad automaticamente (critico/en_riesgo/activo)
+- [x] Endpoint `GET /usuarios/inactivos` con filtros
+- [x] Panel de seguimiento para lideres (`/admin/seguimiento`)
+- [x] Botones WhatsApp/Llamar directos
+- [x] Exportar CSV de usuarios inactivos
+- [ ] Crear tabla SeguimientoPastoral (historial de contactos)
+- [ ] Implementar registro de seguimientos (modal para registrar llamadas/visitas)
+- [ ] Agendar proximo seguimiento
 - [ ] Widget de alertas en dashboard admin
 - [ ] Notificaciones automaticas a lideres (opcional)
-- [ ] Mensajes de animo automaticos (opcional)
+- [ ] Mensajes de animo automaticos por WhatsApp (opcional)
+- [ ] Sugerencias automaticas de accion
 - [ ] Reportes de salud del grupo
+
+### Fase 8: Sistema de Premios (NUEVO)
+> Ver documento: `docs/PREMIOS_RANKING_DESIGN.md`
+- [ ] Crear modelo PremioRanking
+- [ ] Crear modelo PremioGanador
+- [ ] CRUD de premios por periodo/nivel/grupo
+- [ ] Asignar ganadores al cerrar periodo
+- [ ] Marcar premios como entregados
+- [ ] Notificacion WhatsApp a ganadores
+- [ ] Vista "Mis Premios" en Mi Progreso
+- [ ] Mostrar premios disponibles en ranking
 
 ---
 
@@ -2264,6 +2286,7 @@ Lider contacta personalmente
 | 2026-01-27 | Eventos especiales configurables (Miercoles de poder, etc.) |
 | 2026-01-27 | Registro de eventos via bot WhatsApp |
 | 2026-01-27 | Templates pendientes de aprobacion |
+| 2026-02-01 | **Revision de estado:** Fases 1-6 completadas, Fase 7 parcial, agregada Fase 8 (Premios) |
 
 ---
 

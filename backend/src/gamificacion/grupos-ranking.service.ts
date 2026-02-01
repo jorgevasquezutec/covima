@@ -574,13 +574,14 @@ export class GruposRankingService {
     return { message: 'Miembro eliminado del grupo' };
   }
 
-  // Obtener ranking de un grupo
+  // Obtener ranking de un grupo con paginación
   async getRankingGrupo(
     grupoId: number,
     usuarioActualId: number,
     periodoId?: number,
-    limit: number = 50,
-  ): Promise<RankingGrupoUsuario[]> {
+    page: number = 1,
+    limit: number = 20,
+  ) {
     const grupo = await this.prisma.grupoRanking.findUnique({
       where: { id: grupoId },
     });
@@ -598,7 +599,7 @@ export class GruposRankingService {
         where: { estado: 'ACTIVO' },
       });
       if (!periodoActivo) {
-        return [];
+        return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
       }
       periodoIdFinal = periodoActivo.id;
     }
@@ -665,7 +666,7 @@ export class GruposRankingService {
     }
 
     if (usuariosIds.length === 0) {
-      return [];
+      return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
     }
 
     // Obtener puntos por usuario en el período
@@ -710,7 +711,7 @@ export class GruposRankingService {
 
     const usuarioInfoMap = new Map(usuariosInfo.map((u) => [u.id, u]));
 
-    // Construir ranking
+    // Construir ranking completo
     const rankingData = puntosAgrupados
       .map((p) => {
         const gamData = gamIdToUserId.get(p.usuarioGamId);
@@ -731,15 +732,11 @@ export class GruposRankingService {
           asistenciasTotales: userInfo.gamificacion?.asistenciasTotales || 0,
         };
       })
-      .filter((r) => r !== null)
-      .sort((a, b) => b.puntosPeriodo - a.puntosPeriodo)
-      .slice(0, limit);
+      .filter((r) => r !== null);
 
     // Agregar usuarios con 0 puntos que están en el grupo pero no tienen historial
     const usuariosConPuntos = new Set(rankingData.map((r) => r.usuarioId));
-    const usuariosSinPuntos = usuariosIds
-      .filter((id) => !usuariosConPuntos.has(id))
-      .slice(0, Math.max(0, limit - rankingData.length));
+    const usuariosSinPuntos = usuariosIds.filter((id) => !usuariosConPuntos.has(id));
 
     for (const userId of usuariosSinPuntos) {
       const userInfo = usuarioInfoMap.get(userId);
@@ -758,14 +755,22 @@ export class GruposRankingService {
       }
     }
 
-    // Ordenar y asignar posiciones
+    // Ordenar por puntos
     rankingData.sort((a, b) => b.puntosPeriodo - a.puntosPeriodo);
 
-    return rankingData.map((r, idx) => ({
-      posicion: idx + 1,
+    // Paginación
+    const total = rankingData.length;
+    const totalPages = Math.ceil(total / limit);
+    const skip = (page - 1) * limit;
+    const paginados = rankingData.slice(skip, skip + limit);
+
+    const data = paginados.map((r, idx) => ({
+      posicion: skip + idx + 1,
       ...r,
       esUsuarioActual: r.usuarioId === usuarioActualId,
     }));
+
+    return { data, meta: { total, page, limit, totalPages } };
   }
 
   // Toggle visibilidad del usuario en ranking general
@@ -882,7 +887,7 @@ export class GruposRankingService {
         500, // Limit alto para encontrar la posición
       );
 
-      const miPosicion = ranking.find((r) => r.usuarioId === usuarioId);
+      const miPosicion = ranking.data.find((r) => r.usuarioId === usuarioId);
 
       if (miPosicion) {
         posiciones.push({
@@ -891,7 +896,7 @@ export class GruposRankingService {
           nombre: grupo.nombre,
           icono: grupo.icono,
           posicion: miPosicion.posicion,
-          totalMiembros: ranking.length,
+          totalMiembros: ranking.meta.total,
         });
       }
     }
