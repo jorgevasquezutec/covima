@@ -70,9 +70,24 @@ export class GruposRankingService {
       orderBy: { orden: 'asc' },
     });
 
+    // Filtrar grupos donde el usuario realmente participa según el criterio
+    const gruposFiltrados = grupos.filter((g) => {
+      // Admin ve todos
+      if (esAdmin) return true;
+
+      // Grupos SISTEMA con criterio de rol
+      if (g.tipo === 'SISTEMA' && g.criterio === 'ROL_LIDER_ADMIN') {
+        // Solo mostrar si es admin o líder
+        return esLider;
+      }
+
+      // Todos los demás grupos (general, personalizados, etc.)
+      return true;
+    });
+
     // Calcular miembros reales para grupos del sistema
     const gruposConConteo = await Promise.all(
-      grupos.map(async (g) => {
+      gruposFiltrados.map(async (g) => {
         let totalMiembros = g._count.miembros;
 
         if (g.tipo === 'SISTEMA') {

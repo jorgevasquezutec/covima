@@ -252,10 +252,8 @@ export class GamificacionController {
 
   // === CRUD PERÍODOS DE RANKING ===
 
-  // Listar todos los períodos
+  // Listar todos los períodos (público para que participantes vean el ranking)
   @Get('periodos')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'lider')
   async getPeriodos(@Query('incluirCerrados') incluirCerrados?: string) {
     return this.gamificacionService.getPeriodos(incluirCerrados !== 'false');
   }
