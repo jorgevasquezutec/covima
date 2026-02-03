@@ -134,7 +134,8 @@ export default function CalendarioExportable({
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {displayTitle.length > 20 ? displayTitle.substring(0, 18) + '...' : displayTitle}
+              {/* {displayTitle.length > 20 ? displayTitle.substring(0, 18) + '...' : displayTitle} */}
+              {displayTitle}
             </div>
             {displaySubtitle && (
               <div style={{ fontSize: '8px', opacity: 0.9 }}>
