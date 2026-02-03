@@ -155,10 +155,20 @@ export default function ProgramasPage() {
             return;
         }
 
-        // Siempre usar el método del textarea que funciona en todos los contextos
+        // Usar la API moderna del Clipboard (funciona bien en HTTPS)
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            try {
+                await navigator.clipboard.writeText(textoWhatsapp);
+                toast.success('Texto copiado al portapapeles');
+                return;
+            } catch (err) {
+                console.warn('Clipboard API falló, intentando método alternativo:', err);
+            }
+        }
+
+        // Fallback: método del textarea para navegadores antiguos
         const textArea = document.createElement('textarea');
         textArea.value = textoWhatsapp;
-        // Hacerlo visible pero fuera de la pantalla para que funcione el select
         textArea.style.position = 'fixed';
         textArea.style.top = '0';
         textArea.style.left = '0';
@@ -179,10 +189,10 @@ export default function ProgramasPage() {
             if (successful) {
                 toast.success('Texto copiado al portapapeles');
             } else {
-                toast.error('No se pudo copiar el texto');
+                toast.error('No se pudo copiar el texto. Intenta seleccionar y copiar manualmente.');
             }
         } catch (err) {
-            toast.error('No se pudo copiar el texto');
+            toast.error('No se pudo copiar el texto. Intenta seleccionar y copiar manualmente.');
         }
 
         document.body.removeChild(textArea);
@@ -640,8 +650,8 @@ export default function ProgramasPage() {
                                     <div
                                         key={notif.usuario.id}
                                         className={`border rounded-lg overflow-hidden transition-colors ${selectedUsers.has(notif.usuario.id)
-                                                ? 'border-green-300 bg-green-50/30'
-                                                : 'border-gray-200 opacity-60'
+                                            ? 'border-green-300 bg-green-50/30'
+                                            : 'border-gray-200 opacity-60'
                                             }`}
                                     >
                                         <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
