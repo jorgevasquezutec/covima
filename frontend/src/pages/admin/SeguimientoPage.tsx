@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import {
   AlertTriangle,
   AlertCircle,
@@ -26,6 +27,7 @@ import {
   Clock,
   TrendingDown,
   CheckCircle,
+  Search,
 } from 'lucide-react';
 import { usuariosApi, gamificacionApi } from '@/services/api';
 import type { NivelInactividad } from '@/types';
@@ -38,6 +40,7 @@ export default function SeguimientoPage() {
   const [filtroNivelGam, setFiltroNivelGam] = useState<string>('all');
   const [ordenarPor, setOrdenarPor] = useState<'ultimaAsistencia' | 'ultimaActividad' | 'nombre'>('ultimaAsistencia');
   const [page, setPage] = useState(1);
+  const [busqueda, setBusqueda] = useState('');
 
   const { data: niveles } = useQuery({
     queryKey: ['niveles-gam'],
@@ -45,7 +48,7 @@ export default function SeguimientoPage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['usuarios-inactivos', filtroNivel, filtroNivelGam, ordenarPor, page],
+    queryKey: ['usuarios-inactivos', filtroNivel, filtroNivelGam, ordenarPor, page, busqueda],
     queryFn: () =>
       usuariosApi.getUsuariosInactivos({
         nivel: filtroNivel,
@@ -54,6 +57,7 @@ export default function SeguimientoPage() {
         orden: 'asc',
         page,
         limit: 20,
+        busqueda: busqueda.trim() || undefined,
       }),
   });
 
@@ -226,41 +230,58 @@ export default function SeguimientoPage() {
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-2 flex-1">
-          <Select value={filtroNivelGam} onValueChange={(v) => { setFiltroNivelGam(v); setPage(1); }}>
-            <SelectTrigger className="flex-1 sm:w-[180px]">
-              <SelectValue placeholder="Filtrar por nivel" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los niveles</SelectItem>
-              {niveles?.map((n) => (
-                <SelectItem key={n.id} value={n.id.toString()}>
-                  <span className="flex items-center gap-2">
-                    <span>{n.icono}</span>
-                    <span>{n.nombre}</span>
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={ordenarPor} onValueChange={(v: any) => setOrdenarPor(v)}>
-            <SelectTrigger className="flex-1 sm:w-[180px]">
-              <SelectValue placeholder="Ordenar por" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ultimaAsistencia">Última asistencia</SelectItem>
-              <SelectItem value="ultimaActividad">Última actividad</SelectItem>
-              <SelectItem value="nombre">Nombre</SelectItem>
-            </SelectContent>
-          </Select>
+      {/* Búsqueda y Filtros */}
+      <div className="space-y-3">
+        {/* Campo de búsqueda */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre o teléfono..."
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value);
+              setPage(1);
+            }}
+            className="pl-9"
+          />
         </div>
 
-        <span className="text-sm text-muted-foreground text-right">
-          {data?.meta.total || 0} usuario(s)
-        </span>
+        {/* Filtros */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-2 flex-1">
+            <Select value={filtroNivelGam} onValueChange={(v) => { setFiltroNivelGam(v); setPage(1); }}>
+              <SelectTrigger className="flex-1 sm:w-[180px]">
+                <SelectValue placeholder="Filtrar por nivel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los niveles</SelectItem>
+                {niveles?.map((n) => (
+                  <SelectItem key={n.id} value={n.id.toString()}>
+                    <span className="flex items-center gap-2">
+                      <span>{n.icono}</span>
+                      <span>{n.nombre}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={ordenarPor} onValueChange={(v: any) => setOrdenarPor(v)}>
+              <SelectTrigger className="flex-1 sm:w-[180px]">
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ultimaAsistencia">Última asistencia</SelectItem>
+                <SelectItem value="ultimaActividad">Última actividad</SelectItem>
+                <SelectItem value="nombre">Nombre</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <span className="text-sm text-muted-foreground text-right">
+            {data?.meta.total || 0} usuario(s)
+          </span>
+        </div>
       </div>
 
       {/* Lista de usuarios */}

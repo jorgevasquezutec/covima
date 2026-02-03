@@ -125,7 +125,7 @@ export function ChatHeader({
                     Modo de respuesta
                   </DropdownMenuLabel>
                   <DropdownMenuRadioGroup
-                    value={conversacion.modoRespuesta || conversacion.derivadaA?.modoHandoffDefault || 'AMBOS'}
+                    value={conversacion.modoRespuesta || conversacion.derivadaA?.modoHandoffDefault || 'WEB'}
                     onValueChange={(value) => onModoRespuestaChange(value === 'DEFAULT' ? null : value as ModoRespuestaHandoff)}
                   >
                     <DropdownMenuRadioItem value="WEB" className="text-sm">

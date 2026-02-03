@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { User, Mail, MapPin, FileText, Save, Camera, Loader2, Bell, MessageSquare } from 'lucide-react';
+import { User, Mail, MapPin, FileText, Save, Camera, Loader2, Bell, MessageSquare, CreditCard, Shirt } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePickerString } from '@/components/ui/date-picker';
 
 interface ProfileData {
@@ -19,6 +20,10 @@ interface ProfileData {
     fotoUrl: string | null;
     fechaNacimiento: string | null;
     direccion: string | null;
+    tipoDocumento: string | null;
+    numeroDocumento: string | null;
+    tallaPolo: string | null;
+    esBautizado: boolean | null;
     biografia: string | null;
     roles: string[];
     notificarNuevasConversaciones: boolean;
@@ -39,11 +44,15 @@ export default function ProfilePage() {
     const [email, setEmail] = useState('');
     const [fechaNacimiento, setFechaNacimiento] = useState('');
     const [direccion, setDireccion] = useState('');
+    const [tipoDocumento, setTipoDocumento] = useState('');
+    const [numeroDocumento, setNumeroDocumento] = useState('');
+    const [tallaPolo, setTallaPolo] = useState('');
+    const [esBautizado, setEsBautizado] = useState<boolean | null>(null);
     const [biografia, setBiografia] = useState('');
 
     // Notification preferences
     const [notificarNuevasConversaciones, setNotificarNuevasConversaciones] = useState(false);
-    const [modoHandoffDefault, setModoHandoffDefault] = useState<ModoHandoff>('AMBOS');
+    const [modoHandoffDefault, setModoHandoffDefault] = useState<ModoHandoff>('WEB');
     const [savingNotifications, setSavingNotifications] = useState(false);
 
     useEffect(() => {
@@ -59,9 +68,13 @@ export default function ProfilePage() {
             setEmail(data.email || '');
             setFechaNacimiento(data.fechaNacimiento ? data.fechaNacimiento.split('T')[0] : '');
             setDireccion(data.direccion || '');
+            setTipoDocumento(data.tipoDocumento || '');
+            setNumeroDocumento(data.numeroDocumento || '');
+            setTallaPolo(data.tallaPolo || '');
+            setEsBautizado(data.esBautizado);
             setBiografia(data.biografia || '');
             setNotificarNuevasConversaciones(data.notificarNuevasConversaciones ?? false);
-            setModoHandoffDefault(data.modoHandoffDefault ?? 'AMBOS');
+            setModoHandoffDefault(data.modoHandoffDefault ?? 'WEB');
         } catch {
             toast.error('Error al cargar el perfil');
         } finally {
@@ -77,6 +90,10 @@ export default function ProfilePage() {
                 email: email || undefined,
                 fechaNacimiento: fechaNacimiento || undefined,
                 direccion: direccion || undefined,
+                tipoDocumento: tipoDocumento || undefined,
+                numeroDocumento: numeroDocumento || undefined,
+                tallaPolo: tallaPolo || undefined,
+                esBautizado: esBautizado ?? undefined,
                 biografia: biografia || undefined,
             });
             toast.success('Perfil actualizado correctamente');
@@ -304,6 +321,78 @@ export default function ProfilePage() {
                         />
                     </div>
 
+                    {/* Documento de identidad */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 text-gray-700">
+                                <CreditCard className="w-4 h-4" />
+                                Tipo de documento
+                            </Label>
+                            <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
+                                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                                    <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="DNI">DNI</SelectItem>
+                                    <SelectItem value="CE">Carnet de Extranjería</SelectItem>
+                                    <SelectItem value="PASAPORTE">Pasaporte</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="numeroDocumento" className="text-gray-700">
+                                Número de documento
+                            </Label>
+                            <Input
+                                id="numeroDocumento"
+                                value={numeroDocumento}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setNumeroDocumento(e.target.value)}
+                                className="bg-white border-gray-300 text-gray-900"
+                                placeholder="Número"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Talla y Bautizado */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 text-gray-700">
+                                <Shirt className="w-4 h-4" />
+                                Talla de polo
+                            </Label>
+                            <Select value={tallaPolo} onValueChange={setTallaPolo}>
+                                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                                    <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="XS">XS</SelectItem>
+                                    <SelectItem value="S">S</SelectItem>
+                                    <SelectItem value="M">M</SelectItem>
+                                    <SelectItem value="L">L</SelectItem>
+                                    <SelectItem value="XL">XL</SelectItem>
+                                    <SelectItem value="XXL">XXL</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-gray-700">
+                                ¿Eres bautizado?
+                            </Label>
+                            <Select
+                                value={esBautizado === null ? '' : esBautizado ? 'si' : 'no'}
+                                onValueChange={(v) => setEsBautizado(v === '' ? null : v === 'si')}
+                            >
+                                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                                    <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="si">Sí</SelectItem>
+                                    <SelectItem value="no">No</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
                     {/* Biografía */}
                     <div className="space-y-2">
                         <Label htmlFor="biografia" className="flex items-center gap-2 text-gray-700">
@@ -378,31 +467,33 @@ export default function ProfilePage() {
                                     Elige cómo prefieres responder a los usuarios durante el handoff
                                 </p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                                 <Button
                                     type="button"
                                     variant={modoHandoffDefault === 'WEB' ? 'default' : 'outline'}
                                     size="sm"
                                     onClick={() => setModoHandoffDefault('WEB')}
-                                    className={modoHandoffDefault === 'WEB' ? 'bg-blue-600' : ''}
+                                    className={`text-xs sm:text-sm ${modoHandoffDefault === 'WEB' ? 'bg-blue-600' : ''}`}
                                 >
-                                    🖥️ Solo Web
+                                    <span className="hidden sm:inline">🖥️ Solo Web</span>
+                                    <span className="sm:hidden">🖥️ Web</span>
                                 </Button>
                                 <Button
                                     type="button"
                                     variant={modoHandoffDefault === 'WHATSAPP' ? 'default' : 'outline'}
                                     size="sm"
                                     onClick={() => setModoHandoffDefault('WHATSAPP')}
-                                    className={modoHandoffDefault === 'WHATSAPP' ? 'bg-green-600' : ''}
+                                    className={`text-xs sm:text-sm ${modoHandoffDefault === 'WHATSAPP' ? 'bg-green-600' : ''}`}
                                 >
-                                    📱 Solo WhatsApp
+                                    <span className="hidden sm:inline">📱 Solo WhatsApp</span>
+                                    <span className="sm:hidden">📱 WA</span>
                                 </Button>
                                 <Button
                                     type="button"
                                     variant={modoHandoffDefault === 'AMBOS' ? 'default' : 'outline'}
                                     size="sm"
                                     onClick={() => setModoHandoffDefault('AMBOS')}
-                                    className={modoHandoffDefault === 'AMBOS' ? 'bg-purple-600' : ''}
+                                    className={`text-xs sm:text-sm ${modoHandoffDefault === 'AMBOS' ? 'bg-purple-600' : ''}`}
                                 >
                                     🔄 Ambos
                                 </Button>

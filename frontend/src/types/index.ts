@@ -44,6 +44,10 @@ export interface Usuario {
   fotoUrl?: string;
   fechaNacimiento?: string;
   direccion?: string;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
+  tallaPolo?: string;
+  esBautizado?: boolean;
   biografia?: string;
   notificarNuevasConversaciones?: boolean;
   modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
@@ -61,6 +65,10 @@ export interface CreateUsuarioRequest {
   esJA?: boolean;
   fechaNacimiento?: string;
   direccion?: string;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
+  tallaPolo?: string;
+  esBautizado?: boolean;
   biografia?: string;
   notificarNuevasConversaciones?: boolean;
   modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
@@ -75,6 +83,10 @@ export interface UpdateUsuarioRequest {
   esJA?: boolean;
   fechaNacimiento?: string;
   direccion?: string;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
+  tallaPolo?: string;
+  esBautizado?: boolean;
   biografia?: string;
   notificarNuevasConversaciones?: boolean;
   modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
@@ -960,5 +972,70 @@ export interface ResumenInactividad {
   criticos: number;
   enRiesgo: number;
   activos: number;
+}
+
+// ==================== CALENDARIO ====================
+
+export type PatronRecurrencia = 'NINGUNO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL' | 'MENSUAL_DIA';
+
+export interface ActividadCalendario {
+  id: number;
+  titulo: string;
+  descripcion: string | null;
+  fecha: string;
+  hora: string | null;
+  horaFin: string | null;
+  color: string;
+  icono: string;
+  esRecurrente: boolean;
+  esCumpleanos?: boolean;
+  usuarioCumpleanos?: {
+    id: number;
+    nombre: string;
+    fotoUrl: string | null;
+  };
+  actividadPadreId: number | null;
+  esInstanciaRecurrente?: boolean;
+}
+
+export interface CalendarioMesResponse {
+  mes: number;
+  anio: number;
+  primerDia: string;
+  ultimoDia: string;
+  actividades: ActividadCalendario[];
+  actividadesPorDia: Record<string, ActividadCalendario[]>;
+  totalActividades: number;
+}
+
+export interface CreateActividadRequest {
+  titulo: string;
+  descripcion?: string;
+  fecha: string;
+  hora?: string;
+  horaFin?: string;
+  color?: string;
+  icono?: string;
+  esRecurrente?: boolean;
+  patronRecurrencia?: PatronRecurrencia;
+  fechaFinRecurrencia?: string;
+  diaSemana?: number;
+  semanaMes?: number;
+}
+
+export interface UpdateActividadRequest {
+  titulo?: string;
+  descripcion?: string;
+  fecha?: string;
+  hora?: string;
+  horaFin?: string;
+  color?: string;
+  icono?: string;
+  esRecurrente?: boolean;
+  patronRecurrencia?: PatronRecurrencia;
+  fechaFinRecurrencia?: string | null;
+  diaSemana?: number;
+  semanaMes?: number;
+  activo?: boolean;
 }
 

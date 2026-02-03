@@ -11,7 +11,7 @@ import {
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 
 type CalendarView = "days" | "months" | "years"
 
@@ -48,7 +48,7 @@ function Calendar({
   const defaultEndMonth = endMonth || new Date(2100, 11)
   const defaultClassNames = getDefaultClassNames()
 
-  const calendarSize = "w-[252px] min-h-[300px]"
+  const calendarSize = "w-[252px]"
 
   // Year grid picker
   if (view === "years") {
@@ -282,7 +282,7 @@ function Calendar({
             defaultClassNames.today
           ),
           outside: cn(
-            "text-muted-foreground aria-selected:text-muted-foreground",
+            "invisible",
             defaultClassNames.outside
           ),
           disabled: cn(

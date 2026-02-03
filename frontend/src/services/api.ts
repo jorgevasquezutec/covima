@@ -16,6 +16,10 @@ import type {
   PosicionEnNivel,
   EstadisticasDashboard,
   PlantillaPrograma,
+  ActividadCalendario,
+  CalendarioMesResponse,
+  CreateActividadRequest,
+  UpdateActividadRequest,
 } from '@/types';
 
 // En desarrollo, usar la misma IP/host del navegador para la API
@@ -133,6 +137,10 @@ export const usuariosApi = {
     fotoUrl?: string;
     fechaNacimiento?: string;
     direccion?: string;
+    tipoDocumento?: string;
+    numeroDocumento?: string;
+    tallaPolo?: string;
+    esBautizado?: boolean;
     biografia?: string;
     notificarNuevasConversaciones?: boolean;
     modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
@@ -190,6 +198,7 @@ export const usuariosApi = {
     orden?: 'asc' | 'desc';
     page?: number;
     limit?: number;
+    busqueda?: string;
   }): Promise<UsuariosInactivosResponse> => {
     const response = await api.get<UsuariosInactivosResponse>('/usuarios/inactivos', { params });
     return response.data;
@@ -1178,6 +1187,66 @@ export const inboxApi = {
       mensajesEliminados: number;
       conversacionesEliminadas: number;
     }>('/inbox/historial-completo');
+    return response.data;
+  },
+};
+
+// ==================== CALENDARIO ====================
+
+export const calendarioApi = {
+  // Obtener calendario del mes
+  getCalendarioMes: async (mes: number, anio: number): Promise<CalendarioMesResponse> => {
+    const response = await api.get<CalendarioMesResponse>(`/calendario/${mes}/${anio}`);
+    return response.data;
+  },
+
+  // Actividades
+  getActividades: async (params?: {
+    page?: number;
+    limit?: number;
+    desde?: string;
+    hasta?: string;
+  }): Promise<PaginatedResponse<ActividadCalendario>> => {
+    const response = await api.get<PaginatedResponse<ActividadCalendario>>(
+      '/calendario/actividades',
+      { params }
+    );
+    return response.data;
+  },
+
+  getActividad: async (id: number): Promise<ActividadCalendario> => {
+    const response = await api.get<ActividadCalendario>(`/calendario/actividades/${id}`);
+    return response.data;
+  },
+
+  createActividad: async (data: CreateActividadRequest): Promise<ActividadCalendario> => {
+    const response = await api.post<ActividadCalendario>('/calendario/actividades', data);
+    return response.data;
+  },
+
+  updateActividad: async (
+    id: number,
+    data: UpdateActividadRequest
+  ): Promise<ActividadCalendario> => {
+    const response = await api.put<ActividadCalendario>(`/calendario/actividades/${id}`, data);
+    return response.data;
+  },
+
+  deleteActividad: async (
+    id: number
+  ): Promise<{ message: string; instanciasEliminadas?: number }> => {
+    const response = await api.delete<{ message: string; instanciasEliminadas?: number }>(
+      `/calendario/actividades/${id}`
+    );
+    return response.data;
+  },
+
+  deleteSerieRecurrente: async (
+    id: number
+  ): Promise<{ message: string; actividadesEliminadas: number }> => {
+    const response = await api.delete<{ message: string; actividadesEliminadas: number }>(
+      `/calendario/actividades/${id}/serie`
+    );
     return response.data;
   },
 };

@@ -57,6 +57,10 @@ model Usuario {
   fotoUrl              String?          @map("foto_url") @db.VarChar(500)
   fechaNacimiento      DateTime?        @map("fecha_nacimiento") @db.Date
   direccion            String?          @db.VarChar(200)
+  tipoDocumento        String?          @map("tipo_documento") @db.VarChar(20) // DNI, CE, PASAPORTE
+  numeroDocumento      String?          @map("numero_documento") @db.VarChar(30)
+  tallaPolo            String?          @map("talla_polo") @db.VarChar(10) // XS, S, M, L, XL, XXL
+  esBautizado          Boolean?         @map("es_bautizado")
   biografia            String?          @db.Text
   genero               String?          @db.VarChar(20) // 'M', 'F', etc.
   activo               Boolean          @default(true)
@@ -71,7 +75,7 @@ model Usuario {
   // === PREFERENCIAS INBOX/HANDOFF ===
   recibirNotificacionesWhatsApp  Boolean              @default(true) @map("recibir_notificaciones_whatsapp")
   notificarNuevasConversaciones  Boolean              @default(true) @map("notificar_nuevas_conversaciones")
-  modoHandoffDefault             ModoRespuestaHandoff @default(AMBOS) @map("modo_handoff_default")
+  modoHandoffDefault             ModoRespuestaHandoff @default(WEB) @map("modo_handoff_default")
 
   roles                UsuarioRol[]
   usuarioPartes        UsuarioParte[]
@@ -107,6 +111,9 @@ model Usuario {
 
   // === RELACIONES ESTUDIOS BÍBLICOS ===
   estudiantesBiblicos     EstudianteBiblico[] @relation("EstudiantesBiblicos")
+
+  // === RELACIONES CALENDARIO ===
+  actividadesCreadas      Actividad[] @relation("ActividadesCreadaPor")
 
   @@map("usuarios")
 }
@@ -712,6 +719,44 @@ model GrupoRankingMiembro {
   @@index([grupoId])
   @@index([usuarioId])
   @@map("grupos_ranking_miembros")
+}
+
+// ==================== CALENDARIO DE ACTIVIDADES ====================
+
+enum PatronRecurrencia {
+  NINGUNO
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+  MENSUAL_DIA  // Mismo día del mes (ej: todos los 15)
+}
+
+model Actividad {
+  id                  Int               @id @default(autoincrement())
+  titulo              String            @db.VarChar(200)
+  descripcion         String?           @db.Text
+  fecha               DateTime          @db.Date
+  hora                String?           @db.VarChar(10)   // "09:00"
+  horaFin             String?           @map("hora_fin") @db.VarChar(10)  // "12:00"
+  color               String            @default("#3B82F6") @db.VarChar(20)  // Hex color
+  icono               String            @default("Calendar") @db.VarChar(50)  // Lucide icon name
+  esRecurrente        Boolean           @default(false) @map("es_recurrente")
+  patronRecurrencia   PatronRecurrencia @default(NINGUNO) @map("patron_recurrencia")
+  fechaFinRecurrencia DateTime?         @map("fecha_fin_recurrencia") @db.Date
+  diaSemana           Int?              @map("dia_semana")  // 0=Domingo, 1=Lunes, ..., 6=Sábado
+  semanaMes           Int?              @map("semana_mes")  // 1-5 para "primer martes del mes", etc.
+  actividadPadreId    Int?              @map("actividad_padre_id")
+  creadoPorId         Int?              @map("creado_por_id")
+  activo              Boolean           @default(true)
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  actividadPadre      Actividad?        @relation("ActividadRecurrencia", fields: [actividadPadreId], references: [id])
+  instancias          Actividad[]       @relation("ActividadRecurrencia")
+  creadoPor           Usuario?          @relation("ActividadesCreadaPor", fields: [creadoPorId], references: [id])
+
+  @@index([fecha])
+  @@map("actividades")
 }
 
 // ==================== ESTUDIOS BÍBLICOS ====================

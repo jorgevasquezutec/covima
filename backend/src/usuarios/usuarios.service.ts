@@ -124,6 +124,10 @@ export class UsuariosService {
           ? new Date(dto.fechaNacimiento)
           : undefined,
         direccion: dto.direccion,
+        tipoDocumento: dto.tipoDocumento,
+        numeroDocumento: dto.numeroDocumento,
+        tallaPolo: dto.tallaPolo,
+        esBautizado: dto.esBautizado,
         biografia: dto.biografia,
       },
     });
@@ -134,6 +138,12 @@ export class UsuariosService {
     } else {
       // Asignar rol participante por defecto
       await this.assignRoles(usuario.id, ['participante'], createdBy);
+    }
+
+    // Crear perfil de gamificación si es JA
+    const esJA = dto.esJA ?? true;
+    if (esJA) {
+      await this.crearPerfilGamificacion(usuario.id);
     }
 
     return this.findOne(usuario.id);
@@ -161,13 +171,22 @@ export class UsuariosService {
               ? new Date(dto.fechaNacimiento)
               : undefined,
         direccion: dto.direccion,
+        tipoDocumento: dto.tipoDocumento,
+        numeroDocumento: dto.numeroDocumento,
+        tallaPolo: dto.tallaPolo,
+        esBautizado: dto.esBautizado,
         biografia: dto.biografia,
       },
     });
 
-    // Actualizar roles si se proporcionan
-    if (dto.roles) {
+    // Actualizar roles si se proporcionan (array con al menos un elemento)
+    if (dto.roles && Array.isArray(dto.roles) && dto.roles.length > 0) {
       await this.updateRoles(id, dto.roles);
+    }
+
+    // Crear perfil de gamificación si se cambia a JA
+    if (dto.esJA === true && !usuario.esJA) {
+      await this.crearPerfilGamificacion(id);
     }
 
     return this.findOne(id);
@@ -263,6 +282,10 @@ export class UsuariosService {
       fotoUrl?: string;
       fechaNacimiento?: Date;
       direccion?: string;
+      tipoDocumento?: string;
+      numeroDocumento?: string;
+      tallaPolo?: string;
+      esBautizado?: boolean;
       biografia?: string;
       notificarNuevasConversaciones?: boolean;
       modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
@@ -282,6 +305,10 @@ export class UsuariosService {
         fotoUrl: data.fotoUrl,
         fechaNacimiento: data.fechaNacimiento,
         direccion: data.direccion,
+        tipoDocumento: data.tipoDocumento,
+        numeroDocumento: data.numeroDocumento,
+        tallaPolo: data.tallaPolo,
+        esBautizado: data.esBautizado,
         biografia: data.biografia,
         notificarNuevasConversaciones: data.notificarNuevasConversaciones,
         modoHandoffDefault: data.modoHandoffDefault,
@@ -320,6 +347,10 @@ export class UsuariosService {
       fotoUrl: fotoUrlCompleta,
       fechaNacimiento: usuario.fechaNacimiento,
       direccion: usuario.direccion,
+      tipoDocumento: usuario.tipoDocumento,
+      numeroDocumento: usuario.numeroDocumento,
+      tallaPolo: usuario.tallaPolo,
+      esBautizado: usuario.esBautizado,
       biografia: usuario.biografia,
       notificarNuevasConversaciones: usuario.notificarNuevasConversaciones,
       modoHandoffDefault: usuario.modoHandoffDefault,
@@ -425,6 +456,7 @@ export class UsuariosService {
     orden?: 'asc' | 'desc';
     page?: number;
     limit?: number;
+    busqueda?: string;
   }) {
     const {
       nivel = 'todos',
@@ -433,6 +465,7 @@ export class UsuariosService {
       orden = 'asc',
       page = 1,
       limit = 20,
+      busqueda,
     } = options || {};
 
     const ahora = new Date();
@@ -452,10 +485,18 @@ export class UsuariosService {
       },
     };
 
+    // Filtro por búsqueda (nombre o teléfono)
+    if (busqueda && busqueda.trim()) {
+      const termino = busqueda.trim();
+      whereBase.OR = [
+        { nombre: { contains: termino, mode: 'insensitive' } },
+        { telefono: { contains: termino } },
+      ];
+    }
+
     // Filtro por nivel de gamificación
     if (nivelGamificacionId) {
       whereBase.gamificacion = {
-        ...whereBase.gamificacion,
         nivelId: nivelGamificacionId,
       };
     }
@@ -571,9 +612,7 @@ export class UsuariosService {
       );
     } else if (nivel === 'en_riesgo') {
       usuariosFiltrados = usuariosProcesados.filter(
-        (u) =>
-          u.nivelInactividad === 'critico' ||
-          u.nivelInactividad === 'en_riesgo',
+        (u) => u.nivelInactividad === 'en_riesgo',
       );
     } else if (nivel === 'activo') {
       usuariosFiltrados = usuariosProcesados.filter(
@@ -702,6 +741,44 @@ export class UsuariosService {
     };
   }
 
+  /**
+   * Crea el perfil de gamificación para un usuario JA
+   */
+  private async crearPerfilGamificacion(usuarioId: number) {
+    // Verificar si ya tiene perfil de gamificación
+    const existente = await this.prisma.usuarioGamificacion.findUnique({
+      where: { usuarioId },
+    });
+
+    if (existente) {
+      return existente;
+    }
+
+    // Obtener el nivel inicial (nivel 1)
+    const nivelInicial = await this.prisma.nivelBiblico.findFirst({
+      where: { numero: 1 },
+    });
+
+    if (!nivelInicial) {
+      console.error('No existe el nivel bíblico 1 para crear perfil de gamificación');
+      return null;
+    }
+
+    return this.prisma.usuarioGamificacion.create({
+      data: {
+        usuarioId,
+        nivelId: nivelInicial.id,
+        puntosTotal: 0,
+        puntosTrimestre: 0,
+        xpTotal: 0,
+        rachaActual: 0,
+        rachaMejor: 0,
+        asistenciasTotales: 0,
+        participacionesTotales: 0,
+      },
+    });
+  }
+
   private formatUsuario(usuario: any) {
     return {
       id: usuario.id,
@@ -717,6 +794,14 @@ export class UsuariosService {
       ultimoLogin: usuario.ultimoLogin,
       createdAt: usuario.createdAt,
       fechaNacimiento: usuario.fechaNacimiento,
+      direccion: usuario.direccion,
+      tipoDocumento: usuario.tipoDocumento,
+      numeroDocumento: usuario.numeroDocumento,
+      tallaPolo: usuario.tallaPolo,
+      esBautizado: usuario.esBautizado,
+      biografia: usuario.biografia,
+      notificarNuevasConversaciones: usuario.notificarNuevasConversaciones,
+      modoHandoffDefault: usuario.modoHandoffDefault,
       roles: usuario.roles?.map((ur: any) => ur.rol.nombre) || [],
     };
   }

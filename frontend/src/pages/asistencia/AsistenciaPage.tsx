@@ -1160,7 +1160,7 @@ export default function AsistenciaPage() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleExportExcel(true)}
+                                onClick={() => handleExportExcel()}
                                 disabled={exporting}
                                 className="h-9 text-sm ml-auto"
                             >

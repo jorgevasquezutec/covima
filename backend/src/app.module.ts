@@ -14,6 +14,7 @@ import { WhatsappBotModule } from './whatsapp-bot/whatsapp-bot.module';
 import { InboxModule } from './inbox/inbox.module';
 import { GamificacionModule } from './gamificacion/gamificacion.module';
 import { EstudiosBiblicosModule } from './estudios-biblicos/estudios-biblicos.module';
+import { CalendarioModule } from './calendario/calendario.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EstudiosBiblicosModule } from './estudios-biblicos/estudios-biblicos.mo
     InboxModule,
     GamificacionModule,
     EstudiosBiblicosModule,
+    CalendarioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

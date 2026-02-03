@@ -28,6 +28,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         skipWaiting: true,
         clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/covima\.jvasquez\.me\/api\/.*/i,
@@ -51,7 +52,8 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://192.168.0.208:3001',
+        // target: 'http://192.168.0.208:3001',
+        target: 'http://localhost:3001',
         changeOrigin: true
       }
     }

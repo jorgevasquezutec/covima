@@ -64,6 +64,7 @@ const navSections: NavSection[] = [
       { label: 'Programas', icon: Calendar, href: '/programas' },
       { label: 'Partes Programa', icon: LayoutList, href: '/admin/partes-programa', roles: ['admin'] },
       { label: 'Plantillas', icon: LayoutTemplate, href: '/admin/plantillas-programa', roles: ['admin'] },
+      { label: 'Calendario', icon: CalendarPlus, href: '/admin/calendario' },
       { label: 'Asistencia', icon: ClipboardCheck, href: '/asistencias' },
       { label: 'Seguimiento', icon: UserSearch, href: '/seguimiento' },
       { label: 'Inbox', icon: Inbox, href: '/inbox' },

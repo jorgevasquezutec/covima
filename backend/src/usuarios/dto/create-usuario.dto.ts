@@ -85,6 +85,29 @@ export class CreateUsuarioDto {
   @MaxLength(200)
   direccion?: string;
 
+  @ApiPropertyOptional({ example: 'DNI', enum: ['DNI', 'CE', 'PASAPORTE'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['DNI', 'CE', 'PASAPORTE'])
+  tipoDocumento?: string;
+
+  @ApiPropertyOptional({ example: '12345678' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  numeroDocumento?: string;
+
+  @ApiPropertyOptional({ example: 'M', enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+  tallaPolo?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  esBautizado?: boolean;
+
   @ApiPropertyOptional({ example: 'Descripción personal' })
   @IsOptional()
   @IsString()

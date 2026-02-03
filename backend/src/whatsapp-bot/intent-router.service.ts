@@ -292,7 +292,7 @@ export class IntentRouterService {
       // Filtrar solo las que permiten respuesta por WhatsApp
       const conversacionesWhatsApp = conversaciones.filter((conv) => {
         const modo =
-          conv.modoRespuesta || conv.derivadaA?.modoHandoffDefault || 'AMBOS';
+          conv.modoRespuesta || conv.derivadaA?.modoHandoffDefault || 'WEB';
         return modo === 'WHATSAPP' || modo === 'AMBOS';
       });
 
@@ -414,7 +414,7 @@ export class IntentRouterService {
 
     // Determinar modo de respuesta: override de la conv o default del admin
     const modoRespuesta =
-      conversacion.modoRespuesta || admin.modoHandoffDefault || 'AMBOS';
+      conversacion.modoRespuesta || admin.modoHandoffDefault || 'WEB';
 
     // Solo notificar por WhatsApp si el modo es WHATSAPP o AMBOS
     if (modoRespuesta === 'WEB') {

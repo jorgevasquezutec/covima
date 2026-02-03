@@ -67,7 +67,7 @@ export class InboxScheduler {
       try {
         // Notificar al admin si modo permite WhatsApp (WHATSAPP o AMBOS)
         const modoRespuesta =
-          conv.modoRespuesta || conv.derivadaA?.modoHandoffDefault || 'AMBOS';
+          conv.modoRespuesta || conv.derivadaA?.modoHandoffDefault || 'WEB';
         if (conv.derivadaA && modoRespuesta !== 'WEB') {
           const telefonoAdmin = `${conv.derivadaA.codigoPais}${conv.derivadaA.telefono}`;
           await this.whatsappService.sendMessageToPhone(

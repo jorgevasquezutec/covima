@@ -21,6 +21,7 @@ import { PartesProgramaPage } from '@/pages/admin/partes';
 import { PlantillasProgramaPage } from '@/pages/admin/plantillas';
 import { MisEstudiantesPage, EstudianteDetallePage } from '@/pages/estudios-biblicos';
 import SeguimientoPage from '@/pages/admin/SeguimientoPage';
+import { CalendarioAdminPage } from '@/pages/calendario';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -258,6 +259,17 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <SeguimientoPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Calendario */}
+        <Route
+          path="/admin/calendario"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <CalendarioAdminPage />
               </MainLayout>
             </ProtectedRoute>
           }

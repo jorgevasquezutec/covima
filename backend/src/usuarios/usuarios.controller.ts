@@ -105,6 +105,10 @@ export class UsuariosController {
       fotoUrl?: string;
       fechaNacimiento?: string;
       direccion?: string;
+      tipoDocumento?: string;
+      numeroDocumento?: string;
+      tallaPolo?: string;
+      esBautizado?: boolean;
       biografia?: string;
       notificarNuevasConversaciones?: boolean;
       modoHandoffDefault?: 'WEB' | 'WHATSAPP' | 'AMBOS';
@@ -187,6 +191,7 @@ export class UsuariosController {
   @ApiQuery({ name: 'orden', required: false, enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'busqueda', required: false, type: String })
   async getUsuariosInactivos(
     @Query('nivel') nivel?: 'critico' | 'en_riesgo' | 'activo' | 'todos',
     @Query('nivelGamificacionId') nivelGamificacionId?: string,
@@ -195,6 +200,7 @@ export class UsuariosController {
     @Query('orden') orden?: 'asc' | 'desc',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('busqueda') busqueda?: string,
   ) {
     return this.usuariosService.getUsuariosInactivos({
       nivel,
@@ -205,6 +211,7 @@ export class UsuariosController {
       orden,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
+      busqueda,
     });
   }
 

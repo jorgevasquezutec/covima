@@ -26,6 +26,10 @@ const createSchema = z.object({
   esJA: z.boolean(),
   fechaNacimiento: z.string().optional(),
   direccion: z.string().optional(),
+  tipoDocumento: z.enum(['DNI', 'CE', 'PASAPORTE']).optional(),
+  numeroDocumento: z.string().optional(),
+  tallaPolo: z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']).optional(),
+  esBautizado: z.boolean().optional(),
   biografia: z.string().optional(),
   notificarNuevasConversaciones: z.boolean(),
   modoHandoffDefault: z.enum(['WEB', 'WHATSAPP', 'AMBOS']),
@@ -39,6 +43,10 @@ const updateSchema = z.object({
   esJA: z.boolean(),
   fechaNacimiento: z.string().optional(),
   direccion: z.string().optional(),
+  tipoDocumento: z.enum(['DNI', 'CE', 'PASAPORTE']).optional(),
+  numeroDocumento: z.string().optional(),
+  tallaPolo: z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']).optional(),
+  esBautizado: z.boolean().optional(),
   biografia: z.string().optional(),
   notificarNuevasConversaciones: z.boolean(),
   modoHandoffDefault: z.enum(['WEB', 'WHATSAPP', 'AMBOS']),
@@ -84,9 +92,13 @@ export default function UsuarioForm({
         esJA: usuario.esJA ?? true,
         fechaNacimiento: usuario.fechaNacimiento ? usuario.fechaNacimiento.split('T')[0] : '',
         direccion: usuario.direccion || '',
+        tipoDocumento: usuario.tipoDocumento as 'DNI' | 'CE' | 'PASAPORTE' | undefined,
+        numeroDocumento: usuario.numeroDocumento || '',
+        tallaPolo: usuario.tallaPolo as 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | undefined,
+        esBautizado: usuario.esBautizado ?? undefined,
         biografia: usuario.biografia || '',
         notificarNuevasConversaciones: usuario.notificarNuevasConversaciones ?? false,
-        modoHandoffDefault: usuario.modoHandoffDefault ?? 'AMBOS',
+        modoHandoffDefault: usuario.modoHandoffDefault ?? 'WEB',
       }
       : {
         phoneNumber: '',
@@ -98,13 +110,34 @@ export default function UsuarioForm({
         esJA: true,
         fechaNacimiento: '',
         direccion: '',
+        tipoDocumento: undefined,
+        numeroDocumento: '',
+        tallaPolo: undefined,
+        esBautizado: undefined,
         biografia: '',
         notificarNuevasConversaciones: false,
-        modoHandoffDefault: 'AMBOS' as const,
+        modoHandoffDefault: 'WEB' as const,
       },
   });
 
   const selectedRoles = watch('roles') as string[];
+
+  const handleRoleToggle = (roleName: string, checked: boolean) => {
+    const currentRoles = watch('roles') as string[] || [];
+    let newRoles: string[];
+
+    if (checked) {
+      // Agregar rol si no existe
+      newRoles = currentRoles.includes(roleName)
+        ? currentRoles
+        : [...currentRoles, roleName];
+    } else {
+      // Quitar rol
+      newRoles = currentRoles.filter((r) => r !== roleName);
+    }
+
+    setValue('roles', newRoles, { shouldValidate: true, shouldDirty: true });
+  };
 
   const onSubmit = async (data: CreateFormData | UpdateFormData) => {
     setLoading(true);
@@ -119,6 +152,10 @@ export default function UsuarioForm({
           esJA: updateData.esJA,
           fechaNacimiento: updateData.fechaNacimiento || undefined,
           direccion: updateData.direccion || undefined,
+          tipoDocumento: updateData.tipoDocumento || undefined,
+          numeroDocumento: updateData.numeroDocumento || undefined,
+          tallaPolo: updateData.tallaPolo || undefined,
+          esBautizado: updateData.esBautizado,
           biografia: updateData.biografia || undefined,
           notificarNuevasConversaciones: updateData.notificarNuevasConversaciones,
           modoHandoffDefault: updateData.modoHandoffDefault,
@@ -143,6 +180,10 @@ export default function UsuarioForm({
           esJA: createData.esJA,
           fechaNacimiento: createData.fechaNacimiento || undefined,
           direccion: createData.direccion || undefined,
+          tipoDocumento: createData.tipoDocumento || undefined,
+          numeroDocumento: createData.numeroDocumento || undefined,
+          tallaPolo: createData.tallaPolo || undefined,
+          esBautizado: createData.esBautizado,
           biografia: createData.biografia || undefined,
           notificarNuevasConversaciones: createData.notificarNuevasConversaciones,
           modoHandoffDefault: createData.modoHandoffDefault,
@@ -158,14 +199,6 @@ export default function UsuarioForm({
     }
   };
 
-  const handleRoleChange = (roleName: string, checked: boolean) => {
-    const current = selectedRoles || [];
-    if (checked) {
-      setValue('roles', [...current, roleName]);
-    } else {
-      setValue('roles', current.filter((r) => r !== roleName));
-    }
-  };
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
@@ -372,7 +405,7 @@ export default function UsuarioForm({
               <Checkbox
                 checked={selectedRoles?.includes(rol.nombre)}
                 onCheckedChange={(checked) =>
-                  handleRoleChange(rol.nombre, checked as boolean)
+                  handleRoleToggle(rol.nombre, checked as boolean)
                 }
                 className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
               />
@@ -446,6 +479,88 @@ export default function UsuarioForm({
             />
           )}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-gray-700">Tipo de documento</Label>
+          <Controller
+            name="tipoDocumento"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value || ''} onValueChange={field.onChange}>
+                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DNI">DNI</SelectItem>
+                  <SelectItem value="CE">Carnet de Extranjería</SelectItem>
+                  <SelectItem value="PASAPORTE">Pasaporte</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-gray-700">Número de documento</Label>
+          <Controller
+            name="numeroDocumento"
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                placeholder="Número"
+                className="bg-white border-gray-300 text-gray-900"
+              />
+            )}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-gray-700">Talla de polo</Label>
+          <Controller
+            name="tallaPolo"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value || ''} onValueChange={field.onChange}>
+                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="XS">XS</SelectItem>
+                  <SelectItem value="S">S</SelectItem>
+                  <SelectItem value="M">M</SelectItem>
+                  <SelectItem value="L">L</SelectItem>
+                  <SelectItem value="XL">XL</SelectItem>
+                  <SelectItem value="XXL">XXL</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-gray-700">Bautizado</Label>
+          <Controller
+            name="esBautizado"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={field.value === undefined ? '' : field.value ? 'si' : 'no'}
+                onValueChange={(v) => field.onChange(v === '' ? undefined : v === 'si')}
+              >
+                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="si">Sí</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
       </div>
 
       <div className="space-y-2">
