@@ -16,6 +16,10 @@ import { toast } from 'sonner';
 import { MapPin, FileText, Camera, Loader2, Bell, MessageSquare } from 'lucide-react';
 import { DatePickerString } from '@/components/ui/date-picker';
 
+// Helper to transform empty string to undefined for optional enums
+const optionalEnum = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.enum(values).optional().or(z.literal('').transform(() => undefined));
+
 const createSchema = z.object({
   phoneNumber: z.string().min(8, 'Número de teléfono inválido'),
   nombre: z.string().min(2, 'Mínimo 2 caracteres'),
@@ -26,9 +30,9 @@ const createSchema = z.object({
   esJA: z.boolean(),
   fechaNacimiento: z.string().optional(),
   direccion: z.string().optional(),
-  tipoDocumento: z.enum(['DNI', 'CE', 'PASAPORTE']).optional(),
+  tipoDocumento: optionalEnum(['DNI', 'CE', 'PASAPORTE'] as const),
   numeroDocumento: z.string().optional(),
-  tallaPolo: z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']).optional(),
+  tallaPolo: optionalEnum(['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const),
   esBautizado: z.boolean().optional(),
   biografia: z.string().optional(),
   notificarNuevasConversaciones: z.boolean(),
@@ -43,9 +47,9 @@ const updateSchema = z.object({
   esJA: z.boolean(),
   fechaNacimiento: z.string().optional(),
   direccion: z.string().optional(),
-  tipoDocumento: z.enum(['DNI', 'CE', 'PASAPORTE']).optional(),
+  tipoDocumento: optionalEnum(['DNI', 'CE', 'PASAPORTE'] as const),
   numeroDocumento: z.string().optional(),
-  tallaPolo: z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']).optional(),
+  tallaPolo: optionalEnum(['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const),
   esBautizado: z.boolean().optional(),
   biografia: z.string().optional(),
   notificarNuevasConversaciones: z.boolean(),
