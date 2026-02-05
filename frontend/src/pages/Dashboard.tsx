@@ -158,6 +158,11 @@ export default function Dashboard() {
     });
   };
 
+  const formatTime = (isoString: string) => {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
   const handleDrilldownMes = async (mesIso: string) => {
     // Extraer YYYY-MM del ISO string
     const date = new Date(mesIso);
@@ -932,7 +937,7 @@ export default function Dashboard() {
                   </span>
                   {proximoPrograma.horaInicio && (
                     <span className="text-xs text-gray-500">
-                      {proximoPrograma.horaInicio}{proximoPrograma.horaFin ? ` - ${proximoPrograma.horaFin}` : ''}
+                      {formatTime(proximoPrograma.horaInicio)}{proximoPrograma.horaFin ? ` - ${formatTime(proximoPrograma.horaFin)}` : ''}
                     </span>
                   )}
                 </div>
