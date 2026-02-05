@@ -970,7 +970,7 @@ export default function Dashboard() {
                           {pp.parte.nombre}
                         </span>
                         <span className={`flex-1 truncate ${esMiParte ? 'text-indigo-600 font-semibold' : 'text-gray-500'}`} title={nombres}>
-                          {nombres || <span className="text-gray-300 italic">Sin asignar</span>}
+                          {nombres || pp.parte.textoFijo || <span className="text-gray-300 italic">Sin asignar</span>}
                         </span>
                         {esMiParte && (
                           <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] shrink-0">Tú</Badge>
