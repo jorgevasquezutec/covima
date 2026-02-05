@@ -13,6 +13,8 @@ import {
   RegistrarAsistenciaDto,
   RegistrarAsistenciaManualDto,
   RegistrarAsistenciaHistoricaDto,
+  RegistrarAsistenciaMasivaDto,
+  RegistrarAsistenciaHistoricaMasivaDto,
   ConfirmarAsistenciaDto,
   FilterAsistenciasDto,
 } from './dto';
@@ -997,6 +999,371 @@ export class AsistenciaService {
     };
   }
 
+  /**
+   * Registrar asistencia manual masiva (admin/lider)
+   * Registra múltiples usuarios en un QR activo
+   */
+  async registrarAsistenciaManualMasivo(
+    registradoPorId: number,
+    dto: RegistrarAsistenciaMasivaDto,
+  ) {
+    // Buscar el QR
+    const qr = await this.prisma.qRAsistencia.findUnique({
+      where: { codigo: dto.codigoQR },
+      include: {
+        tipoAsistencia: {
+          include: {
+            campos: {
+              where: { activo: true },
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!qr) {
+      throw new NotFoundException('Código QR no válido');
+    }
+
+    if (!qr.activo) {
+      throw new BadRequestException('Este código QR ya no está activo');
+    }
+
+    // Validar horario
+    const hoy = getTodayAsUTC();
+    const now = new Date();
+    const horaActualEnMinutos = now.getHours() * 60 + now.getMinutes();
+    const horaInicioQR =
+      qr.horaInicio instanceof Date
+        ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
+        : 9 * 60;
+    const horaFinQR =
+      qr.horaFin instanceof Date
+        ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
+        : 12 * 60;
+    const horaAperturaQR = horaInicioQR - (qr.margenTemprana || 0);
+
+    if (
+      horaActualEnMinutos < horaAperturaQR ||
+      horaActualEnMinutos >= horaFinQR
+    ) {
+      const horaAperturaDate = new Date();
+      horaAperturaDate.setHours(
+        Math.floor(horaAperturaQR / 60),
+        horaAperturaQR % 60,
+        0,
+      );
+      const horaAperturaStr = this.formatHora(horaAperturaDate);
+      const horaFinStr = this.formatHora(qr.horaFin);
+      throw new BadRequestException(
+        `Solo se puede registrar asistencia entre ${horaAperturaStr} y ${horaFinStr}`,
+      );
+    }
+
+    // Validar formulario
+    if (
+      qr.tipoAsistencia &&
+      !qr.tipoAsistencia.soloPresencia &&
+      qr.tipoAsistencia.campos.length > 0
+    ) {
+      this.validateFormularioData(
+        dto.datosFormulario,
+        qr.tipoAsistencia.campos,
+      );
+    }
+
+    const semanaInicio = getInicioSemana(hoy);
+    const resultados: Array<{
+      usuarioId: number;
+      nombre: string;
+      status: 'registrado' | 'ya_registrado' | 'error';
+      error?: string;
+    }> = [];
+
+    for (const usuarioId of dto.usuarioIds) {
+      try {
+        const usuario = await this.prisma.usuario.findUnique({
+          where: { id: usuarioId },
+        });
+        if (!usuario) {
+          resultados.push({
+            usuarioId,
+            nombre: 'Desconocido',
+            status: 'error',
+            error: 'Usuario no encontrado',
+          });
+          continue;
+        }
+
+        // Verificar duplicado
+        const orConditions: any[] = [{ usuarioId }];
+        if (usuario.telefono) {
+          orConditions.push({ telefonoRegistro: usuario.telefono });
+          orConditions.push({
+            telefonoRegistro: { endsWith: usuario.telefono.slice(-9) },
+          });
+        }
+
+        const existente = await this.prisma.asistencia.findFirst({
+          where: { qrId: qr.id, OR: orConditions },
+        });
+
+        if (existente) {
+          resultados.push({
+            usuarioId,
+            nombre: usuario.nombre,
+            status: 'ya_registrado',
+          });
+          continue;
+        }
+
+        // Crear asistencia
+        const asistencia = await this.prisma.asistencia.create({
+          data: {
+            usuarioId,
+            tipoId: qr.tipoId,
+            fecha: hoy,
+            semanaInicio,
+            datosFormulario: dto.datosFormulario || {},
+            metodoRegistro: 'manual',
+            estado: 'confirmado',
+            confirmadoPor: registradoPorId,
+            confirmadoAt: new Date(),
+            qrId: qr.id,
+          },
+        });
+
+        // Asignar puntos
+        try {
+          await this.gamificacionService.asignarPuntosPorAsistencia(
+            usuarioId,
+            asistencia.id,
+            asistencia.createdAt,
+            qr.horaInicio,
+            qr.margenTemprana,
+            qr.margenTardia,
+          );
+        } catch (error) {
+          console.error(
+            `Error asignando puntos a usuario ${usuarioId}:`,
+            error,
+          );
+        }
+
+        resultados.push({
+          usuarioId,
+          nombre: usuario.nombre,
+          status: 'registrado',
+        });
+      } catch (error: any) {
+        resultados.push({
+          usuarioId,
+          nombre: 'Desconocido',
+          status: 'error',
+          error: error.message || 'Error desconocido',
+        });
+      }
+    }
+
+    const registrados = resultados.filter(
+      (r) => r.status === 'registrado',
+    ).length;
+    const yaRegistrados = resultados.filter(
+      (r) => r.status === 'ya_registrado',
+    ).length;
+    const errores = resultados.filter((r) => r.status === 'error').length;
+
+    return {
+      mensaje: `${registrados} registrados, ${yaRegistrados} ya registrados, ${errores} errores`,
+      registrados,
+      yaRegistrados,
+      errores,
+      resultados,
+    };
+  }
+
+  /**
+   * Registrar asistencia histórica masiva (admin)
+   * Registra múltiples usuarios en un QR pasado/inactivo
+   */
+  async registrarAsistenciaHistoricaMasivo(
+    registradoPorId: number,
+    dto: RegistrarAsistenciaHistoricaMasivaDto,
+  ) {
+    // Buscar el QR (sin validar si está activo)
+    const qr = await this.prisma.qRAsistencia.findUnique({
+      where: { codigo: dto.codigoQR },
+      include: {
+        tipoAsistencia: {
+          include: {
+            campos: {
+              where: { activo: true },
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!qr) {
+      throw new NotFoundException('Código QR no válido');
+    }
+
+    const fechaAsistencia = qr.semanaInicio;
+
+    // Validar formulario
+    if (
+      qr.tipoAsistencia &&
+      !qr.tipoAsistencia.soloPresencia &&
+      qr.tipoAsistencia.campos.length > 0
+    ) {
+      this.validateFormularioData(
+        dto.datosFormulario,
+        qr.tipoAsistencia.campos,
+      );
+    }
+
+    const codigoPuntaje = {
+      temprana: 'asistencia_temprana',
+      normal: 'asistencia_normal',
+      tardia: 'asistencia_tardia',
+    }[dto.tipoAsistenciaManual];
+
+    const resultados: Array<{
+      usuarioId: number;
+      nombre: string;
+      status: 'registrado' | 'ya_registrado' | 'error';
+      error?: string;
+    }> = [];
+
+    for (const usuarioId of dto.usuarioIds) {
+      try {
+        const usuario = await this.prisma.usuario.findUnique({
+          where: { id: usuarioId },
+        });
+        if (!usuario) {
+          resultados.push({
+            usuarioId,
+            nombre: 'Desconocido',
+            status: 'error',
+            error: 'Usuario no encontrado',
+          });
+          continue;
+        }
+
+        // Verificar duplicado
+        const orConditions: any[] = [{ usuarioId }];
+        if (usuario.telefono) {
+          orConditions.push({ telefonoRegistro: usuario.telefono });
+          orConditions.push({
+            telefonoRegistro: { endsWith: usuario.telefono.slice(-9) },
+          });
+        }
+
+        const existente = await this.prisma.asistencia.findFirst({
+          where: { qrId: qr.id, OR: orConditions },
+        });
+
+        if (existente) {
+          resultados.push({
+            usuarioId,
+            nombre: usuario.nombre,
+            status: 'ya_registrado',
+          });
+          continue;
+        }
+
+        // Crear asistencia
+        const asistencia = await this.prisma.asistencia.create({
+          data: {
+            usuarioId,
+            tipoId: qr.tipoId,
+            fecha: fechaAsistencia,
+            semanaInicio: fechaAsistencia,
+            datosFormulario: dto.datosFormulario || {},
+            metodoRegistro: 'manual_historico',
+            estado: 'confirmado',
+            confirmadoPor: registradoPorId,
+            confirmadoAt: new Date(),
+            qrId: qr.id,
+          },
+        });
+
+        // Asignar puntos y recalcular racha
+        try {
+          await this.gamificacionService.asignarPuntos(
+            usuarioId,
+            codigoPuntaje,
+            asistencia.id,
+            'asistencia',
+          );
+
+          // Recalcular racha
+          const perfil = await this.prisma.usuarioGamificacion.findUnique({
+            where: { usuarioId },
+          });
+          if (perfil) {
+            const asistenciasConfirmadas =
+              await this.prisma.asistencia.findMany({
+                where: { usuarioId, estado: 'confirmado' },
+                orderBy: { fecha: 'desc' },
+                select: { fecha: true },
+              });
+
+            const { rachaActual, ultimaFecha } =
+              this.calcularRachaDesdeAsistencias(asistenciasConfirmadas);
+            const mejorRacha = Math.max(rachaActual, perfil.rachaMejor);
+
+            await this.prisma.usuarioGamificacion.update({
+              where: { id: perfil.id },
+              data: {
+                asistenciasTotales: { increment: 1 },
+                ultimaSemanaAsistio: ultimaFecha,
+                rachaActual,
+                rachaMejor: mejorRacha,
+              },
+            });
+          }
+        } catch (error) {
+          console.error(
+            `Error asignando puntos a usuario ${usuarioId}:`,
+            error,
+          );
+        }
+
+        resultados.push({
+          usuarioId,
+          nombre: usuario.nombre,
+          status: 'registrado',
+        });
+      } catch (error: any) {
+        resultados.push({
+          usuarioId,
+          nombre: 'Desconocido',
+          status: 'error',
+          error: error.message || 'Error desconocido',
+        });
+      }
+    }
+
+    const registrados = resultados.filter(
+      (r) => r.status === 'registrado',
+    ).length;
+    const yaRegistrados = resultados.filter(
+      (r) => r.status === 'ya_registrado',
+    ).length;
+    const errores = resultados.filter((r) => r.status === 'error').length;
+
+    return {
+      mensaje: `${registrados} registrados, ${yaRegistrados} ya registrados, ${errores} errores`,
+      registrados,
+      yaRegistrados,
+      errores,
+      resultados,
+    };
+  }
+
   private validateFormularioData(
     data: Record<string, any> | undefined,
     campos: any[],
@@ -1395,6 +1762,96 @@ export class AsistenciaService {
     };
   }
 
+  async getEstadisticasMesPorSemana(mes: string) {
+    const [yearStr, monthStr] = mes.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1; // 0-indexed
+
+    const mesInicio = new Date(year, month, 1);
+    const mesFin = new Date(year, month + 1, 0, 23, 59, 59);
+
+    // Obtener tipos de asistencia
+    const tiposAsistencia = await this.prisma.tipoAsistencia.findMany({
+      where: { activo: true },
+      select: { id: true, nombre: true, label: true, color: true },
+      orderBy: { orden: 'asc' },
+    });
+
+    // Calcular las semanas del mes (cada sábado es fin de semana JA)
+    const semanas: any[] = [];
+    let semanaNum = 1;
+    let current = new Date(mesInicio);
+
+    while (current <= mesFin) {
+      // Inicio de semana: lunes o primer día del mes
+      const semanaInicio = new Date(current);
+      // Fin de semana: domingo siguiente o último día del mes
+      const diasHastaDomingo = (7 - current.getDay()) % 7;
+      const semanaFin = new Date(current);
+      semanaFin.setDate(current.getDate() + diasHastaDomingo);
+      if (semanaFin > mesFin) {
+        semanaFin.setTime(mesFin.getTime());
+      }
+      semanaFin.setHours(23, 59, 59, 999);
+
+      // Contar confirmados en este rango
+      const confirmados = await this.prisma.asistencia.count({
+        where: {
+          fecha: { gte: semanaInicio, lte: semanaFin },
+          estado: 'confirmado',
+        },
+      });
+
+      // Por tipo
+      const porTipo = await this.prisma.asistencia.groupBy({
+        by: ['tipoId'],
+        where: {
+          fecha: { gte: semanaInicio, lte: semanaFin },
+          estado: 'confirmado',
+        },
+        _count: { id: true },
+      });
+
+      const porTipoConInfo = tiposAsistencia.map((tipo) => {
+        const encontrado = porTipo.find((p) => p.tipoId === tipo.id);
+        return {
+          tipoId: tipo.id,
+          nombre: tipo.nombre,
+          label: tipo.label,
+          color: tipo.color || '#6366f1',
+          cantidad: encontrado?._count.id || 0,
+        };
+      });
+
+      semanas.push({
+        semanaNum,
+        semanaInicio: semanaInicio.toISOString(),
+        semanaFin: semanaFin.toISOString(),
+        label: `Sem ${semanaNum}`,
+        confirmados,
+        porTipo: porTipoConInfo,
+      });
+
+      // Avanzar al siguiente día después del domingo
+      current = new Date(semanaFin);
+      current.setDate(current.getDate() + 1);
+      current.setHours(0, 0, 0, 0);
+      semanaNum++;
+    }
+
+    const mesNombre = mesInicio.toLocaleDateString('es-PE', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    return {
+      mes,
+      mesNombre,
+      tipos: tiposAsistencia,
+      semanas,
+    };
+  }
+
   async getEstadisticasGenerales() {
     const ultimosMeses = 6;
     const hoy = new Date();
@@ -1472,12 +1929,18 @@ export class AsistenciaService {
       where: { activo: true },
     });
 
+    // Total de usuarios JA activos
+    const totalJA = await this.prisma.usuario.count({
+      where: { activo: true, esJA: true },
+    });
+
     // Asistencia del último mes (mes actual)
     const ultimoMes = meses[0];
     const promedioAsistencia = ultimoMes?.confirmados ?? 0;
 
     return {
       totalUsuarios,
+      totalJA,
       promedioAsistencia,
       tipos: tiposAsistencia,
       meses: meses.reverse(), // Ordenar de más antiguo a más reciente

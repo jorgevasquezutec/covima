@@ -29,6 +29,8 @@ import {
   RegistrarAsistenciaDto,
   RegistrarAsistenciaManualDto,
   RegistrarAsistenciaHistoricaDto,
+  RegistrarAsistenciaMasivaDto,
+  RegistrarAsistenciaHistoricaMasivaDto,
   ConfirmarAsistenciaDto,
 } from './dto';
 
@@ -144,6 +146,37 @@ export class AsistenciaController {
     @Request() req: any,
   ) {
     return this.asistenciaService.registrarAsistenciaHistorica(
+      this.getUserId(req),
+      dto,
+    );
+  }
+
+  @Post('registrar-manual-masivo')
+  @Roles('admin', 'lider')
+  @ApiOperation({
+    summary: 'Registrar asistencia manual de múltiples usuarios',
+  })
+  async registrarAsistenciaManualMasivo(
+    @Body() dto: RegistrarAsistenciaMasivaDto,
+    @Request() req: any,
+  ) {
+    return this.asistenciaService.registrarAsistenciaManualMasivo(
+      this.getUserId(req),
+      dto,
+    );
+  }
+
+  @Post('registrar-historica-masivo')
+  @Roles('admin')
+  @ApiOperation({
+    summary:
+      'Registrar asistencia histórica de múltiples usuarios (solo admin)',
+  })
+  async registrarAsistenciaHistoricaMasivo(
+    @Body() dto: RegistrarAsistenciaHistoricaMasivaDto,
+    @Request() req: any,
+  ) {
+    return this.asistenciaService.registrarAsistenciaHistoricaMasivo(
       this.getUserId(req),
       dto,
     );
@@ -279,6 +312,14 @@ export class AsistenciaController {
   @ApiQuery({ name: 'semanaInicio', required: true })
   async getEstadisticasSemana(@Query('semanaInicio') semanaInicio: string) {
     return this.asistenciaService.getEstadisticasSemana(new Date(semanaInicio));
+  }
+
+  @Get('estadisticas/mes')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Estadísticas por semana de un mes específico' })
+  @ApiQuery({ name: 'mes', required: true, description: 'Formato YYYY-MM' })
+  async getEstadisticasMes(@Query('mes') mes: string) {
+    return this.asistenciaService.getEstadisticasMesPorSemana(mes);
   }
 
   @Get('mi-asistencia')

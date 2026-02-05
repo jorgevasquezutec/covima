@@ -4,6 +4,9 @@ import {
   IsOptional,
   IsString,
   IsObject,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -177,6 +180,61 @@ export class RegistrarAsistenciaHistoricaDto {
   @ApiPropertyOptional({
     example: { dias_estudio: 5 },
     description: 'Datos del formulario dinámico',
+  })
+  @IsOptional()
+  @IsObject()
+  datosFormulario?: Record<string, any>;
+}
+
+export class RegistrarAsistenciaMasivaDto {
+  @ApiProperty({ description: 'Código del QR (debe estar activo)' })
+  @IsString()
+  codigoQR: string;
+
+  @ApiProperty({
+    description: 'IDs de los usuarios a registrar',
+    example: [1, 2, 3],
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @IsInt({ each: true })
+  usuarioIds: number[];
+
+  @ApiPropertyOptional({
+    example: { dias_estudio: 5 },
+    description: 'Datos del formulario dinámico (aplicado a todos)',
+  })
+  @IsOptional()
+  @IsObject()
+  datosFormulario?: Record<string, any>;
+}
+
+export class RegistrarAsistenciaHistoricaMasivaDto {
+  @ApiProperty({ description: 'Código del QR (puede ser pasado/inactivo)' })
+  @IsString()
+  codigoQR: string;
+
+  @ApiProperty({
+    description: 'IDs de los usuarios a registrar',
+    example: [1, 2, 3],
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @IsInt({ each: true })
+  usuarioIds: number[];
+
+  @ApiProperty({
+    example: 'normal',
+    description: 'Tipo de asistencia: temprana, normal o tardia',
+  })
+  @IsString()
+  tipoAsistenciaManual: 'temprana' | 'normal' | 'tardia';
+
+  @ApiPropertyOptional({
+    example: { dias_estudio: 5 },
+    description: 'Datos del formulario dinámico (aplicado a todos)',
   })
   @IsOptional()
   @IsObject()

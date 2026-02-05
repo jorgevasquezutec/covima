@@ -15,10 +15,11 @@ export class UsuariosService {
     search?: string;
     rol?: string;
     activo?: boolean;
+    perfilIncompleto?: boolean;
     page?: number;
     limit?: number;
   }) {
-    const { search, rol, activo, page = 1, limit = 20 } = options || {};
+    const { search, rol, activo, perfilIncompleto, page = 1, limit = 20 } = options || {};
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -41,6 +42,22 @@ export class UsuariosService {
 
     if (activo !== undefined) {
       where.activo = activo;
+    }
+
+    if (perfilIncompleto) {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { fechaNacimiento: null },
+            { tipoDocumento: null },
+            { numeroDocumento: null },
+            { direccion: null },
+            { tallaPolo: null },
+            { esBautizado: null },
+          ],
+        },
+      ];
     }
 
     const [usuarios, total] = await Promise.all([
@@ -664,6 +681,45 @@ export class UsuariosService {
         limit,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  async getResumenPerfilIncompleto() {
+    const baseWhere = { activo: true, esJA: true };
+    const camposIncompletos = [
+      { campo: 'fechaNacimiento', label: 'Fecha de nacimiento' },
+      { campo: 'tipoDocumento', label: 'Tipo de documento' },
+      { campo: 'numeroDocumento', label: 'Número de documento' },
+      { campo: 'direccion', label: 'Dirección' },
+      { campo: 'tallaPolo', label: 'Talla de polo' },
+      { campo: 'esBautizado', label: 'Estado de bautismo' },
+    ];
+
+    // Contar usuarios con al menos un campo faltante
+    const totalIncompletos = await this.prisma.usuario.count({
+      where: {
+        ...baseWhere,
+        OR: camposIncompletos.map((c) => ({ [c.campo]: null })),
+      },
+    });
+
+    // Conteo por campo
+    const detalle = await Promise.all(
+      camposIncompletos.map(async (c) => ({
+        campo: c.campo,
+        label: c.label,
+        faltantes: await this.prisma.usuario.count({
+          where: { ...baseWhere, [c.campo]: null },
+        }),
+      })),
+    );
+
+    const totalJA = await this.prisma.usuario.count({ where: baseWhere });
+
+    return {
+      totalIncompletos,
+      totalJA,
+      detalle,
     };
   }
 

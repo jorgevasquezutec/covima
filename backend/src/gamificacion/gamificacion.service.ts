@@ -2,8 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AsistenciaGateway } from '../asistencia/gateway/asistencia.gateway';
 import { CategoriaAccion, EstadoRanking } from '@prisma/client';
 import { RankingFilterDto, TipoRanking } from './dto/ranking-filter.dto';
 import {
@@ -29,7 +32,11 @@ export interface AsignarPuntosResult {
 
 @Injectable()
 export class GamificacionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => AsistenciaGateway))
+    private asistenciaGateway: AsistenciaGateway,
+  ) {}
 
   /**
    * Calcula el XP requerido para un nivel usando fórmula exponencial
@@ -313,6 +320,224 @@ export class GamificacionService {
     return periodo;
   }
 
+  // Comparar participantes (2-5 usuarios): radar + desglose
+  async compararParticipantes(usuarioIds: number[]) {
+    if (usuarioIds.length < 2 || usuarioIds.length > 5) {
+      throw new BadRequestException(
+        'Debes seleccionar entre 2 y 5 participantes para comparar',
+      );
+    }
+
+    // Obtener perfiles de gamificación
+    const perfiles = await this.prisma.usuarioGamificacion.findMany({
+      where: { usuarioId: { in: usuarioIds } },
+      include: {
+        usuario: { select: { id: true, nombre: true, fotoUrl: true } },
+        nivel: true,
+      },
+    });
+
+    if (perfiles.length < 2) {
+      throw new BadRequestException(
+        'No se encontraron suficientes perfiles de gamificación para comparar',
+      );
+    }
+
+    // Obtener periodo activo
+    const periodoActivo = await this.getPeriodoActivo();
+
+    // --- RADAR: 6 métricas normalizadas 0-100 ---
+    const rawData = perfiles.map((p) => ({
+      usuarioGamId: p.id,
+      usuarioId: p.usuarioId,
+      asistenciasTotales: p.asistenciasTotales,
+      participacionesTotales: p.participacionesTotales,
+      puntosTrimestre: p.puntosTrimestre,
+      xpTotal: p.xpTotal,
+      rachaActual: p.rachaActual,
+      nivelNumero: p.nivel.numero,
+    }));
+
+    const normalize = (values: number[]) => {
+      const max = Math.max(...values, 1);
+      return values.map((v) => Math.round((v / max) * 100));
+    };
+
+    const asistenciaNorm = normalize(rawData.map((r) => r.asistenciasTotales));
+    const participacionNorm = normalize(
+      rawData.map((r) => r.participacionesTotales),
+    );
+    const puntosNorm = normalize(rawData.map((r) => r.puntosTrimestre));
+    const xpNorm = normalize(rawData.map((r) => r.xpTotal));
+    const rachaNorm = normalize(rawData.map((r) => r.rachaActual));
+    const nivelNorm = normalize(rawData.map((r) => r.nivelNumero));
+
+    const usuarios = perfiles.map((p, i) => ({
+      usuarioId: p.usuarioId,
+      nombre: p.usuario.nombre,
+      fotoUrl: p.usuario.fotoUrl,
+      nivel: {
+        numero: p.nivel.numero,
+        nombre: p.nivel.nombre,
+        icono: p.nivel.icono,
+        color: p.nivel.color,
+      },
+      radar: {
+        asistencia: asistenciaNorm[i],
+        participacion: participacionNorm[i],
+        puntos: puntosNorm[i],
+        xp: xpNorm[i],
+        racha: rachaNorm[i],
+        nivel: nivelNorm[i],
+      },
+      raw: {
+        asistenciasTotales: rawData[i].asistenciasTotales,
+        participacionesTotales: rawData[i].participacionesTotales,
+        puntosTrimestre: rawData[i].puntosTrimestre,
+        xpTotal: rawData[i].xpTotal,
+        rachaActual: rawData[i].rachaActual,
+        nivelNumero: rawData[i].nivelNumero,
+      },
+    }));
+
+    // --- DESGLOSE: puntos agrupados por configPuntaje y categoria ---
+    const perfilIds = perfiles.map((p) => p.id);
+    const whereHistorial: any = {
+      usuarioGamId: { in: perfilIds },
+    };
+    if (periodoActivo) {
+      whereHistorial.periodoRankingId = periodoActivo.id;
+    }
+
+    // Agrupar por [usuarioGamId, configPuntajeId]
+    const puntosAgrupados = await this.prisma.historialPuntos.groupBy({
+      by: ['usuarioGamId', 'configPuntajeId'],
+      where: { ...whereHistorial, configPuntajeId: { not: null } },
+      _sum: { puntos: true },
+      _count: true,
+    });
+
+    // Obtener configs
+    const configIds = [
+      ...new Set(
+        puntosAgrupados
+          .filter((p) => p.configPuntajeId)
+          .map((p) => p.configPuntajeId as number),
+      ),
+    ];
+    const configs = await this.prisma.configuracionPuntaje.findMany({
+      where: { id: { in: configIds } },
+    });
+    const configMap = new Map(configs.map((c) => [c.id, c]));
+
+    // Agrupar eventos especiales por [usuarioGamId, referenciaId]
+    const eventosAgrupados = await this.prisma.historialPuntos.groupBy({
+      by: ['usuarioGamId', 'referenciaId'],
+      where: {
+        ...whereHistorial,
+        referenciaTipo: 'evento',
+        referenciaId: { not: null },
+      },
+      _sum: { puntos: true },
+      _count: true,
+    });
+
+    // Obtener evento configs
+    const eventoIds = [
+      ...new Set(
+        eventosAgrupados
+          .filter((e) => e.referenciaId)
+          .map((e) => e.referenciaId as number),
+      ),
+    ];
+    const eventosConfig =
+      eventoIds.length > 0
+        ? await this.prisma.eventoEspecialConfig.findMany({
+            where: { id: { in: eventoIds } },
+          })
+        : [];
+    const eventoMap = new Map(eventosConfig.map((e) => [e.id, e]));
+
+    // Map de usuarioGamId -> usuarioId
+    const gamIdToUserId = new Map(perfiles.map((p) => [p.id, p.usuarioId]));
+
+    // Construir desglose por categoría
+    const categoriasMap = new Map<
+      string,
+      Map<string, { codigo: string; nombre: string; valores: Map<number, { cantidad: number; puntos: number }> }>
+    >();
+
+    // Procesar acciones normales
+    for (const p of puntosAgrupados) {
+      const config = configMap.get(p.configPuntajeId as number);
+      if (!config) continue;
+
+      const categoria = config.categoria;
+      if (!categoriasMap.has(categoria)) {
+        categoriasMap.set(categoria, new Map());
+      }
+      const accionesMap = categoriasMap.get(categoria)!;
+      if (!accionesMap.has(config.codigo)) {
+        accionesMap.set(config.codigo, {
+          codigo: config.codigo,
+          nombre: config.nombre,
+          valores: new Map(),
+        });
+      }
+      const accion = accionesMap.get(config.codigo)!;
+      const uid = gamIdToUserId.get(p.usuarioGamId)!;
+      accion.valores.set(uid, {
+        cantidad: p._count,
+        puntos: p._sum.puntos || 0,
+      });
+    }
+
+    // Procesar eventos especiales
+    for (const e of eventosAgrupados) {
+      const config = eventoMap.get(e.referenciaId as number);
+      if (!config) continue;
+
+      const categoria = 'EVENTO_ESPECIAL';
+      if (!categoriasMap.has(categoria)) {
+        categoriasMap.set(categoria, new Map());
+      }
+      const accionesMap = categoriasMap.get(categoria)!;
+      if (!accionesMap.has(config.codigo)) {
+        accionesMap.set(config.codigo, {
+          codigo: config.codigo,
+          nombre: config.nombre,
+          valores: new Map(),
+        });
+      }
+      const accion = accionesMap.get(config.codigo)!;
+      const uid = gamIdToUserId.get(e.usuarioGamId)!;
+      accion.valores.set(uid, {
+        cantidad: e._count,
+        puntos: e._sum.puntos || 0,
+      });
+    }
+
+    // Convertir Map a array serializable
+    const desglose = Array.from(categoriasMap.entries()).map(
+      ([categoria, accionesMap]) => ({
+        categoria,
+        acciones: Array.from(accionesMap.values()).map((accion) => ({
+          codigo: accion.codigo,
+          nombre: accion.nombre,
+          valores: Object.fromEntries(accion.valores),
+        })),
+      }),
+    );
+
+    return {
+      usuarios,
+      desglose,
+      periodo: periodoActivo
+        ? { id: periodoActivo.id, nombre: periodoActivo.nombre }
+        : null,
+    };
+  }
+
   // Asignar puntos a un usuario
   async asignarPuntos(
     usuarioId: number,
@@ -375,6 +600,14 @@ export class GamificacionService {
 
     // Verificar insignias desbloqueadas
     const insigniasDesbloqueadas = await this.verificarInsignias(perfil.id);
+
+    // Emitir notificación de level-up via socket
+    if (nuevoNivel !== null) {
+      this.asistenciaGateway.emitLevelUp(usuarioId, {
+        nivel: nuevoNivel,
+        insignias: insigniasDesbloqueadas,
+      });
+    }
 
     return {
       puntosAsignados: config.puntos,
@@ -508,6 +741,14 @@ export class GamificacionService {
 
     // Verificar insignias desbloqueadas
     const insigniasDesbloqueadas = await this.verificarInsignias(perfil.id);
+
+    // Emitir notificación de level-up via socket
+    if (nuevoNivel !== null) {
+      this.asistenciaGateway.emitLevelUp(usuarioId, {
+        nivel: nuevoNivel,
+        insignias: insigniasDesbloqueadas,
+      });
+    }
 
     return {
       puntosAsignados: parte.puntos,
@@ -1143,11 +1384,19 @@ export class GamificacionService {
       });
 
       // Verificar nivel e insignias
-      await this.calcularYActualizarNivel(
+      const nuevoNivel = await this.calcularYActualizarNivel(
         perfil.id,
         perfil.xpTotal + evento.xp,
       );
-      await this.verificarInsignias(perfil.id);
+      const insigniasDesbloqueadas = await this.verificarInsignias(perfil.id);
+
+      // Emitir notificación de level-up via socket
+      if (nuevoNivel !== null) {
+        this.asistenciaGateway.emitLevelUp(usuarioId, {
+          nivel: nuevoNivel,
+          insignias: insigniasDesbloqueadas,
+        });
+      }
 
       resultados.push({
         usuarioId,
@@ -1753,26 +2002,21 @@ export class GamificacionService {
       whereHistorial.usuarioGam = { usuarioId };
     }
 
-    // Agrupar por configPuntajeId
+    // Agrupar acciones normales por configPuntajeId
     const accionesAgrupadas = await this.prisma.historialPuntos.groupBy({
       by: ['configPuntajeId'],
-      where: whereHistorial,
+      where: { ...whereHistorial, configPuntajeId: { not: null } },
       _count: true,
       _sum: { puntos: true },
     });
 
-    // Obtener nombres de las acciones
-    const configIds = accionesAgrupadas
-      .filter((a) => a.configPuntajeId !== null)
-      .map((a) => a.configPuntajeId as number);
-
+    const configIds = accionesAgrupadas.map((a) => a.configPuntajeId as number);
     const configs = await this.prisma.configuracionPuntaje.findMany({
       where: { id: { in: configIds } },
     });
     const configMap = new Map(configs.map((c) => [c.id, c]));
 
-    const accionesPorTipo = accionesAgrupadas
-      .filter((a) => a.configPuntajeId !== null)
+    const accionesPorTipo: { codigo: string; nombre: string; cantidad: number; puntosTotales: number; categoria: string }[] = accionesAgrupadas
       .map((a) => {
         const config = configMap.get(a.configPuntajeId as number);
         return {
@@ -1782,8 +2026,36 @@ export class GamificacionService {
           puntosTotales: a._sum.puntos || 0,
           categoria: config?.categoria || 'OTRO',
         };
-      })
-      .sort((a, b) => b.cantidad - a.cantidad);
+      });
+
+    // Agrupar eventos especiales (referenciaTipo = 'evento')
+    const eventosAgrupados = await this.prisma.historialPuntos.groupBy({
+      by: ['referenciaId'],
+      where: { ...whereHistorial, referenciaTipo: 'evento', referenciaId: { not: null } },
+      _count: true,
+      _sum: { puntos: true },
+    });
+
+    if (eventosAgrupados.length > 0) {
+      const eventoIds = eventosAgrupados.map((e) => e.referenciaId as number);
+      const eventosConfig = await this.prisma.eventoEspecialConfig.findMany({
+        where: { id: { in: eventoIds } },
+      });
+      const eventoMap = new Map(eventosConfig.map((e) => [e.id, e]));
+
+      for (const e of eventosAgrupados) {
+        const config = eventoMap.get(e.referenciaId as number);
+        accionesPorTipo.push({
+          codigo: config?.codigo || 'evento',
+          nombre: config?.nombre || 'Evento',
+          cantidad: e._count,
+          puntosTotales: e._sum.puntos || 0,
+          categoria: 'EVENTO_ESPECIAL',
+        });
+      }
+    }
+
+    accionesPorTipo.sort((a, b) => b.puntosTotales - a.puntosTotales);
 
     // --- Partes más hechas (de ProgramaAsignacion agrupado por Parte) ---
     const whereAsignacion: any = {};
@@ -1853,14 +2125,68 @@ export class GamificacionService {
       puntos: number;
     }[] = [];
 
-    for (const grupo of grupos) {
-      // Obtener usuarios del grupo
-      const miembros = await this.prisma.grupoRankingMiembro.findMany({
-        where: { grupoId: grupo.id },
-        select: { usuarioId: true },
-      });
+    // Obtener roles del usuario para resolver membresía por criterio
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      include: { roles: { include: { rol: true } } },
+    });
+    const rolesUsuario = usuario?.roles.map((r) => r.rol.nombre) || [];
+    const esAdmin = rolesUsuario.includes('admin');
+    const esLider = rolesUsuario.includes('lider');
 
-      const usuarioIds = miembros.map((m) => m.usuarioId);
+    for (const grupo of grupos) {
+      // Resolver miembros según el criterio del grupo
+      let usuarioIds: number[] = [];
+
+      if (grupo.criterio === 'MANUAL') {
+        const miembros = await this.prisma.grupoRankingMiembro.findMany({
+          where: { grupoId: grupo.id },
+          select: { usuarioId: true },
+        });
+        usuarioIds = miembros.map((m) => m.usuarioId);
+      } else if (grupo.criterio === 'TODOS_ACTIVOS') {
+        const usuarios = await this.prisma.usuario.findMany({
+          where: {
+            activo: true,
+            esJA: true,
+            participaEnRanking: true,
+            roles: { none: { rol: { nombre: { in: ['admin', 'lider'] } } } },
+          },
+          select: { id: true },
+        });
+        usuarioIds = usuarios.map((u) => u.id);
+      } else if (grupo.criterio === 'ROL_LIDER_ADMIN') {
+        const usuarios = await this.prisma.usuario.findMany({
+          where: {
+            activo: true,
+            participaEnRanking: true,
+            roles: { some: { rol: { nombre: { in: ['admin', 'lider'] } } } },
+          },
+          select: { id: true },
+        });
+        usuarioIds = usuarios.map((u) => u.id);
+      } else if (grupo.criterio === 'ROL_LIDER') {
+        const usuarios = await this.prisma.usuario.findMany({
+          where: {
+            activo: true,
+            participaEnRanking: true,
+            roles: { some: { rol: { nombre: 'lider' } } },
+          },
+          select: { id: true },
+        });
+        usuarioIds = usuarios.map((u) => u.id);
+      } else if (grupo.criterio === 'ROL_ADMIN') {
+        const usuarios = await this.prisma.usuario.findMany({
+          where: {
+            activo: true,
+            participaEnRanking: true,
+            roles: { some: { rol: { nombre: 'admin' } } },
+          },
+          select: { id: true },
+        });
+        usuarioIds = usuarios.map((u) => u.id);
+      }
+
       if (!usuarioIds.includes(usuarioId)) continue; // No está en este grupo
 
       // Obtener puntos de todos los miembros
@@ -1879,7 +2205,6 @@ export class GamificacionService {
         select: { id: true, usuarioId: true },
       });
 
-      const perfilIdMap = new Map(perfilIds.map((p) => [p.id, p.usuarioId]));
       const miPerfilId = perfilIds.find((p) => p.usuarioId === usuarioId)?.id;
 
       if (!miPerfilId) continue;

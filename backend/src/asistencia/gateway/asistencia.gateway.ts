@@ -81,6 +81,10 @@ export class AsistenciaGateway
 
       const payload = this.jwtService.verify(token);
       client.data.user = payload;
+
+      // Unir al room personal del usuario para notificaciones directas
+      client.join(`user:${payload.sub}`);
+
       this.logger.log(`Client ${client.id} connected: ${payload.nombre}`);
     } catch (error) {
       this.logger.warn(`Client ${client.id} disconnected: invalid token`);
@@ -195,6 +199,18 @@ export class AsistenciaGateway
       qrCode,
       asistencia,
     });
+  }
+
+  // Método para emitir nivel subido a un usuario específico
+  emitLevelUp(
+    usuarioId: number,
+    data: {
+      nivel: { numero: number; nombre: string };
+      insignias: Array<{ codigo: string; nombre: string; icono: string }>;
+    },
+  ) {
+    this.server.to(`user:${usuarioId}`).emit('levelUp', data);
+    this.logger.log(`LevelUp emitted to user:${usuarioId} -> ${data.nivel.nombre}`);
   }
 
   // Obtener estadísticas de un room

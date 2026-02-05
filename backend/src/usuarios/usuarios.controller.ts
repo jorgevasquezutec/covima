@@ -43,12 +43,14 @@ export class UsuariosController {
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'rol', required: false })
   @ApiQuery({ name: 'activo', required: false, type: Boolean })
+  @ApiQuery({ name: 'perfilIncompleto', required: false, type: Boolean })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async findAll(
     @Query('search') search?: string,
     @Query('rol') rol?: string,
     @Query('activo') activo?: string,
+    @Query('perfilIncompleto') perfilIncompleto?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -56,6 +58,7 @@ export class UsuariosController {
       search,
       rol,
       activo: activo !== undefined ? activo === 'true' : undefined,
+      perfilIncompleto: perfilIncompleto === 'true' ? true : undefined,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
     });
@@ -220,6 +223,13 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Resumen de inactividad' })
   async getResumenInactividad() {
     return this.usuariosService.getResumenInactividad();
+  }
+
+  @Get('perfil-incompleto/resumen')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Resumen de usuarios con perfil incompleto' })
+  async getResumenPerfilIncompleto() {
+    return this.usuariosService.getResumenPerfilIncompleto();
   }
 
   @Get(':id')

@@ -884,6 +884,7 @@ export class GruposRankingService {
         grupo.id,
         usuarioId,
         periodoActivo.id,
+        1,   // page
         500, // Limit alto para encontrar la posición
       );
 

@@ -55,6 +55,18 @@ export class GamificacionController {
     return this.gamificacionService.getEstadisticasDashboard();
   }
 
+  // Comparar participantes (radar + desglose)
+  @Get('comparar')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'lider')
+  async compararParticipantes(@Query('usuarioIds') usuarioIds: string) {
+    const ids = usuarioIds
+      .split(',')
+      .map((id) => parseInt(id.trim()))
+      .filter((id) => !isNaN(id));
+    return this.gamificacionService.compararParticipantes(ids);
+  }
+
   // Mi historial completo de puntos (con paginación y filtro por período)
   @Get('mi-historial')
   async getMiHistorial(

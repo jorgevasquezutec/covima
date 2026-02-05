@@ -332,4 +332,42 @@ export class EstudiosBiblicosService {
       promedioProgreso,
     };
   }
+
+  // Estadísticas globales (todos los instructores) para dashboard admin
+  async getEstadisticasGlobal() {
+    const estudiantes = await this.prisma.estudianteBiblico.findMany({
+      where: { activo: true },
+      include: {
+        curso: true,
+        progreso: {
+          where: { completada: true },
+        },
+      },
+    });
+
+    const totalEstudiantes = estudiantes.length;
+    const bautizados = estudiantes.filter((e) => e.fechaBautismo).length;
+    const enProgreso = estudiantes.filter(
+      (e) => !e.fechaBautismo && e.progreso.length > 0,
+    ).length;
+    const sinIniciar = estudiantes.filter((e) => e.progreso.length === 0).length;
+
+    const promedioProgreso =
+      totalEstudiantes > 0
+        ? Math.round(
+            estudiantes.reduce(
+              (acc, e) => acc + (e.progreso.length / e.curso.totalLecciones) * 100,
+              0,
+            ) / totalEstudiantes,
+          )
+        : 0;
+
+    return {
+      totalEstudiantes,
+      bautizados,
+      enProgreso,
+      sinIniciar,
+      promedioProgreso,
+    };
+  }
 }

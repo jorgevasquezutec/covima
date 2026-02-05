@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { EstudiosBiblicosService } from './estudios-biblicos.service';
 
 @ApiTags('Estudios Bíblicos')
@@ -49,6 +50,14 @@ export class EstudiosBiblicosController {
   @ApiOperation({ summary: 'Obtener estadísticas de mis estudiantes' })
   async getEstadisticas(@Request() req: any) {
     return this.service.getEstadisticas(req.user.id);
+  }
+
+  @Get('estadisticas-global')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Estadísticas globales de todos los estudiantes bíblicos' })
+  async getEstadisticasGlobal() {
+    return this.service.getEstadisticasGlobal();
   }
 
   @Get('estudiantes/:id')

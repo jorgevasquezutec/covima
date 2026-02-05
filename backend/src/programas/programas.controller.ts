@@ -192,6 +192,12 @@ export class ProgramasController {
     return this.programasService.deletePlantilla(id);
   }
 
+  @Get('proximo')
+  @ApiOperation({ summary: 'Obtener el próximo programa con todas sus partes y asignaciones' })
+  async getProximoPrograma() {
+    return this.programasService.getProximoPrograma();
+  }
+
   @Get('usuarios')
   @Roles('admin', 'lider')
   @ApiOperation({ summary: 'Obtener usuarios disponibles para asignar' })
