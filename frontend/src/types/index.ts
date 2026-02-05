@@ -434,6 +434,21 @@ export interface ConfirmarAsistenciaRequest {
   notas?: string;
 }
 
+export interface RegistroMasivoResultado {
+  usuarioId: number;
+  nombre: string;
+  status: 'registrado' | 'ya_registrado' | 'error';
+  error?: string;
+}
+
+export interface RegistroMasivoResponse {
+  mensaje: string;
+  registrados: number;
+  yaRegistrados: number;
+  errores: number;
+  resultados: RegistroMasivoResultado[];
+}
+
 export interface EstadisticasSemana {
   semanaInicio: string;
   total: number;
@@ -469,9 +484,26 @@ export interface EstadisticasMes {
 
 export interface EstadisticasGenerales {
   totalUsuarios: number;
+  totalJA: number;
   promedioAsistencia: number;
   tipos: TipoAsistenciaInfo[];
   meses: EstadisticasMes[];
+}
+
+export interface EstadisticasSemanaDetalle {
+  semanaNum: number;
+  semanaInicio: string;
+  semanaFin: string;
+  label: string;
+  confirmados: number;
+  porTipo: AsistenciaPorTipo[];
+}
+
+export interface EstadisticasMesPorSemana {
+  mes: string;
+  mesNombre: string;
+  tipos: TipoAsistenciaInfo[];
+  semanas: EstadisticasSemanaDetalle[];
 }
 
 export interface MiAsistencia {
@@ -974,6 +1006,16 @@ export interface ResumenInactividad {
   activos: number;
 }
 
+export interface ResumenPerfilIncompleto {
+  totalIncompletos: number;
+  totalJA: number;
+  detalle: {
+    campo: string;
+    label: string;
+    faltantes: number;
+  }[];
+}
+
 // ==================== CALENDARIO ====================
 
 export type PatronRecurrencia = 'NINGUNO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL' | 'MENSUAL_DIA';
@@ -1037,5 +1079,33 @@ export interface UpdateActividadRequest {
   diaSemana?: number;
   semanaMes?: number;
   activo?: boolean;
+}
+
+// ==================== COMPARACIÓN DE PARTICIPANTES ====================
+
+export interface UsuarioComparacion {
+  usuarioId: number;
+  nombre: string;
+  fotoUrl?: string;
+  nivel: { numero: number; nombre: string; icono?: string; color?: string };
+  radar: { asistencia: number; participacion: number; puntos: number; xp: number; racha: number; nivel: number };
+  raw: { asistenciasTotales: number; participacionesTotales: number; puntosTrimestre: number; xpTotal: number; rachaActual: number; nivelNumero: number };
+}
+
+export interface AccionComparacion {
+  codigo: string;
+  nombre: string;
+  valores: Record<number, { cantidad: number; puntos: number }>;
+}
+
+export interface CategoriaDesglose {
+  categoria: string;
+  acciones: AccionComparacion[];
+}
+
+export interface ComparacionResponse {
+  usuarios: UsuarioComparacion[];
+  desglose: CategoriaDesglose[];
+  periodo: { id: number; nombre: string } | null;
 }
 

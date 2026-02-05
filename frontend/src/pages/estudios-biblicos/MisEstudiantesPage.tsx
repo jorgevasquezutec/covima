@@ -145,7 +145,7 @@ export default function MisEstudiantesPage() {
   const totalPages = meta?.totalPages || 1;
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -157,6 +157,10 @@ export default function MisEstudiantesPage() {
             <p className="text-gray-500">Control de estudios bíblicos</p>
           </div>
         </div>
+        <Button onClick={handleOpenModal}>
+          <Plus className="h-4 w-4 mr-2" />
+          Agregar
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -382,15 +386,6 @@ export default function MisEstudiantesPage() {
           </div>
         </div>
       )}
-
-      {/* FAB */}
-      <Button
-        onClick={handleOpenModal}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700"
-        size="icon"
-      >
-        <Plus className="h-6 w-6" />
-      </Button>
 
       {/* Create Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>

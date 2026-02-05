@@ -10,6 +10,7 @@ import {
     Phone,
     X,
     History,
+    Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -24,6 +25,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { asistenciaApi, usuariosApi } from '@/services/api';
 import type { QRAsistencia, Usuario } from '@/types';
 import { DynamicForm } from '@/components/asistencia/DynamicForm';
@@ -68,11 +71,17 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
     const [searchTerm, setSearchTerm] = useState('');
     const [searching, setSearching] = useState(false);
 
-    // Modo: 'usuario' o 'manual'
-    const [modo, setModo] = useState<'usuario' | 'manual'>('usuario');
+    // Modo: 'usuario', 'manual' o 'masivo'
+    const [modo, setModo] = useState<'usuario' | 'manual' | 'masivo'>('usuario');
     const [selectedUsuario, setSelectedUsuario] = useState<Usuario | null>(null);
     const [nombreManual, setNombreManual] = useState('');
     const [telefonoManual, setTelefonoManual] = useState('');
+
+    // Modo masivo
+    const [todosUsuarios, setTodosUsuarios] = useState<Usuario[]>([]);
+    const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+    const [masivoBusqueda, setMasivoBusqueda] = useState('');
+    const [selectedUsuarioIds, setSelectedUsuarioIds] = useState<Set<number>>(new Set());
 
     // Modo histórico (para QRs pasados)
     const [modoHistorico, setModoHistorico] = useState(false);
@@ -104,8 +113,29 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
         loadQRs();
     }, [modoHistorico]);
 
-    // Buscar usuarios
+    // Cargar todos los usuarios cuando se entra en modo masivo
     useEffect(() => {
+        if (modo !== 'masivo') return;
+        if (todosUsuarios.length > 0) return; // ya cargados
+
+        const loadAllUsuarios = async () => {
+            try {
+                setLoadingUsuarios(true);
+                const response = await usuariosApi.getAll({ activo: true, limit: 500 });
+                setTodosUsuarios(response.data);
+            } catch {
+                toast.error('Error al cargar usuarios');
+            } finally {
+                setLoadingUsuarios(false);
+            }
+        };
+        loadAllUsuarios();
+    }, [modo, todosUsuarios.length]);
+
+    // Buscar usuarios (modo individual)
+    useEffect(() => {
+        if (modo !== 'usuario') return;
+
         const searchUsuarios = async () => {
             if (searchTerm.length < 2) {
                 setUsuarios([]);
@@ -124,7 +154,44 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
 
         const debounce = setTimeout(searchUsuarios, 300);
         return () => clearTimeout(debounce);
-    }, [searchTerm]);
+    }, [searchTerm, modo]);
+
+    // Usuarios filtrados para modo masivo
+    const usuariosFiltrados = masivoBusqueda.length >= 2
+        ? todosUsuarios.filter(u =>
+            u.nombre.toLowerCase().includes(masivoBusqueda.toLowerCase()) ||
+            u.telefono?.includes(masivoBusqueda)
+        )
+        : todosUsuarios;
+
+    const toggleUsuarioMasivo = (id: number) => {
+        setSelectedUsuarioIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                if (next.size >= 50) {
+                    toast.error('Máximo 50 usuarios por registro masivo');
+                    return prev;
+                }
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const seleccionarTodos = () => {
+        const ids = usuariosFiltrados.map(u => u.id);
+        if (ids.length > 50) {
+            toast.error('Máximo 50 usuarios. Filtra la lista primero.');
+            return;
+        }
+        setSelectedUsuarioIds(new Set(ids));
+    };
+
+    const deseleccionarTodos = () => {
+        setSelectedUsuarioIds(new Set());
+    };
 
     const handleSubmit = async (datosFormulario: Record<string, unknown>) => {
         if (!selectedQR) {
@@ -142,11 +209,42 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
             return;
         }
 
+        if (modo === 'masivo' && selectedUsuarioIds.size === 0) {
+            toast.error('Selecciona al menos un usuario');
+            return;
+        }
+
         try {
             setSubmitting(true);
 
-            if (modoHistorico) {
-                // Usar endpoint de registro histórico
+            if (modo === 'masivo') {
+                // Registro masivo
+                const usuarioIds = Array.from(selectedUsuarioIds);
+
+                if (modoHistorico) {
+                    const result = await asistenciaApi.registrarHistoricaMasivo({
+                        codigoQR: selectedQR.codigo,
+                        usuarioIds,
+                        tipoAsistenciaManual,
+                        datosFormulario,
+                    });
+                    toast.success(
+                        `${result.registrados} registrados, ${result.yaRegistrados} ya registrados${result.errores > 0 ? `, ${result.errores} errores` : ''}`
+                    );
+                } else {
+                    const result = await asistenciaApi.registrarManualMasivo({
+                        codigoQR: selectedQR.codigo,
+                        usuarioIds,
+                        datosFormulario,
+                    });
+                    toast.success(
+                        `${result.registrados} registrados, ${result.yaRegistrados} ya registrados${result.errores > 0 ? `, ${result.errores} errores` : ''}`
+                    );
+                }
+
+                setSelectedUsuarioIds(new Set());
+            } else if (modoHistorico) {
+                // Registro histórico individual
                 await asistenciaApi.registrarHistorica({
                     codigoQR: selectedQR.codigo,
                     usuarioId: modo === 'usuario' ? selectedUsuario?.id : undefined,
@@ -155,8 +253,16 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                     tipoAsistenciaManual,
                     datosFormulario,
                 });
+
+                const tipoLabel = ` (${tipoAsistenciaManual === 'temprana' ? 'Temprana' : tipoAsistenciaManual === 'normal' ? 'Normal' : 'Tardía'})`;
+                toast.success(`Asistencia registrada correctamente${tipoLabel}`);
+
+                setSelectedUsuario(null);
+                setSearchTerm('');
+                setNombreManual('');
+                setTelefonoManual('');
             } else {
-                // Usar endpoint normal
+                // Registro normal individual
                 await asistenciaApi.registrarManual({
                     codigoQR: selectedQR.codigo,
                     usuarioId: modo === 'usuario' ? selectedUsuario?.id : undefined,
@@ -164,18 +270,14 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                     nombreManual: modo === 'manual' ? nombreManual : undefined,
                     datosFormulario,
                 });
+
+                toast.success('Asistencia registrada correctamente');
+
+                setSelectedUsuario(null);
+                setSearchTerm('');
+                setNombreManual('');
+                setTelefonoManual('');
             }
-
-            const tipoLabel = modoHistorico
-                ? ` (${tipoAsistenciaManual === 'temprana' ? 'Temprana' : tipoAsistenciaManual === 'normal' ? 'Normal' : 'Tardía'})`
-                : '';
-            toast.success(`Asistencia registrada correctamente${tipoLabel}`);
-
-            // Reset form
-            setSelectedUsuario(null);
-            setSearchTerm('');
-            setNombreManual('');
-            setTelefonoManual('');
 
             onSuccess?.();
         } catch (error: unknown) {
@@ -372,7 +474,17 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                                     className={`flex-1 text-xs ${modo === 'usuario' ? 'bg-blue-600' : ''}`}
                                 >
                                     <User className="w-4 h-4 mr-1 shrink-0" />
-                                    Usuario
+                                    Individual
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={modo === 'masivo' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setModo('masivo')}
+                                    className={`flex-1 text-xs ${modo === 'masivo' ? 'bg-blue-600' : ''}`}
+                                >
+                                    <Users className="w-4 h-4 mr-1 shrink-0" />
+                                    Masivo
                                 </Button>
                                 <Button
                                     type="button"
@@ -388,7 +500,7 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                         </div>
 
                         {modo === 'usuario' ? (
-                            /* Búsqueda de usuario */
+                            /* Búsqueda de usuario individual */
                             <div className="space-y-2">
                                 <Label className="text-gray-700 text-sm">Buscar usuario</Label>
                                 <div className="relative">
@@ -461,6 +573,90 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                                     </div>
                                 )}
                             </div>
+                        ) : modo === 'masivo' ? (
+                            /* Selección masiva de usuarios */
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-gray-700 text-sm">Seleccionar usuarios</Label>
+                                    {selectedUsuarioIds.size > 0 && (
+                                        <Badge variant="secondary" className="text-xs">
+                                            {selectedUsuarioIds.size} seleccionados
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <Input
+                                        placeholder="Buscar por nombre o teléfono..."
+                                        value={masivoBusqueda}
+                                        onChange={(e) => setMasivoBusqueda(e.target.value)}
+                                        className="pl-9 bg-white border-gray-300 text-sm h-9"
+                                    />
+                                </div>
+
+                                {/* Acciones rápidas */}
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={seleccionarTodos}
+                                        className="text-xs h-7"
+                                    >
+                                        Seleccionar todos
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={deseleccionarTodos}
+                                        className="text-xs h-7"
+                                        disabled={selectedUsuarioIds.size === 0}
+                                    >
+                                        Limpiar
+                                    </Button>
+                                </div>
+
+                                {loadingUsuarios ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                        <span className="ml-2 text-sm text-gray-500">Cargando usuarios...</span>
+                                    </div>
+                                ) : (
+                                    <ScrollArea className="h-56 border border-gray-200 rounded-lg">
+                                        <div className="divide-y divide-gray-100">
+                                            {usuariosFiltrados.map((usuario) => {
+                                                const isSelected = selectedUsuarioIds.has(usuario.id);
+                                                return (
+                                                    <label
+                                                        key={usuario.id}
+                                                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
+                                                            isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        <Checkbox
+                                                            checked={isSelected}
+                                                            onCheckedChange={() => toggleUsuarioMasivo(usuario.id)}
+                                                        />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-gray-900 truncate">
+                                                                {usuario.nombre}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">{usuario.telefono}</p>
+                                                        </div>
+                                                    </label>
+                                                );
+                                            })}
+                                            {usuariosFiltrados.length === 0 && (
+                                                <div className="py-6 text-center text-sm text-gray-400">
+                                                    No se encontraron usuarios
+                                                </div>
+                                            )}
+                                        </div>
+                                    </ScrollArea>
+                                )}
+                            </div>
                         ) : (
                             /* Ingreso manual */
                             <div className="space-y-3">
@@ -492,7 +688,7 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                                     campos={selectedQR.tipoAsistencia.campos || []}
                                     onSubmit={handleSubmit}
                                     isSubmitting={submitting}
-                                    submitLabel="Registrar"
+                                    submitLabel={modo === 'masivo' ? `Registrar ${selectedUsuarioIds.size} asistencias` : 'Registrar'}
                                 />
                             </div>
                         )}
@@ -501,13 +697,23 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                         {selectedQR.tipoAsistencia?.soloPresencia && (
                             <Button
                                 onClick={() => handleSubmit({})}
-                                disabled={submitting || (modo === 'usuario' && !selectedUsuario) || (modo === 'manual' && !telefonoManual && !nombreManual)}
+                                disabled={
+                                    submitting ||
+                                    (modo === 'usuario' && !selectedUsuario) ||
+                                    (modo === 'manual' && !telefonoManual && !nombreManual) ||
+                                    (modo === 'masivo' && selectedUsuarioIds.size === 0)
+                                }
                                 className="w-full bg-green-600 hover:bg-green-700 h-9 text-sm"
                             >
                                 {submitting ? (
                                     <>
                                         <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                                         Registrando...
+                                    </>
+                                ) : modo === 'masivo' ? (
+                                    <>
+                                        <Users className="w-4 h-4 mr-1.5" />
+                                        Registrar {selectedUsuarioIds.size} asistencias
                                     </>
                                 ) : (
                                     <>

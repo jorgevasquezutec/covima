@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usuariosApi } from '@/services/api';
 import type { Usuario, Rol } from '@/types';
 import PhoneInput, { parsePhoneNumber } from 'react-phone-number-input';
@@ -43,10 +44,12 @@ import {
   Phone,
   Cake,
   Trophy,
+  ClipboardList,
 } from 'lucide-react';
 import UsuarioForm from './UsuarioForm';
 
 export default function UsuariosPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [roles, setRoles] = useState<Rol[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +59,7 @@ export default function UsuariosPage() {
   const [search, setSearch] = useState('');
   const [rolFilter, setRolFilter] = useState<string>('all');
   const [activoFilter, setActivoFilter] = useState<string>('all');
+  const [perfilIncompleto, setPerfilIncompleto] = useState(searchParams.get('perfilIncompleto') === 'true');
 
   // Dialogs
   const [formOpen, setFormOpen] = useState(false);
@@ -75,7 +79,7 @@ export default function UsuariosPage() {
 
   useEffect(() => {
     loadUsuarios();
-  }, [meta.page, search, rolFilter, activoFilter]);
+  }, [meta.page, search, rolFilter, activoFilter, perfilIncompleto]);
 
   const loadRoles = async () => {
     try {
@@ -96,6 +100,7 @@ export default function UsuariosPage() {
       if (search) params.search = search;
       if (rolFilter !== 'all') params.rol = rolFilter;
       if (activoFilter !== 'all') params.activo = activoFilter === 'true';
+      if (perfilIncompleto) params.perfilIncompleto = true;
 
       const response = await usuariosApi.getAll(params);
       setUsuarios(response.data);
@@ -272,6 +277,25 @@ export default function UsuariosPage() {
               </SelectContent>
             </Select>
           </div>
+          {/* Filtro de perfil incompleto */}
+          {perfilIncompleto && (
+            <div className="flex items-center gap-2 pt-2">
+              <Badge className="bg-blue-100 text-blue-700 border-blue-200 gap-1.5 py-1 px-3">
+                <ClipboardList className="w-3.5 h-3.5" />
+                Perfil incompleto
+                <button
+                  onClick={() => {
+                    setPerfilIncompleto(false);
+                    setSearchParams({});
+                    setMeta((m) => ({ ...m, page: 1 }));
+                  }}
+                  className="ml-1 hover:text-blue-900"
+                >
+                  ×
+                </button>
+              </Badge>
+            </div>
+          )}
         </CardContent>
       </Card>
 

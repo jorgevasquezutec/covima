@@ -22,34 +22,26 @@ import {
   Star,
   Flame,
   ArrowRight,
+  ArrowLeft,
   Activity,
   Mic,
   AlertTriangle,
   UserSearch,
+  ClipboardList,
+  BookOpen,
 } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Cell,
+  PieChart,
+  Pie,
 } from 'recharts';
-import { programasApi, asistenciaApi, usuariosApi, gamificacionApi } from '@/services/api';
+import { programasApi, asistenciaApi, usuariosApi, gamificacionApi, estudiosBiblicosApi } from '@/services/api';
 import { CalendarioMes } from '@/components/calendario';
-import type { EstadisticasGenerales, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo, EstadisticasDashboard, PosicionEnNivel, ResumenInactividad } from '@/types';
+import type { EstadisticasGenerales, EstadisticasMesPorSemana, MiAsistencia, MiProgreso, PeriodoRanking, PosicionGrupo, EstadisticasDashboard, PosicionEnNivel, ResumenInactividad, ResumenPerfilIncompleto, Programa, EstadisticasEstudiosBiblicos } from '@/types';
 import RegistrarMiAsistencia from '@/components/asistencia/RegistrarMiAsistencia';
 import { parseLocalDate } from '@/lib/utils';
-
-interface ProximaAsignacion {
-  id: number;
-  fecha: string;
-  titulo: string;
-  estado: string;
-  partes: { id: number; nombre: string }[];
-}
 
 interface AdminStats {
   programasEsteMes: number;
@@ -70,8 +62,11 @@ export default function Dashboard() {
   const [selectedYear] = useState(now.getFullYear());
 
   // Personal stats
-  const [misAsignaciones, setMisAsignaciones] = useState<ProximaAsignacion[]>([]);
+  const [proximoPrograma, setProximoPrograma] = useState<Programa | null>(null);
   const [miAsistencia, setMiAsistencia] = useState<MiAsistencia | null>(null);
+
+  // Estudios bíblicos
+  const [estudiosBiblicosStats, setEstudiosBiblicosStats] = useState<EstadisticasEstudiosBiblicos | null>(null);
 
   // Gamificación
   const [miProgreso, setMiProgreso] = useState<MiProgreso | null>(null);
@@ -86,6 +81,14 @@ export default function Dashboard() {
   // Seguimiento de inactividad
   const [resumenInactividad, setResumenInactividad] = useState<ResumenInactividad | null>(null);
 
+  // Perfil incompleto
+  const [resumenPerfil, setResumenPerfil] = useState<ResumenPerfilIncompleto | null>(null);
+
+  // Drill-down de tendencia de asistencia
+  const [drilldownMes, setDrilldownMes] = useState<string | null>(null); // "YYYY-MM" or null
+  const [drilldownData, setDrilldownData] = useState<EstadisticasMesPorSemana | null>(null);
+  const [drilldownLoading, setDrilldownLoading] = useState(false);
+
   const isAdminOrLider = user?.roles?.some(r => ['admin', 'lider'].includes(r));
 
   useEffect(() => {
@@ -94,12 +97,12 @@ export default function Dashboard() {
       try {
         const promises: Promise<any>[] = [
           asistenciaApi.getMiAsistencia().catch(() => null),
-          programasApi.getMisAsignaciones().catch(() => []),
+          programasApi.getProximoPrograma().catch(() => null),
           gamificacionApi.getMiProgreso().catch(() => null),
           gamificacionApi.getPeriodoActivo().catch(() => null),
           gamificacionApi.getMisPosicionesRanking().catch(() => []),
-          gamificacionApi.getMiDashboard().catch(() => null), // Mi dashboard personal
-          gamificacionApi.getMiPosicionEnNivel().catch(() => null), // Mi posición en mi nivel
+          gamificacionApi.getMiDashboard().catch(() => null),
+          gamificacionApi.getMiPosicionEnNivel().catch(() => null),
         ];
 
         // Solo cargar stats de admin si tiene permisos
@@ -107,14 +110,16 @@ export default function Dashboard() {
           promises.push(
             programasApi.getEstadisticasAdmin().catch(() => null),
             asistenciaApi.getEstadisticasGenerales().catch(() => null),
-            gamificacionApi.getDashboardEquipo().catch(() => null), // Dashboard equipo
-            usuariosApi.getResumenInactividad().catch(() => null), // Resumen inactividad
+            gamificacionApi.getDashboardEquipo().catch(() => null),
+            usuariosApi.getResumenInactividad().catch(() => null),
+            usuariosApi.getResumenPerfilIncompleto().catch(() => null),
+            estudiosBiblicosApi.getEstadisticasGlobal().catch(() => null),
           );
         }
 
         const results = await Promise.all(promises);
         setMiAsistencia(results[0]);
-        setMisAsignaciones(results[1] || []);
+        setProximoPrograma(results[1]);
         setMiProgreso(results[2]);
         setPeriodoActivo(results[3]);
         setMisPosiciones(results[4] || []);
@@ -126,6 +131,8 @@ export default function Dashboard() {
           setEstadisticasGenerales(results[8]);
           setDashboardEquipo(results[9]);
           setResumenInactividad(results[10]);
+          setResumenPerfil(results[11]);
+          setEstudiosBiblicosStats(results[12]);
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -149,6 +156,22 @@ export default function Dashboard() {
       day: 'numeric',
       month: 'long',
     });
+  };
+
+  const handleDrilldownMes = async (mesIso: string) => {
+    // Extraer YYYY-MM del ISO string
+    const date = new Date(mesIso);
+    const mes = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    setDrilldownMes(mes);
+    setDrilldownLoading(true);
+    try {
+      const data = await asistenciaApi.getEstadisticasMesPorSemana(mes);
+      setDrilldownData(data);
+    } catch {
+      setDrilldownMes(null);
+    } finally {
+      setDrilldownLoading(false);
+    }
   };
 
   if (loading) {
@@ -231,9 +254,10 @@ export default function Dashboard() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Usuarios activos</p>
+                    <p className="text-sm text-gray-500">Miembros JA / Total</p>
                     <p className="text-2xl font-bold text-gray-900 mt-1">
-                      {estadisticasGenerales?.totalUsuarios ?? 0}
+                      {estadisticasGenerales?.totalJA ?? 0}
+                      <span className="text-base font-normal text-gray-400"> / {estadisticasGenerales?.totalUsuarios ?? 0}</span>
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
@@ -243,21 +267,24 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-gray-200 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Programas pendientes</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">
-                      {adminStats?.programasPendientes ?? 0}
-                    </p>
+            <Link to="/mis-estudiantes">
+              <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">Estudios bíblicos en curso</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {estudiosBiblicosStats?.enProgreso ?? 0}
+                        <span className="text-base font-normal text-gray-400"> / {estudiosBiblicosStats?.totalEstudiantes ?? 0}</span>
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-white" />
+                    </div>
                   </div>
-                  <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
-                    <ClipboardCheck className="w-5 h-5 text-white" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
 
           {/* Widget de Seguimiento de Inactividad */}
@@ -298,6 +325,38 @@ export default function Dashboard() {
             </Card>
           )}
 
+          {/* Widget de Perfil Incompleto */}
+          {resumenPerfil && resumenPerfil.totalIncompletos > 0 && (
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-gray-900 flex flex-wrap items-center gap-2">
+                        <span className="whitespace-nowrap">Datos incompletos</span>
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
+                          {resumenPerfil.totalIncompletos} de {resumenPerfil.totalJA}
+                        </Badge>
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-0.5">
+                        {resumenPerfil.totalIncompletos} miembros tienen información pendiente por completar
+                      </p>
+                    </div>
+                  </div>
+                  <Link to="/usuarios?perfilIncompleto=true" className="flex-shrink-0">
+                    <Button variant="outline" size="sm" className="border-blue-300 text-blue-700 hover:bg-blue-100 w-full sm:w-auto">
+                      Completar
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Calendario de Actividades */}
           <CalendarioMes
             initialMonth={selectedMonth}
@@ -305,79 +364,165 @@ export default function Dashboard() {
             showExportButton={true}
           />
 
-          {/* Attendance Trend by Month */}
+          {/* Attendance Trend — Month / Week drill-down */}
           {estadisticasGenerales?.meses && estadisticasGenerales.meses.length > 0 && (
             <Card className="bg-white border-gray-200 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium text-gray-900">
-                  Tendencia de Asistencia por Mes
+                <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+                  {drilldownMes ? (
+                    <>
+                      <button
+                        onClick={() => { setDrilldownMes(null); setDrilldownData(null); }}
+                        className="p-1 -ml-1 rounded-md hover:bg-gray-100 transition-colors"
+                        title="Volver a meses"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-gray-500" />
+                      </button>
+                      <span className="capitalize">{drilldownData?.mesNombre || '...'}</span>
+                      <span className="text-gray-400 font-normal">— por Semana</span>
+                    </>
+                  ) : (
+                    'Tendencia de Asistencia por Mes'
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {(() => {
-                  const maxConfirmados = Math.max(...estadisticasGenerales.meses.map(m => m.confirmados), 1);
-                  const barMaxHeight = 100; // pixels
-                  return (
-                    <div className="space-y-4">
-                      <div className="flex items-end gap-4">
-                        {estadisticasGenerales.meses.map((mes, index) => {
-                          const totalHeightPx = mes.confirmados > 0
-                            ? Math.max(20, (mes.confirmados / maxConfirmados) * barMaxHeight)
-                            : 6;
-                          return (
-                            <div key={index} className="flex-1 flex flex-col items-center">
-                              <span className="text-sm font-bold text-gray-800 mb-1">{mes.confirmados}</span>
-                              {mes.confirmados > 0 && mes.porTipo ? (
-                                <div
-                                  className="w-full flex flex-col-reverse rounded-t-md overflow-hidden"
-                                  style={{ height: `${totalHeightPx}px` }}
-                                >
-                                  {mes.porTipo
-                                    .filter(t => t.cantidad > 0)
-                                    .map((tipo) => {
-                                      const segmentHeight = (tipo.cantidad / mes.confirmados) * 100;
-                                      return (
+                {drilldownLoading ? (
+                  <div className="flex items-center justify-center h-28">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                  </div>
+                ) : drilldownMes && drilldownData ? (
+                  /* === VISTA SEMANAL === */
+                  (() => {
+                    const maxSem = Math.max(...drilldownData.semanas.map(s => s.confirmados), 1);
+                    const barMaxHeight = 100;
+                    return (
+                      <div className="space-y-4">
+                        <div className="flex items-end gap-4">
+                          {drilldownData.semanas.map((sem) => {
+                            const heightPx = sem.confirmados > 0
+                              ? Math.max(20, (sem.confirmados / maxSem) * barMaxHeight)
+                              : 6;
+                            return (
+                              <div key={sem.semanaNum} className="flex-1 flex flex-col items-center">
+                                <span className="text-sm font-bold text-gray-800 mb-1">{sem.confirmados}</span>
+                                {sem.confirmados > 0 && sem.porTipo ? (
+                                  <div
+                                    className="w-full flex flex-col-reverse rounded-t-md overflow-hidden"
+                                    style={{ height: `${heightPx}px` }}
+                                  >
+                                    {sem.porTipo
+                                      .filter(t => t.cantidad > 0)
+                                      .map((tipo) => (
                                         <div
                                           key={tipo.tipoId}
                                           style={{
                                             backgroundColor: tipo.color,
-                                            height: `${segmentHeight}%`,
+                                            height: `${(tipo.cantidad / sem.confirmados) * 100}%`,
                                           }}
                                           title={`${tipo.label}: ${tipo.cantidad}`}
                                         />
-                                      );
-                                    })}
-                                </div>
-                              ) : (
-                                <div
-                                  className="w-full rounded-t-md bg-gray-200"
-                                  style={{ height: `${totalHeightPx}px` }}
-                                />
-                              )}
-                              <span className="text-xs text-gray-600 font-medium capitalize mt-2">
-                                {mes.mesNombre}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {/* Legend */}
-                      {estadisticasGenerales.tipos && estadisticasGenerales.tipos.length > 0 && (
-                        <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
-                          {estadisticasGenerales.tipos.map((tipo) => (
-                            <div key={tipo.id} className="flex items-center gap-1.5">
-                              <div
-                                className="w-3 h-3 rounded-sm"
-                                style={{ backgroundColor: tipo.color || '#6366f1' }}
-                              />
-                              <span className="text-xs text-gray-600">{tipo.label}</span>
-                            </div>
-                          ))}
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-full rounded-t-md bg-gray-200"
+                                    style={{ height: `${heightPx}px` }}
+                                  />
+                                )}
+                                <span className="text-xs text-gray-600 font-medium mt-2">
+                                  {sem.label}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      )}
-                    </div>
-                  );
-                })()}
+                        {/* Legend */}
+                        {drilldownData.tipos && drilldownData.tipos.length > 0 && (
+                          <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
+                            {drilldownData.tipos.map((tipo) => (
+                              <div key={tipo.id} className="flex items-center gap-1.5">
+                                <div
+                                  className="w-3 h-3 rounded-sm"
+                                  style={{ backgroundColor: tipo.color || '#6366f1' }}
+                                />
+                                <span className="text-xs text-gray-600">{tipo.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  /* === VISTA MENSUAL === */
+                  (() => {
+                    const maxConfirmados = Math.max(...estadisticasGenerales.meses.map(m => m.confirmados), 1);
+                    const barMaxHeight = 100;
+                    return (
+                      <div className="space-y-4">
+                        <p className="text-xs text-gray-400">Toca un mes para ver el detalle semanal</p>
+                        <div className="flex items-end gap-4">
+                          {estadisticasGenerales.meses.map((mes, index) => {
+                            const totalHeightPx = mes.confirmados > 0
+                              ? Math.max(20, (mes.confirmados / maxConfirmados) * barMaxHeight)
+                              : 6;
+                            return (
+                              <div
+                                key={index}
+                                className="flex-1 flex flex-col items-center cursor-pointer group"
+                                onClick={() => handleDrilldownMes(mes.mes)}
+                              >
+                                <span className="text-sm font-bold text-gray-800 mb-1">{mes.confirmados}</span>
+                                {mes.confirmados > 0 && mes.porTipo ? (
+                                  <div
+                                    className="w-full flex flex-col-reverse rounded-t-md overflow-hidden transition-all group-hover:opacity-80 group-hover:scale-105 group-hover:shadow-md"
+                                    style={{ height: `${totalHeightPx}px` }}
+                                  >
+                                    {mes.porTipo
+                                      .filter(t => t.cantidad > 0)
+                                      .map((tipo) => (
+                                        <div
+                                          key={tipo.tipoId}
+                                          style={{
+                                            backgroundColor: tipo.color,
+                                            height: `${(tipo.cantidad / mes.confirmados) * 100}%`,
+                                          }}
+                                          title={`${tipo.label}: ${tipo.cantidad}`}
+                                        />
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-full rounded-t-md bg-gray-200 transition-all group-hover:bg-gray-300"
+                                    style={{ height: `${totalHeightPx}px` }}
+                                  />
+                                )}
+                                <span className="text-xs text-gray-600 font-medium capitalize mt-2 group-hover:text-blue-600 transition-colors">
+                                  {mes.mesNombre}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Legend */}
+                        {estadisticasGenerales.tipos && estadisticasGenerales.tipos.length > 0 && (
+                          <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
+                            {estadisticasGenerales.tipos.map((tipo) => (
+                              <div key={tipo.id} className="flex items-center gap-1.5">
+                                <div
+                                  className="w-3 h-3 rounded-sm"
+                                  style={{ backgroundColor: tipo.color || '#6366f1' }}
+                                />
+                                <span className="text-xs text-gray-600">{tipo.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
               </CardContent>
             </Card>
           )}
@@ -386,7 +531,18 @@ export default function Dashboard() {
           {dashboardEquipo && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Acciones por Tipo */}
-              {dashboardEquipo.accionesPorTipo.length > 0 && (
+              {dashboardEquipo.accionesPorTipo.length > 0 && (() => {
+                const items = dashboardEquipo.accionesPorTipo.slice(0, 8);
+                const max = Math.max(...items.map(i => i.cantidad), 1);
+                const getColor = (cat: string) =>
+                  cat === 'ASISTENCIA' ? 'bg-green-500' :
+                  cat === 'PARTICIPACION' ? 'bg-purple-500' :
+                  cat === 'EVENTO' ? 'bg-amber-500' : 'bg-indigo-500';
+                const getDot = (cat: string) =>
+                  cat === 'ASISTENCIA' ? 'bg-green-400' :
+                  cat === 'PARTICIPACION' ? 'bg-purple-400' :
+                  cat === 'EVENTO' ? 'bg-amber-400' : 'bg-indigo-400';
+                return (
                 <Card className="bg-white border-gray-200 shadow-sm">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base font-medium text-gray-900 flex flex-wrap items-center gap-2">
@@ -398,50 +554,48 @@ export default function Dashboard() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-2 sm:px-6">
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={dashboardEquipo.accionesPorTipo.slice(0, 8)}
-                          layout="vertical"
-                          margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" />
-                          <YAxis
-                            dataKey="nombre"
-                            type="category"
-                            width={80}
-                            tick={{ fontSize: 10 }}
-                          />
-                          <Tooltip
-                            formatter={(value) => [value ?? 0, 'Cantidad']}
-                            labelFormatter={(label) => label}
-                          />
-                          <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
-                            {dashboardEquipo.accionesPorTipo.slice(0, 8).map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={
-                                  entry.categoria === 'ASISTENCIA'
-                                    ? '#22c55e'
-                                    : entry.categoria === 'PARTICIPACION'
-                                    ? '#8b5cf6'
-                                    : entry.categoria === 'EVENTO'
-                                    ? '#f59e0b'
-                                    : '#6366f1'
-                                }
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div className="space-y-2.5">
+                      {items.map((item) => (
+                        <div key={item.nombre} className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${getDot(item.categoria)}`} />
+                          <span className="text-sm text-gray-700 w-28 sm:w-36 truncate shrink-0" title={item.nombre}>
+                            {item.nombre}
+                          </span>
+                          <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${getColor(item.categoria)} transition-all`}
+                              style={{ width: `${(item.cantidad / max) * 100}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900 w-8 text-right shrink-0">
+                            {item.cantidad}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Leyenda */}
+                    <div className="flex flex-wrap gap-3 pt-3 mt-3 border-t border-gray-100">
+                      {[
+                        { label: 'Asistencia', cls: 'bg-green-400' },
+                        { label: 'Participación', cls: 'bg-purple-400' },
+                        { label: 'Evento', cls: 'bg-amber-400' },
+                      ].map(l => (
+                        <div key={l.label} className="flex items-center gap-1.5">
+                          <div className={`w-2.5 h-2.5 rounded-full ${l.cls}`} />
+                          <span className="text-xs text-gray-500">{l.label}</span>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
-              )}
+                );
+              })()}
 
               {/* Partes más hechas */}
-              {dashboardEquipo.partesMasHechas.length > 0 && (
+              {dashboardEquipo.partesMasHechas.length > 0 && (() => {
+                const PIE_COLORS = ['#8b5cf6', '#6366f1', '#a78bfa', '#c084fc', '#7c3aed', '#818cf8', '#a5b4fc', '#ddd6fe'];
+                const data = dashboardEquipo.partesMasHechas.slice(0, 8);
+                return (
                 <Card className="bg-white border-gray-200 shadow-sm">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
@@ -452,30 +606,32 @@ export default function Dashboard() {
                   <CardContent className="px-2 sm:px-6">
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={dashboardEquipo.partesMasHechas.slice(0, 8)}
-                          layout="vertical"
-                          margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" />
-                          <YAxis
-                            dataKey="nombre"
-                            type="category"
-                            width={80}
-                            tick={{ fontSize: 10 }}
-                          />
-                          <Tooltip
-                            formatter={(value) => [value ?? 0, 'Veces']}
-                            labelFormatter={(label) => label}
-                          />
-                          <Bar dataKey="cantidad" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                        </BarChart>
+                        <PieChart>
+                          <Pie
+                            data={data}
+                            dataKey="cantidad"
+                            nameKey="nombre"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            innerRadius={40}
+                            paddingAngle={2}
+                            label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
+                            labelLine={false}
+                            style={{ fontSize: 10 }}
+                          >
+                            {data.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => [value ?? 0, 'Veces']} />
+                        </PieChart>
                       </ResponsiveContainer>
                     </div>
                   </CardContent>
                 </Card>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -642,7 +798,18 @@ export default function Dashboard() {
       {miDashboard && (miDashboard.accionesPorTipo.length > 0 || miDashboard.partesMasHechas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Mis Acciones por Tipo */}
-          {miDashboard.accionesPorTipo.length > 0 && (
+          {miDashboard.accionesPorTipo.length > 0 && (() => {
+            const items = miDashboard.accionesPorTipo.slice(0, 6);
+            const max = Math.max(...items.map(i => i.cantidad), 1);
+            const getColor = (cat: string) =>
+              cat === 'ASISTENCIA' ? 'bg-green-500' :
+              cat === 'PARTICIPACION' ? 'bg-purple-500' :
+              cat === 'EVENTO' ? 'bg-amber-500' : 'bg-indigo-500';
+            const getDot = (cat: string) =>
+              cat === 'ASISTENCIA' ? 'bg-green-400' :
+              cat === 'PARTICIPACION' ? 'bg-purple-400' :
+              cat === 'EVENTO' ? 'bg-amber-400' : 'bg-indigo-400';
+            return (
             <Card className="bg-white border-gray-200 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-medium text-gray-900 flex flex-wrap items-center gap-2">
@@ -654,50 +821,35 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-2 sm:px-6">
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={miDashboard.accionesPorTipo.slice(0, 6)}
-                      layout="vertical"
-                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis
-                        dataKey="nombre"
-                        type="category"
-                        width={70}
-                        tick={{ fontSize: 10 }}
-                      />
-                      <Tooltip
-                        formatter={(value) => [value ?? 0, 'Cantidad']}
-                        labelFormatter={(label) => label}
-                      />
-                      <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
-                        {miDashboard.accionesPorTipo.slice(0, 6).map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={
-                              entry.categoria === 'ASISTENCIA'
-                                ? '#22c55e'
-                                : entry.categoria === 'PARTICIPACION'
-                                ? '#8b5cf6'
-                                : entry.categoria === 'EVENTO'
-                                ? '#f59e0b'
-                                : '#6366f1'
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="space-y-2.5">
+                  {items.map((item) => (
+                    <div key={item.nombre} className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${getDot(item.categoria)}`} />
+                      <span className="text-sm text-gray-700 w-28 sm:w-36 truncate shrink-0" title={item.nombre}>
+                        {item.nombre}
+                      </span>
+                      <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${getColor(item.categoria)} transition-all`}
+                          style={{ width: `${(item.cantidad / max) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 w-8 text-right shrink-0">
+                        {item.cantidad}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
-          )}
+            );
+          })()}
 
           {/* Mis Partes más hechas */}
-          {miDashboard.partesMasHechas.length > 0 && (
+          {miDashboard.partesMasHechas.length > 0 && (() => {
+            const PIE_COLORS = ['#8b5cf6', '#6366f1', '#a78bfa', '#c084fc', '#7c3aed', '#818cf8'];
+            const data = miDashboard.partesMasHechas.slice(0, 6);
+            return (
             <Card className="bg-white border-gray-200 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
@@ -708,98 +860,127 @@ export default function Dashboard() {
               <CardContent className="px-2 sm:px-6">
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={miDashboard.partesMasHechas.slice(0, 6)}
-                      layout="vertical"
-                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis
-                        dataKey="nombre"
-                        type="category"
-                        width={70}
-                        tick={{ fontSize: 10 }}
-                      />
-                      <Tooltip
-                        formatter={(value) => [value ?? 0, 'Veces']}
-                        labelFormatter={(label) => label}
-                      />
-                      <Bar dataKey="cantidad" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                    </BarChart>
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        dataKey="cantidad"
+                        nameKey="nombre"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={70}
+                        innerRadius={35}
+                        paddingAngle={2}
+                        label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                        style={{ fontSize: 10 }}
+                      >
+                        {data.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [value ?? 0, 'Veces']} />
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
-          )}
+            );
+          })()}
         </div>
       )}
 
-      <div className={`grid grid-cols-1 ${!isAdminOrLider ? 'lg:grid-cols-2' : ''} gap-6`}>
-        {/* Próximas Asignaciones - Solo para participantes */}
-        {(
-          <Card className="bg-white border-gray-200 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-indigo-600" />
-                Mis Próximas Participaciones
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {misAsignaciones.length === 0 ? (
-                <div className="text-center py-6">
-                  <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">No tienes participaciones programadas</p>
+      {/* Próximo Programa */}
+      <Card className="bg-white border-gray-200 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-indigo-600" />
+              Próximo Programa
+            </CardTitle>
+            {proximoPrograma && (
+              <Badge
+                variant="outline"
+                className={
+                  proximoPrograma.estado === 'enviado'
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : proximoPrograma.estado === 'completo'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : proximoPrograma.estado === 'finalizado'
+                        ? 'bg-gray-50 text-gray-600 border-gray-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                }
+              >
+                {proximoPrograma.estado}
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!proximoPrograma ? (
+            <div className="text-center py-6">
+              <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No hay programas próximos</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Fecha y título */}
+              <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  <span className="text-sm font-semibold text-gray-900 capitalize">
+                    {formatDate(proximoPrograma.fecha)}
+                  </span>
+                  {proximoPrograma.horaInicio && (
+                    <span className="text-xs text-gray-500">
+                      {proximoPrograma.horaInicio}{proximoPrograma.horaFin ? ` - ${proximoPrograma.horaFin}` : ''}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {misAsignaciones.slice(0, 4).map((asig) => (
-                    <div
-                      key={asig.id}
-                      className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-indigo-600" />
-                          <span className="text-sm font-medium text-gray-900 capitalize">
-                            {formatDate(asig.fecha)}
-                          </span>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={
-                            asig.estado === 'enviado'
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : asig.estado === 'completo'
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-gray-50 text-gray-600 border-gray-200'
-                          }
-                        >
-                          {asig.estado}
-                        </Badge>
+                <p className="text-sm text-indigo-700 font-medium">{proximoPrograma.titulo}</p>
+              </div>
+
+              {/* Lista de partes con asignados */}
+              {proximoPrograma.partes.length > 0 && (
+                <div className="space-y-1.5">
+                  {proximoPrograma.partes.map((pp) => {
+                    const asignados = proximoPrograma.asignaciones.filter(
+                      (a) => a.parte.id === pp.parte.id
+                    );
+                    const nombres = asignados
+                      .map((a) => a.usuario?.nombre || a.nombreLibre || '—')
+                      .join(', ');
+                    const esMiParte = asignados.some(
+                      (a) => a.usuario?.id === user?.id
+                    );
+                    return (
+                      <div
+                        key={pp.id}
+                        className={`flex items-start gap-3 px-3 py-2 rounded-md text-sm ${
+                          esMiParte
+                            ? 'bg-indigo-50 border border-indigo-200'
+                            : 'bg-gray-50'
+                        }`}
+                      >
+                        <span className={`font-medium w-32 sm:w-40 shrink-0 truncate ${esMiParte ? 'text-indigo-700' : 'text-gray-700'}`} title={pp.parte.nombre}>
+                          {pp.parte.nombre}
+                        </span>
+                        <span className={`flex-1 truncate ${esMiParte ? 'text-indigo-600 font-semibold' : 'text-gray-500'}`} title={nombres}>
+                          {nombres || <span className="text-gray-300 italic">Sin asignar</span>}
+                        </span>
+                        {esMiParte && (
+                          <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] shrink-0">Tú</Badge>
+                        )}
                       </div>
-                      {asig.titulo && (
-                        <p className="text-sm text-gray-700 mb-2">{asig.titulo}</p>
-                      )}
-                      <div className="flex flex-wrap gap-1">
-                        {asig.partes.map((parte) => (
-                          <Badge
-                            key={parte.id}
-                            variant="secondary"
-                            className="text-xs bg-white text-indigo-700 border border-indigo-200"
-                          >
-                            {parte.nombre}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
+      <div className={`grid grid-cols-1 ${!isAdminOrLider ? 'lg:grid-cols-2' : ''} gap-6`}>
         {/* Mi Asistencia */}
         <Card className="bg-white border-gray-200 shadow-sm">
           <CardHeader className="pb-3">

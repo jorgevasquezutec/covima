@@ -12,6 +12,7 @@ import type {
   PeriodoRanking,
   UsuariosInactivosResponse,
   ResumenInactividad,
+  ResumenPerfilIncompleto,
   RankingsPorNivelResponse,
   PosicionEnNivel,
   EstadisticasDashboard,
@@ -208,6 +209,11 @@ export const usuariosApi = {
     const response = await api.get<ResumenInactividad>('/usuarios/inactivos/resumen');
     return response.data;
   },
+
+  getResumenPerfilIncompleto: async (): Promise<ResumenPerfilIncompleto> => {
+    const response = await api.get<ResumenPerfilIncompleto>('/usuarios/perfil-incompleto/resumen');
+    return response.data;
+  },
 };
 
 // ==================== PROGRAMAS API ====================
@@ -354,6 +360,11 @@ export const programasApi = {
     return response.data;
   },
 
+  getProximoPrograma: async (): Promise<Programa | null> => {
+    const response = await api.get<Programa | null>('/programas/proximo');
+    return response.data;
+  },
+
   // ==================== PLANTILLAS ====================
 
   getPlantillas: async (): Promise<PlantillaPrograma[]> => {
@@ -469,6 +480,11 @@ export const estudiosBiblicosApi = {
     const response = await api.get<EstadisticasEstudiosBiblicos>('/estudios-biblicos/estadisticas');
     return response.data;
   },
+
+  getEstadisticasGlobal: async (): Promise<EstadisticasEstudiosBiblicos> => {
+    const response = await api.get<EstadisticasEstudiosBiblicos>('/estudios-biblicos/estadisticas-global');
+    return response.data;
+  },
 };
 
 // ==================== TIPOS DE ASISTENCIA API ====================
@@ -535,7 +551,9 @@ import type {
   ConfirmarAsistenciaRequest,
   EstadisticasGenerales,
   EstadisticasSemana,
+  EstadisticasMesPorSemana,
   MiAsistencia,
+  RegistroMasivoResponse,
 } from '@/types';
 
 export const asistenciaApi = {
@@ -608,6 +626,25 @@ export const asistenciaApi = {
     return response.data;
   },
 
+  registrarManualMasivo: async (data: {
+    codigoQR: string;
+    usuarioIds: number[];
+    datosFormulario?: Record<string, unknown>;
+  }): Promise<RegistroMasivoResponse> => {
+    const response = await api.post<RegistroMasivoResponse>('/asistencia/registrar-manual-masivo', data);
+    return response.data;
+  },
+
+  registrarHistoricaMasivo: async (data: {
+    codigoQR: string;
+    usuarioIds: number[];
+    tipoAsistenciaManual: 'temprana' | 'normal' | 'tardia';
+    datosFormulario?: Record<string, unknown>;
+  }): Promise<RegistroMasivoResponse> => {
+    const response = await api.post<RegistroMasivoResponse>('/asistencia/registrar-historica-masivo', data);
+    return response.data;
+  },
+
   getAll: async (params?: {
     page?: number;
     limit?: number;
@@ -650,6 +687,11 @@ export const asistenciaApi = {
 
   getEstadisticasSemana: async (semanaInicio: string): Promise<EstadisticasSemana> => {
     const response = await api.get<EstadisticasSemana>('/asistencia/estadisticas/semana', { params: { semanaInicio } });
+    return response.data;
+  },
+
+  getEstadisticasMesPorSemana: async (mes: string): Promise<EstadisticasMesPorSemana> => {
+    const response = await api.get<EstadisticasMesPorSemana>('/asistencia/estadisticas/mes', { params: { mes } });
     return response.data;
   },
 
@@ -710,6 +752,7 @@ import type {
   CrearNivelRequest,
   ActualizarNivelRequest,
   HistorialAdminResponse,
+  ComparacionResponse,
 } from '@/types';
 
 export const gamificacionApi = {
@@ -1060,6 +1103,14 @@ export const gamificacionApi = {
   // Estadísticas globales del equipo (admin/lider)
   getDashboardEquipo: async (): Promise<EstadisticasDashboard> => {
     const response = await api.get<EstadisticasDashboard>('/gamificacion/dashboard-equipo');
+    return response.data;
+  },
+
+  // Comparar participantes (radar + desglose)
+  compararParticipantes: async (usuarioIds: number[]): Promise<ComparacionResponse> => {
+    const response = await api.get<ComparacionResponse>('/gamificacion/comparar', {
+      params: { usuarioIds: usuarioIds.join(',') },
+    });
     return response.data;
   },
 };

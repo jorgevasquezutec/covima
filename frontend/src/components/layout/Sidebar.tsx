@@ -26,6 +26,7 @@ import {
   History,
   UserSearch,
   BookOpen,
+  Scale,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -52,6 +53,7 @@ const navSections: NavSection[] = [
       { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
       { label: 'Ranking', icon: Trophy, href: '/ranking' },
       { label: 'Mi Progreso', icon: Star, href: '/mi-progreso' },
+      { label: 'Comparar', icon: Scale, href: '/comparar', roles: ['admin', 'lider'] },
       { label: 'Mis Estudiantes', icon: BookOpen, href: '/mis-estudiantes' },
     ],
   },

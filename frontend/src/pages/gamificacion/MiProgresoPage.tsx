@@ -267,45 +267,8 @@ export default function MiProgresoPage() {
         </CardContent>
       </Card>
 
-      {/* Grid: Insignias + Actividad Reciente */}
-      <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-        {/* Insignias */}
-        <Card>
-          <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <Medal className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
-              Mis Insignias
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-            {progreso.insignias.length > 0 ? (
-              <div className="grid grid-cols-4 gap-3">
-                {progreso.insignias.map((insignia) => (
-                  <div
-                    key={insignia.codigo}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100"
-                    title={insignia.descripcion}
-                  >
-                    <span className="text-2xl">{insignia.icono}</span>
-                    <span className="text-xs text-center font-medium truncate w-full">
-                      {insignia.nombre}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Aún no has desbloqueado insignias
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Actividad Reciente */}
-        <Card>
+      {/* Actividad Reciente */}
+      <Card>
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base sm:text-lg flex items-center gap-2">
@@ -344,8 +307,7 @@ export default function MiProgresoPage() {
               </div>
             )}
           </CardContent>
-        </Card>
-      </div>
+      </Card>
 
       {/* Estadísticas de Racha */}
       <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-100">

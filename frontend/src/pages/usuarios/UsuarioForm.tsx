@@ -85,8 +85,8 @@ export default function UsuarioForm({
     formState: { errors },
     setValue,
     watch,
-  } = useForm<CreateFormData | UpdateFormData>({
-    resolver: zodResolver(isEditing ? updateSchema : createSchema),
+  } = useForm({
+    resolver: zodResolver(isEditing ? updateSchema : createSchema) as any,
     defaultValues: isEditing
       ? {
         nombre: usuario.nombre,
@@ -143,7 +143,7 @@ export default function UsuarioForm({
     setValue('roles', newRoles, { shouldValidate: true, shouldDirty: true });
   };
 
-  const onSubmit = async (data: CreateFormData | UpdateFormData) => {
+  const onSubmit = async (data: any) => {
     setLoading(true);
     try {
       if (isEditing) {

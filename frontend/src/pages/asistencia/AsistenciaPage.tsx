@@ -374,9 +374,20 @@ export default function AsistenciaPage() {
         return qrDate >= today && qr.activo;
     };
 
-    const handleCopyLink = (url: string) => {
-        navigator.clipboard.writeText(url);
-        toast.success('Link copiado');
+    const handleCopyLink = async (url: string) => {
+        try {
+            if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+                const blob = new Blob([url], { type: 'text/plain' });
+                await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+            } else if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                throw new Error('Clipboard API no disponible');
+            }
+            toast.success('Link copiado');
+        } catch {
+            toast.error('No se pudo copiar el link');
+        }
     };
 
     const handleConfirmar = async (id: number, estado: 'confirmado' | 'rechazado') => {
