@@ -56,3 +56,8 @@ uploads/
 # Claude plans
 .claude/
 backups/
+.agents/
+.codex/
+.gemini/
+.opencode/
+.github/skills
