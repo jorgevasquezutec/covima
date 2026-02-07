@@ -471,6 +471,14 @@ export const estudiosBiblicosApi = {
     completada: boolean;
     fechaCompletada?: string;
     message: string;
+    gamificacion?: {
+      puntosAsignados: number;
+      xpAsignado: number;
+      nuevoNivel: boolean;
+      nivelActual: { numero: number; nombre: string };
+      insigniasDesbloqueadas: Array<{ codigo: string; nombre: string; icono: string }>;
+      rachaActual: number;
+    };
   }> => {
     const response = await api.post(`/estudios-biblicos/estudiantes/${estudianteId}/lecciones/${leccion}/toggle`);
     return response.data;

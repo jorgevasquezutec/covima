@@ -208,3 +208,55 @@
   width: 100%;
 }
 
+/* Phone Input Modern Styles - Split Screen Login */
+.phone-input-modern {
+  display: flex;
+  width: 100%;
+}
+
+.phone-input-modern .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: white;
+  border: 1px solid rgb(229 231 235);
+  border-right: none;
+  border-radius: 0.75rem 0 0 0.75rem;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.phone-input-modern:focus-within .PhoneInputCountry {
+  border-color: rgb(59 130 246);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.phone-input-modern .PhoneInputCountryIcon {
+  width: 1.5rem;
+  height: 1.125rem;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.phone-input-modern .PhoneInputCountrySelectArrow {
+  margin-left: 0.5rem;
+  color: rgb(156 163 175);
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.phone-input-modern .PhoneInputCountrySelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.phone-input-modern input {
+  flex: 1;
+  width: 100%;
+}
+

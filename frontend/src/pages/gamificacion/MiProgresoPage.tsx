@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trophy, Flame, Star, Calendar, CheckCircle, History, Lock, ChevronRight, ChevronLeft, Medal, TrendingUp, ChevronUp } from 'lucide-react';
+import { Trophy, Flame, Star, Calendar, CheckCircle, History, Lock, ChevronRight, ChevronLeft, Medal, TrendingUp, ChevronUp, Award } from 'lucide-react';
 import { gamificacionApi } from '@/services/api';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -67,6 +67,11 @@ export default function MiProgresoPage() {
   const { data: periodos } = useQuery({
     queryKey: ['periodos-ranking-all'],
     queryFn: () => gamificacionApi.getPeriodos(true),
+  });
+
+  const { data: insignias } = useQuery({
+    queryKey: ['mis-insignias'],
+    queryFn: gamificacionApi.getMisInsignias,
   });
 
   if (isLoading) {
@@ -331,6 +336,84 @@ export default function MiProgresoPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Mis Insignias */}
+      {insignias && insignias.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Award className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+              Mis Insignias
+              <Badge variant="secondary" className="ml-auto">
+                {insignias.filter(i => i.desbloqueada).length}/{insignias.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+            {/* Insignias desbloqueadas */}
+            {insignias.filter(i => i.desbloqueada).length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3 text-green-500" />
+                  Desbloqueadas
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {insignias
+                    .filter(i => i.desbloqueada)
+                    .map((insignia) => (
+                      <div
+                        key={insignia.id}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
+                      >
+                        <span className="text-2xl sm:text-3xl shrink-0">{insignia.icono}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-amber-800 truncate">{insignia.nombre}</p>
+                          <p className="text-[10px] text-amber-600 truncate">{insignia.descripcion}</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Insignias bloqueadas */}
+            {insignias.filter(i => !i.desbloqueada).length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  Por desbloquear
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {insignias
+                    .filter(i => !i.desbloqueada)
+                    .map((insignia) => (
+                      <div
+                        key={insignia.id}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-200"
+                      >
+                        <span className="text-2xl sm:text-3xl shrink-0 grayscale opacity-50">{insignia.icono}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-gray-600 truncate">{insignia.nombre}</p>
+                          <p className="text-[10px] text-gray-500">{insignia.descripcion}</p>
+                          <p className="text-[10px] text-primary font-medium mt-0.5">
+                            +{insignia.puntosBonus} pts, +{insignia.xpBonus} XP
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {insignias.filter(i => i.desbloqueada).length === 0 && (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">Aún no has desbloqueado ninguna insignia</p>
+                <p className="text-xs text-muted-foreground mt-1">¡Completa los requisitos de arriba para ganarlas!</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Resumen por Períodos */}
       {misPeriodos && misPeriodos.length > 0 && (

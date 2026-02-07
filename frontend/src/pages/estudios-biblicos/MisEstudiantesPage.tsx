@@ -65,7 +65,7 @@ export default function MisEstudiantesPage() {
       }),
   });
 
-  const { data: cursos } = useQuery({
+  const { data: cursos, isLoading: cursosLoading } = useQuery({
     queryKey: ['cursos-biblicos'],
     queryFn: estudiosBiblicosApi.getCursos,
   });
@@ -406,21 +406,27 @@ export default function MisEstudiantesPage() {
 
             <div className="space-y-2">
               <Label>Curso bíblico *</Label>
-              <Select
-                value={formData.cursoId}
-                onValueChange={(value) => setFormData({ ...formData, cursoId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar curso" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cursos?.map((curso) => (
-                    <SelectItem key={curso.id} value={curso.id.toString()}>
-                      {curso.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {cursosLoading ? (
+                <Skeleton className="h-10 w-full rounded-md" />
+              ) : !cursos?.length ? (
+                <p className="text-sm text-muted-foreground">No hay cursos disponibles. Ejecuta el seed o crea cursos desde la base de datos.</p>
+              ) : (
+                <Select
+                  value={formData.cursoId}
+                  onValueChange={(value) => setFormData({ ...formData, cursoId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar curso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cursos.map((curso) => (
+                      <SelectItem key={curso.id} value={curso.id.toString()}>
+                        {curso.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">

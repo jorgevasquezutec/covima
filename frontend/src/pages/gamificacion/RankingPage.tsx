@@ -22,7 +22,7 @@ export default function RankingPage() {
   const [periodoId, setPeriodoId] = useState<number | null>(null);
   const [grupoId, setGrupoId] = useState<number | null>(null);
   const [nivelId, setNivelId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('niveles');
+  const [activeTab, setActiveTab] = useState<TabType>('grupos');
   const [page, setPage] = useState(1);
   const limit = 20;
 
@@ -77,10 +77,6 @@ export default function RankingPage() {
       // Default: grupo general
       const general = grupos.find((g) => g.codigo === 'general');
       setGrupoId(general?.id || grupos[0].id);
-      // Para participantes, mostrar grupos primero por defecto
-      if (!isAdminOrLider) {
-        setActiveTab('grupos');
-      }
     }
   }, [grupos, grupoId, searchParams, isAdminOrLider]);
 
@@ -328,48 +324,20 @@ export default function RankingPage() {
         </ScrollArea>
       )}
 
-      {/* Tabs principales: Por Nivel / Grupos (solo admin/líder) */}
+      {/* Tabs principales: Grupos / Por Nivel (solo admin/líder) */}
       {isAdminOrLider && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
           <TabsList className="grid w-full grid-cols-2 max-w-[240px] h-9">
-            <TabsTrigger value="niveles" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Por Nivel
-            </TabsTrigger>
             <TabsTrigger value="grupos" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               Grupos
             </TabsTrigger>
+            <TabsTrigger value="niveles" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Por Nivel
+            </TabsTrigger>
           </TabsList>
         </Tabs>
-      )}
-
-      {/* Tabs de niveles (solo admin/líder) */}
-      {isAdminOrLider && activeTab === 'niveles' && niveles && niveles.length > 0 && (
-        <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-1.5 sm:gap-2 pb-2">
-            {niveles.map((nivel) => (
-              <button
-                key={nivel.id}
-                onClick={() => {
-                  setNivelId(nivel.id);
-                  setSearchParams({ nivel: nivel.id.toString() });
-                }}
-                className={`
-                  flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all shrink-0
-                  ${nivelId === nivel.id
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                  }
-                `}
-              >
-                <span className="text-sm sm:text-base">{nivel.icono || '🏅'}</span>
-                <span>{nivel.nombre}</span>
-              </button>
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
       )}
 
       {/* Tabs de grupos de ranking (solo admin/líder) */}
@@ -398,6 +366,34 @@ export default function RankingPage() {
                     {grupo.totalMiembros}
                   </Badge>
                 )}
+              </button>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      )}
+
+      {/* Tabs de niveles (solo admin/líder) */}
+      {isAdminOrLider && activeTab === 'niveles' && niveles && niveles.length > 0 && (
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-1.5 sm:gap-2 pb-2">
+            {niveles.map((nivel) => (
+              <button
+                key={nivel.id}
+                onClick={() => {
+                  setNivelId(nivel.id);
+                  setSearchParams({ nivel: nivel.id.toString() });
+                }}
+                className={`
+                  flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all shrink-0
+                  ${nivelId === nivel.id
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                  }
+                `}
+              >
+                <span className="text-sm sm:text-base">{nivel.icono || '🏅'}</span>
+                <span>{nivel.nombre}</span>
               </button>
             ))}
           </div>

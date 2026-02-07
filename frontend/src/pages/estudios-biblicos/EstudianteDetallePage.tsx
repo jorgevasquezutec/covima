@@ -3,9 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +41,7 @@ import {
   Award,
   Trash2,
   Check,
+  Pencil,
 } from 'lucide-react';
 import { estudiosBiblicosApi } from '@/services/api';
 import { toast } from 'sonner';
@@ -45,6 +55,13 @@ export default function EstudianteDetallePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bautismoModalOpen, setBautismoModalOpen] = useState(false);
   const [fechaBautismo, setFechaBautismo] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    telefono: '',
+    direccion: '',
+    estadoCivil: '',
+    notas: '',
+  });
 
   // Query
   const { data: estudiante, isLoading } = useQuery({
@@ -84,20 +101,40 @@ export default function EstudianteDetallePage() {
       toast.error('Error al actualizar lección');
     },
     onSuccess: (data) => {
-      toast.success(data.message);
+      // Mostrar puntos ganados si hay gamificación
+      if (data.gamificacion) {
+        toast.success(
+          `${data.message} (+${data.gamificacion.puntosAsignados} pts, +${data.gamificacion.xpAsignado} XP)`,
+          { icon: '🎮' }
+        );
+      } else {
+        toast.success(data.message);
+      }
       queryClient.invalidateQueries({ queryKey: ['mis-estudiantes'] });
       queryClient.invalidateQueries({ queryKey: ['estadisticas-estudios'] });
+      queryClient.invalidateQueries({ queryKey: ['mi-progreso'] });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: Parameters<typeof estudiosBiblicosApi.updateEstudiante>[1]) =>
       estudiosBiblicosApi.updateEstudiante(parseInt(id!), data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['estudiante', id] });
       queryClient.invalidateQueries({ queryKey: ['mis-estudiantes'] });
-      toast.success('Estudiante actualizado');
+      queryClient.invalidateQueries({ queryKey: ['mi-progreso'] });
+
+      // Si es un bautismo, mostrar mensaje especial con puntos
+      if (variables.fechaBautismo) {
+        toast.success('Bautismo registrado (+50 pts, +100 XP)', {
+          icon: '🎉',
+          duration: 5000,
+        });
+      } else {
+        toast.success('Estudiante actualizado');
+      }
       setBautismoModalOpen(false);
+      setEditModalOpen(false);
     },
     onError: () => {
       toast.error('Error al actualizar');
@@ -125,6 +162,25 @@ export default function EstudianteDetallePage() {
       return;
     }
     updateMutation.mutate({ fechaBautismo });
+  };
+
+  const handleOpenEditModal = () => {
+    setEditForm({
+      telefono: estudiante?.telefono || '',
+      direccion: estudiante?.direccion || '',
+      estadoCivil: estudiante?.estadoCivil || '',
+      notas: estudiante?.notas || '',
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleGuardarInfo = () => {
+    const data: Record<string, string> = {};
+    if (editForm.telefono) data.telefono = editForm.telefono;
+    if (editForm.direccion) data.direccion = editForm.direccion;
+    if (editForm.estadoCivil) data.estadoCivil = editForm.estadoCivil;
+    if (editForm.notas) data.notas = editForm.notas;
+    updateMutation.mutate(data);
   };
 
   // Color por sección de lecciones (como en la plantilla física)
@@ -276,8 +332,11 @@ export default function EstudianteDetallePage() {
         <div className="space-y-4">
           {/* Student Info */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-base">Información</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleOpenEditModal}>
+                <Pencil className="h-4 w-4 text-gray-400" />
+              </Button>
             </CardHeader>
             <CardContent className="space-y-3">
               {estudiante.telefono && (
@@ -298,6 +357,12 @@ export default function EstudianteDetallePage() {
                   <span>{estudiante.estadoCivil}</span>
                 </div>
               )}
+              {estudiante.notas && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Notas:</span>
+                  <p className="text-gray-700 mt-0.5">{estudiante.notas}</p>
+                </div>
+              )}
               {estudiante.fechaBautismo && (
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="h-4 w-4 text-green-500" />
@@ -306,7 +371,7 @@ export default function EstudianteDetallePage() {
                   </span>
                 </div>
               )}
-              {!estudiante.telefono && !estudiante.direccion && !estudiante.estadoCivil && !estudiante.fechaBautismo && (
+              {!estudiante.telefono && !estudiante.direccion && !estudiante.estadoCivil && !estudiante.notas && !estudiante.fechaBautismo && (
                 <p className="text-sm text-gray-400">Sin información adicional</p>
               )}
             </CardContent>
@@ -353,6 +418,67 @@ export default function EstudianteDetallePage() {
             >
               <Award className="h-4 w-4 mr-2" />
               Confirmar Bautismo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Info Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Información</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Teléfono</Label>
+              <Input
+                type="tel"
+                value={editForm.telefono}
+                onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })}
+                placeholder="Ej: 999 123 456"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Dirección</Label>
+              <Input
+                value={editForm.direccion}
+                onChange={(e) => setEditForm({ ...editForm, direccion: e.target.value })}
+                placeholder="Ej: Av. Principal 123"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Estado civil</Label>
+              <Select
+                value={editForm.estadoCivil}
+                onValueChange={(value) => setEditForm({ ...editForm, estadoCivil: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Soltero">Soltero(a)</SelectItem>
+                  <SelectItem value="Casado">Casado(a)</SelectItem>
+                  <SelectItem value="Viudo">Viudo(a)</SelectItem>
+                  <SelectItem value="Divorciado">Divorciado(a)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notas</Label>
+              <Textarea
+                value={editForm.notas}
+                onChange={(e) => setEditForm({ ...editForm, notas: e.target.value })}
+                placeholder="Notas adicionales..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleGuardarInfo} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </DialogFooter>
         </DialogContent>

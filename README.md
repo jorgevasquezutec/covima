@@ -9,6 +9,8 @@ Sistema web para gestionar programas JA, asistencia con gamificación, y comunic
 | **Programas JA** | Crear programas semanales, asignar participantes, generar texto para WhatsApp |
 | **Asistencia** | Registro vía QR (web/bot), confirmación por admin, estadísticas |
 | **Gamificación** | Puntos, niveles bíblicos, rachas, insignias, ranking trimestral |
+| **Estudios Bíblicos** | Gestión de estudios bíblicos para miembros |
+| **Comparar Participantes** | Comparación lado a lado de estadísticas entre participantes |
 | **Inbox** | Conversaciones de WhatsApp, handoff bot↔admin |
 | **Bot WhatsApp** | Registro de asistencia, consultas de programa, IA para clasificar intents |
 
@@ -153,13 +155,9 @@ Sistema de puntos y niveles para incentivar la asistencia y participación.
 
 | Documento | Descripción |
 |-----------|-------------|
-| [Backend README](./backend/README.md) | API, módulos, endpoints, base de datos |
-| [Frontend README](./frontend/README.md) | Páginas, componentes, hooks, rutas |
-| [Deploy Azure](./DEPLOY-AZURE.md) | Guía de deployment en Azure VM |
-| [Cheatsheet](./CHEATSHEET.md) | Comandos rápidos para deployment |
+| [Deploy Digital Ocean](./docs/DEPLOY-DIGITAL-OCEAN.md) | Guía de deployment en Digital Ocean |
 | [Gamificación](./docs/GAMIFICACION.md) | Diseño detallado del sistema |
 | [Inbox/Handoff](./docs/INBOX-HANDOFF.md) | Diseño del sistema de inbox |
-| [Insignias](./frontend/docs/INSIGNIAS-SISTEMA.md) | Sistema de badges |
 
 ---
 
@@ -174,8 +172,8 @@ Sistema de puntos y niveles para incentivar la asistencia y participación.
 - **OpenAI** - Clasificación de intents
 
 ### Frontend
-- **React 18** - UI
-- **Vite** - Build tool
+- **React 19** - UI
+- **Vite 7** - Build tool
 - **TypeScript** - Tipado
 - **TailwindCSS** - Estilos
 - **shadcn/ui** - Componentes
@@ -184,9 +182,9 @@ Sistema de puntos y niveles para incentivar la asistencia y participación.
 
 ### Infraestructura
 - **Docker Compose** - Desarrollo local
-- **Azure VM** - Producción
-- **Caddy** - Reverse proxy + SSL
-- **GitHub Actions** - CI/CD
+- **Digital Ocean** - Producción (droplet + GHCR)
+- **Caddy** - Reverse proxy + SSL automático
+- **GitHub Actions** - CI/CD (build → push GHCR → deploy)
 
 ---
 

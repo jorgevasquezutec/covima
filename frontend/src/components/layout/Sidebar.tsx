@@ -125,12 +125,12 @@ function SidebarContent({
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200">
         <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shrink-0">
-          <span className="text-lg font-bold text-white">CO</span>
+          <span className="text-lg font-bold text-white">JA</span>
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
             <h1 className="text-lg font-bold text-gray-900 truncate">Covima</h1>
-            <p className="text-xs text-gray-500 truncate">Sistema</p>
+            <p className="text-xs text-gray-500 truncate">Jóvenes Adventistas</p>
           </div>
         )}
       </div>
@@ -359,7 +359,7 @@ export default function Sidebar() {
         <SidebarContent
           {...sidebarContentProps}
           collapsed={collapsed}
-          onNavClick={() => {}}
+          onNavClick={() => { }}
         />
       </aside>
     </>

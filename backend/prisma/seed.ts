@@ -282,6 +282,24 @@ async function main() {
   }
   console.log(`Created ${tiposAsistencia.length} tipos de asistencia`);
 
+  // ==================== CURSOS BÍBLICOS ====================
+
+  const cursosBiblicos = [
+    { nombre: 'La fe de Jesús', descripcion: 'Curso básico de doctrinas bíblicas adventistas', totalLecciones: 20, orden: 1 },
+    { nombre: 'Conociendo a Jesús', descripcion: 'Estudio introductorio sobre la vida de Jesús', totalLecciones: 12, orden: 2 },
+    { nombre: 'Revelaciones de Esperanza', descripcion: 'Profecías bíblicas y esperanza cristiana', totalLecciones: 25, orden: 3 },
+    { nombre: 'El Camino a Cristo', descripcion: 'Pasos hacia una relación personal con Cristo', totalLecciones: 13, orden: 4 },
+  ];
+
+  for (const curso of cursosBiblicos) {
+    await prisma.cursoBiblico.upsert({
+      where: { nombre: curso.nombre },
+      update: { descripcion: curso.descripcion, totalLecciones: curso.totalLecciones, orden: curso.orden },
+      create: curso,
+    });
+  }
+  console.log(`Created ${cursosBiblicos.length} cursos bíblicos`);
+
   // ==================== GAMIFICACIÓN ====================
 
   // Niveles Bíblicos
@@ -317,6 +335,11 @@ async function main() {
     { codigo: 'racha_4_semanas', nombre: 'Racha 4 semanas', categoria: CategoriaAccion.BONUS, puntos: 10, xp: 15 },
     { codigo: 'racha_8_semanas', nombre: 'Racha 8 semanas', categoria: CategoriaAccion.BONUS, puntos: 20, xp: 30 },
     { codigo: 'racha_12_semanas', nombre: 'Racha 12 semanas', categoria: CategoriaAccion.BONUS, puntos: 50, xp: 75 },
+    // Estudios Bíblicos
+    { codigo: 'leccion_completada', nombre: 'Lección Completada', categoria: CategoriaAccion.PARTICIPACION, puntos: 3, xp: 5 },
+    { codigo: 'estudiante_50_progreso', nombre: 'Estudiante 50% Progreso', categoria: CategoriaAccion.BONUS, puntos: 10, xp: 15 },
+    { codigo: 'curso_completado', nombre: 'Curso Completado', categoria: CategoriaAccion.BONUS, puntos: 25, xp: 40 },
+    { codigo: 'bautismo_registrado', nombre: 'Bautismo Registrado', categoria: CategoriaAccion.BONUS, puntos: 50, xp: 100 },
   ];
 
   for (const puntaje of puntajes) {
@@ -342,12 +365,19 @@ async function main() {
 
   // Insignias
   const insignias = [
+    // Asistencia y Participación
     { codigo: 'madrugador', nombre: 'Madrugador', descripcion: '10 asistencias tempranas', icono: '🌅', condicionTipo: 'asistencias_tempranas', condicionValor: 10, puntosBonus: 10, xpBonus: 15 },
     { codigo: 'constante', nombre: 'Constante', descripcion: 'Racha de 4 semanas', icono: '🔥', condicionTipo: 'racha_semanas', condicionValor: 4, puntosBonus: 15, xpBonus: 20 },
     { codigo: 'fiel', nombre: 'Fiel', descripcion: 'Racha de 12 semanas', icono: '💎', condicionTipo: 'racha_semanas', condicionValor: 12, puntosBonus: 50, xpBonus: 75 },
     { codigo: 'veterano', nombre: 'Veterano', descripcion: '50 asistencias totales', icono: '🎖️', condicionTipo: 'asistencias_totales', condicionValor: 50, puntosBonus: 30, xpBonus: 50 },
     { codigo: 'orador', nombre: 'Orador', descripcion: '5 temas centrales', icono: '🎤', condicionTipo: 'temas_centrales', condicionValor: 5, puntosBonus: 20, xpBonus: 30 },
     { codigo: 'director', nombre: 'Director', descripcion: '10 direcciones de programa', icono: '🎬', condicionTipo: 'direcciones', condicionValor: 10, puntosBonus: 25, xpBonus: 40 },
+    // Estudios Bíblicos
+    { codigo: 'maestro', nombre: 'Maestro', descripcion: '10 estudiantes activos', icono: '🎓', condicionTipo: 'estudiantes_activos', condicionValor: 10, puntosBonus: 15, xpBonus: 25 },
+    { codigo: 'instructor_constante', nombre: 'Instructor Constante', descripcion: '50 lecciones completadas', icono: '📖', condicionTipo: 'lecciones_dadas', condicionValor: 50, puntosBonus: 25, xpBonus: 40 },
+    { codigo: 'pescador', nombre: 'Pescador de Hombres', descripcion: 'Primer bautismo', icono: '✝️', condicionTipo: 'bautismos', condicionValor: 1, puntosBonus: 20, xpBonus: 50 },
+    { codigo: 'evangelista', nombre: 'Evangelista', descripcion: '5 bautismos', icono: '🌟', condicionTipo: 'bautismos', condicionValor: 5, puntosBonus: 50, xpBonus: 100 },
+    { codigo: 'apostol_moderno', nombre: 'Apóstol Moderno', descripcion: '10 bautismos', icono: '👑', condicionTipo: 'bautismos', condicionValor: 10, puntosBonus: 100, xpBonus: 200 },
   ];
 
   for (const insignia of insignias) {

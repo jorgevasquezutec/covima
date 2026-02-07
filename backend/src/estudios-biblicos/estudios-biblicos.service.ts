@@ -4,10 +4,14 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { GamificacionService } from '../gamificacion/gamificacion.service';
 
 @Injectable()
 export class EstudiosBiblicosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private gamificacionService: GamificacionService,
+  ) {}
 
   /**
    * Obtener todos los cursos bíblicos activos
@@ -160,7 +164,7 @@ export class EstudiosBiblicosService {
   }
 
   /**
-   * Actualizar estudiante
+   * Actualizar estudiante - con gamificación para bautismo
    */
   async updateEstudiante(
     id: number,
@@ -188,21 +192,46 @@ export class EstudiosBiblicosService {
       throw new ForbiddenException('No tienes acceso a este estudiante');
     }
 
-    return this.prisma.estudianteBiblico.update({
+    // Verificar si se está registrando bautismo por primera vez
+    const registrandoBautismo = data.fechaBautismo && !estudiante.fechaBautismo;
+
+    const updated = await this.prisma.estudianteBiblico.update({
       where: { id },
       data,
       include: {
         curso: true,
       },
     });
+
+    // GAMIFICACIÓN: Puntos por bautismo
+    if (registrandoBautismo) {
+      try {
+        await this.gamificacionService.asignarPuntos(
+          instructorId,
+          'bautismo_registrado',
+          id,
+          'bautismo',
+        );
+
+        // Verificar insignias de bautismo (las insignias se verifican automáticamente
+        // en asignarPuntos via verificarInsignias)
+      } catch (e) {
+        console.error('Error asignando puntos por bautismo:', e);
+      }
+    }
+
+    return updated;
   }
 
   /**
-   * Eliminar (desactivar) estudiante
+   * Eliminar (desactivar) estudiante - con lógica anti-farming
    */
   async deleteEstudiante(id: number, instructorId: number) {
     const estudiante = await this.prisma.estudianteBiblico.findUnique({
       where: { id },
+      include: {
+        progreso: { where: { completada: true } },
+      },
     });
 
     if (!estudiante) {
@@ -213,6 +242,31 @@ export class EstudiosBiblicosService {
       throw new ForbiddenException('No tienes acceso a este estudiante');
     }
 
+    // Anti-farming: restar puntos si < 7 días y no tiene bautismo
+    const diasDesdeCreacion = Math.floor(
+      (Date.now() - estudiante.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (diasDesdeCreacion < 7 && !estudiante.fechaBautismo) {
+      // Calcular puntos a restar (solo lecciones desde #3)
+      const leccionesConPuntos = estudiante.progreso.filter(p => p.leccion >= 3).length;
+
+      if (leccionesConPuntos > 0) {
+        try {
+          // Restar puntos (3 pts y 5 xp por lección según la configuración)
+          await this.gamificacionService.restarPuntos(
+            instructorId,
+            leccionesConPuntos * 3,  // puntos
+            leccionesConPuntos * 5,  // xp
+            `Estudiante "${estudiante.nombre}" eliminado antes de 7 días`,
+          );
+        } catch (e) {
+          console.error('Error restando puntos:', e);
+        }
+      }
+    }
+
+    // Soft delete
     await this.prisma.estudianteBiblico.update({
       where: { id },
       data: { activo: false },
@@ -222,7 +276,7 @@ export class EstudiosBiblicosService {
   }
 
   /**
-   * Toggle lección (marcar/desmarcar como completada)
+   * Toggle lección (marcar/desmarcar como completada) - con gamificación
    */
   async toggleLeccion(
     estudianteId: number,
@@ -259,7 +313,7 @@ export class EstudiosBiblicosService {
     });
 
     if (existente) {
-      // Si existe, eliminarlo (toggle off)
+      // Si existe, eliminarlo (toggle off) - NO quitar puntos (ya se ganaron)
       await this.prisma.progresoLeccion.delete({
         where: { id: existente.id },
       });
@@ -280,12 +334,96 @@ export class EstudiosBiblicosService {
         },
       });
 
+      // GAMIFICACIÓN: Solo dar puntos desde lección #3 (anti-farming)
+      let gamificacionResult: Awaited<ReturnType<typeof this.gamificacionService.asignarPuntos>> | null = null;
+      if (leccion >= 3) {
+        try {
+          gamificacionResult = await this.gamificacionService.asignarPuntos(
+            instructorId,
+            'leccion_completada',
+            progreso.id,
+            'leccion',
+          );
+        } catch (e) {
+          console.error('Error asignando puntos por lección:', e);
+        }
+      }
+
+      // Verificar hitos de progreso (50%, 100%)
+      await this.verificarHitosProgreso(estudianteId, instructorId);
+
       return {
         leccion,
         completada: true,
         fechaCompletada: progreso.fechaCompletada,
         message: `Lección ${leccion} completada`,
+        gamificacion: gamificacionResult,
       };
+    }
+  }
+
+  /**
+   * Verificar hitos de progreso (50%, 100%) y otorgar bonus
+   */
+  private async verificarHitosProgreso(estudianteId: number, instructorId: number) {
+    const estudiante = await this.prisma.estudianteBiblico.findUnique({
+      where: { id: estudianteId },
+      include: {
+        curso: true,
+        progreso: { where: { completada: true } },
+      },
+    });
+
+    if (!estudiante) return;
+
+    const porcentaje = (estudiante.progreso.length / estudiante.curso.totalLecciones) * 100;
+
+    // Obtener perfil de gamificación del instructor
+    const perfil = await this.prisma.usuarioGamificacion.findUnique({
+      where: { usuarioId: instructorId },
+    });
+
+    if (!perfil) return;
+
+    // Verificar si ya se otorgaron los bonus (evitar duplicados)
+    const historial = await this.prisma.historialPuntos.findMany({
+      where: {
+        usuarioGamId: perfil.id,
+        referenciaTipo: 'estudiante_hito',
+        referenciaId: estudianteId,
+      },
+      include: { configPuntaje: true },
+    });
+
+    const ya50 = historial.some(h => h.configPuntaje?.codigo === 'estudiante_50_progreso');
+    const ya100 = historial.some(h => h.configPuntaje?.codigo === 'curso_completado');
+
+    // Bonus 50%
+    if (porcentaje >= 50 && !ya50) {
+      try {
+        await this.gamificacionService.asignarPuntos(
+          instructorId,
+          'estudiante_50_progreso',
+          estudianteId,
+          'estudiante_hito',
+        );
+      } catch (e) {
+        console.error('Error asignando bonus 50%:', e);
+      }
+    }
+
+    // Bonus 100%
+    if (porcentaje >= 100 && !ya100) {
+      try {
+        await this.gamificacionService.asignarPuntos(
+          instructorId,
+          'curso_completado',
+          estudianteId,
+          'estudiante_hito',
+        );
+      } catch (e) {
+        console.error('Error asignando bonus 100%:', e);
+      }
     }
   }
 

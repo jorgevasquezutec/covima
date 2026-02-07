@@ -619,6 +619,53 @@ export class GamificacionService {
     };
   }
 
+  /**
+   * Restar puntos a un usuario (para penalizaciones anti-farming)
+   */
+  async restarPuntos(
+    usuarioId: number,
+    puntos: number,
+    xp: number,
+    motivo: string,
+  ): Promise<{ puntosRestados: number; xpRestado: number }> {
+    const perfil = await this.getOrCreatePerfil(usuarioId);
+
+    // Obtener período activo para el historial
+    const periodoActivo = await this.getPeriodoActivo();
+
+    // No permitir puntos negativos
+    const nuevosPuntos = Math.max(0, perfil.puntosTotal - puntos);
+    const nuevosPuntosTrimestre = Math.max(0, perfil.puntosTrimestre - puntos);
+    const nuevosXp = Math.max(0, perfil.xpTotal - xp);
+
+    await this.prisma.usuarioGamificacion.update({
+      where: { id: perfil.id },
+      data: {
+        puntosTotal: nuevosPuntos,
+        puntosTrimestre: nuevosPuntosTrimestre,
+        xpTotal: nuevosXp,
+      },
+    });
+
+    // Registrar en historial con puntos negativos
+    await this.prisma.historialPuntos.create({
+      data: {
+        usuarioGamId: perfil.id,
+        periodoRankingId: periodoActivo?.id,
+        puntos: -puntos,
+        xp: -xp,
+        descripcion: motivo,
+        fecha: new Date(),
+        referenciaTipo: 'penalizacion',
+      },
+    });
+
+    // Verificar si cambió el nivel (puede bajar)
+    await this.verificarYActualizarNivel(perfil.id);
+
+    return { puntosRestados: puntos, xpRestado: xp };
+  }
+
   // Asignar puntos por asistencia usando márgenes del QR
   async asignarPuntosPorAsistencia(
     usuarioId: number,
@@ -950,6 +997,38 @@ export class GamificacionService {
             },
           });
           cumpleCondicion = especiales >= insignia.condicionValor;
+          break;
+
+        // Estudios Bíblicos
+        case 'estudiantes_activos':
+          const estudiantesActivos = await this.prisma.estudianteBiblico.count({
+            where: {
+              instructorId: perfil.usuarioId,
+              activo: true,
+            },
+          });
+          cumpleCondicion = estudiantesActivos >= insignia.condicionValor;
+          break;
+
+        case 'lecciones_dadas':
+          const lecciones = await this.prisma.historialPuntos.count({
+            where: {
+              usuarioGamId: perfilId,
+              configPuntaje: { codigo: 'leccion_completada' },
+            },
+          });
+          cumpleCondicion = lecciones >= insignia.condicionValor;
+          break;
+
+        case 'bautismos':
+          const bautismos = await this.prisma.estudianteBiblico.count({
+            where: {
+              instructorId: perfil.usuarioId,
+              fechaBautismo: { not: null },
+              activo: true,
+            },
+          });
+          cumpleCondicion = bautismos >= insignia.condicionValor;
           break;
       }
 
