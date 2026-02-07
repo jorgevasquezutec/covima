@@ -10,6 +10,8 @@ import { LevelUpModal } from '@/pages/gamificacion/components/LevelUpModal';
 import { gamificacionApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { HelpCircle } from 'lucide-react';
+import { usePwaInstall } from '@/hooks/usePwaInstall';
+import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner';
 
 // Páginas donde el FAB interfiere con otros controles
 const HIDE_FAB_ROUTES = ['/inbox'];
@@ -27,6 +29,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { collapsed } = useSidebarStore();
   const { user, token } = useAuthStore();
   const location = useLocation();
+  const { showBanner: showPwaBanner, isIos, canInstall, triggerInstall, dismiss: dismissPwa } = usePwaInstall();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpData, setLevelUpData] = useState<LevelUpData | null>(null);
@@ -156,12 +159,25 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {!HIDE_FAB_ROUTES.some(route => location.pathname.startsWith(route)) && (
         <Button
           onClick={() => setShowOnboarding(true)}
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-indigo-600 hover:bg-indigo-700 z-40"
+          className={cn(
+            'fixed right-6 h-14 w-14 rounded-full shadow-lg bg-indigo-600 hover:bg-indigo-700 z-40 transition-all duration-300',
+            showPwaBanner && !showOnboarding ? 'bottom-28' : 'bottom-6',
+          )}
           size="icon"
           title="¿Cómo funciona el sistema de puntos?"
         >
           <HelpCircle className="h-6 w-6" />
         </Button>
+      )}
+
+      {/* PWA Install Banner */}
+      {showPwaBanner && !showOnboarding && (
+        <PwaInstallBanner
+          isIos={isIos}
+          canInstall={canInstall}
+          onInstall={triggerInstall}
+          onDismiss={dismissPwa}
+        />
       )}
 
       <OnboardingModal open={showOnboarding} onClose={handleCloseOnboarding} />
