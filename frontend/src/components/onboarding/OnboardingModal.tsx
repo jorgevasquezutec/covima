@@ -9,32 +9,37 @@ interface OnboardingModalProps {
   onClose: () => void;
 }
 
-const TOTAL_SLIDES = 6;
+const TOTAL_SLIDES = 8;
 
 function SlideIntro() {
   return (
     <div className="flex flex-col items-center text-center gap-4 py-4">
-      <span className="text-7xl animate-bounce">🎮</span>
+      <span className="text-7xl animate-bounce">🎯</span>
       <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-        Sistema de Puntos JA
+        ¡Bienvenido a COVIMA!
       </h2>
-      <p className="text-gray-500 text-base sm:text-lg max-w-sm">
-        ¡Gana puntos, sube de nivel y compite con tu sociedad!
+      <p className="text-gray-600 text-base sm:text-lg max-w-sm">
+        El sistema que te motiva a <strong>involucrarte</strong> y <strong>crecer espiritualmente</strong>.
       </p>
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4 max-w-sm">
+        <p className="text-sm text-gray-600">
+          Gana puntos, sube de nivel y mide tu progreso espiritual.
+        </p>
+      </div>
     </div>
   );
 }
 
-function SlidePuntos() {
+function SlideAsistencia() {
   const cards = [
-    { emoji: '📅', titulo: 'Asistencia', puntos: '+1 a +5', desc: 'pts por venir', color: 'from-green-50 to-emerald-50 border-green-200' },
-    { emoji: '🎤', titulo: 'Participación', puntos: '+3 a +10', desc: 'pts por participar', color: 'from-purple-50 to-violet-50 border-purple-200' },
-    { emoji: '⛺', titulo: 'Eventos', puntos: '+3 a +20', desc: 'pts especiales', color: 'from-amber-50 to-yellow-50 border-amber-200' },
+    { emoji: '⛪', titulo: 'Programa de Jóvenes', desc: 'Sábados por la tarde', color: 'from-blue-50 to-indigo-50 border-blue-200' },
+    { emoji: '👥', titulo: 'Grupo Pequeño', desc: 'Reuniones semanales', color: 'from-purple-50 to-violet-50 border-purple-200' },
+    { emoji: '📖', titulo: 'Escuela Sabática', desc: 'Estudio de la lección', color: 'from-cyan-50 to-teal-50 border-cyan-200' },
   ];
 
   return (
     <div className="flex flex-col items-center text-center gap-4 py-2">
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">¿Cómo gano puntos?</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Gana puntos asistiendo</h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
         {cards.map((card) => (
           <div
@@ -43,10 +48,91 @@ function SlidePuntos() {
           >
             <span className="text-3xl">{card.emoji}</span>
             <p className="font-semibold text-gray-900 text-sm">{card.titulo}</p>
-            <p className="text-xl font-bold text-green-600">{card.puntos}</p>
             <p className="text-xs text-gray-500">{card.desc}</p>
           </div>
         ))}
+      </div>
+      <div className="bg-yellow-100 border border-yellow-300 rounded-xl px-4 py-3 w-full">
+        <p className="text-sm font-semibold text-yellow-800">
+          💡 ¡Entre más temprano llegues, más puntos ganas!
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SlideParticipacion() {
+  const programa = [
+    { emoji: '🎤', texto: 'Dirigir el programa' },
+    { emoji: '📖', texto: 'Presentar el tema' },
+    { emoji: '🎵', texto: 'Cantar un especial' },
+    { emoji: '🙏', texto: 'Oración / Testimonio' },
+  ];
+
+  const eventos = [
+    { emoji: '📅', texto: 'Discípulo 13 (D13)' },
+    { emoji: '🏥', texto: 'Visita al asilo' },
+    { emoji: '💝', texto: 'Día de la amistad' },
+    { emoji: '🙏', texto: 'Ayunos y semanas de oración' },
+  ];
+
+  return (
+    <div className="flex flex-col items-center text-center gap-4 py-2">
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">¡Participa y suma más!</h2>
+      <div className="grid grid-cols-2 gap-4 w-full">
+        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-3">
+          <p className="font-semibold text-purple-700 text-sm mb-2">🎯 En el Programa</p>
+          <div className="space-y-1.5">
+            {programa.map((item) => (
+              <div key={item.texto} className="flex items-center gap-2 text-left">
+                <span className="text-base">{item.emoji}</span>
+                <span className="text-xs text-gray-700">{item.texto}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-3">
+          <p className="font-semibold text-orange-600 text-sm mb-2">🌟 Eventos Especiales</p>
+          <div className="space-y-1.5">
+            {eventos.map((item) => (
+              <div key={item.texto} className="flex items-center gap-2 text-left">
+                <span className="text-base">{item.emoji}</span>
+                <span className="text-xs text-gray-700">{item.texto}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500">Cada actividad suma puntos a tu progreso</p>
+    </div>
+  );
+}
+
+function SlideEstudiosBiblicos() {
+  const pasos = [
+    { emoji: '👥', titulo: 'Registra', desc: 'Agrega tus estudiantes' },
+    { emoji: '📊', titulo: 'Da seguimiento', desc: 'Registra cada estudio' },
+    { emoji: '🏆', titulo: 'Gana puntos', desc: 'Por cada estudio' },
+  ];
+
+  return (
+    <div className="flex flex-col items-center text-center gap-4 py-2 overflow-hidden">
+      <span className="text-5xl">📖</span>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Estudios Bíblicos</h2>
+      <p className="text-sm text-gray-500">¿Das estudios bíblicos? ¡Regístralos!</p>
+      <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
+        {pasos.map((paso) => (
+          <div key={paso.titulo} className="flex flex-col items-center gap-2">
+            <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+              <span className="text-2xl">{paso.emoji}</span>
+            </div>
+            <p className="font-semibold text-gray-900 text-sm">{paso.titulo}</p>
+            <p className="text-xs text-gray-500 leading-tight">{paso.desc}</p>
+          </div>
+        ))}
+      </div>
+      <div className="bg-emerald-100 border border-emerald-300 rounded-xl px-4 py-2">
+        <p className="text-sm font-medium text-emerald-700">¡Comparte tu fe y gana puntos!</p>
       </div>
     </div>
   );
@@ -68,8 +154,8 @@ function SlideRacha() {
           <p className="text-sm text-gray-500 mt-1">Mejor Racha</p>
         </div>
       </div>
-      <p className="text-sm text-gray-500 max-w-xs">
-        Cada semana que vienes consecutivamente suma a tu racha. ¡No la pierdas!
+      <p className="text-sm text-gray-600 max-w-xs">
+        Cada semana consecutiva se acumula. <strong>Tu constancia refleja tu compromiso con Dios.</strong>
       </p>
     </div>
   );
@@ -88,6 +174,7 @@ function SlideNiveles() {
   return (
     <div className="flex flex-col items-center text-center gap-4 py-2">
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⬆️ Sube de Nivel</h2>
+      <p className="text-sm text-gray-500">Cada nivel refleja tu crecimiento espiritual</p>
       <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
         {niveles.map((nivel, i) => (
           <div key={nivel.nombre} className="flex items-center gap-2 sm:gap-3">
@@ -160,8 +247,8 @@ function SlideRanking() {
           </div>
         </div>
       </div>
-      <p className="text-sm text-gray-500 max-w-xs">
-        El ranking se reinicia cada trimestre. ¿Llegarás al Top 3?
+      <p className="text-sm text-gray-600 max-w-xs">
+        ¡Compite sanamente y <strong>celebra el crecimiento de todos</strong>!
       </p>
     </div>
   );
@@ -169,16 +256,16 @@ function SlideRanking() {
 
 function SlideCTA() {
   const items = [
-    { emoji: '✅', texto: 'Participa del ministerio JA' },
-    { emoji: '🎤', texto: 'Colabora en el programa' },
+    { emoji: '⛪', texto: 'Asiste al Programa de Jóvenes' },
+    { emoji: '🎤', texto: 'Participa en el programa' },
+    { emoji: '📖', texto: 'Da estudios bíblicos' },
     { emoji: '🔥', texto: 'Mantén tu racha semanal' },
-    { emoji: '🏆', texto: '¡Compite en el ranking!' },
   ];
 
   return (
     <div className="flex flex-col items-center text-center gap-4 py-4">
       <span className="text-6xl">🚀</span>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">¡Empieza a ganar puntos!</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">¡Empieza a crecer!</h2>
       <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4 w-full max-w-sm">
         <div className="space-y-3">
           {items.map((item) => (
@@ -189,14 +276,14 @@ function SlideCTA() {
           ))}
         </div>
       </div>
-      <p className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-        ¡Te esperamos!
+      <p className="text-base font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        Tu crecimiento espiritual, ¡ahora tiene seguimiento!
       </p>
     </div>
   );
 }
 
-const SLIDES = [SlideIntro, SlidePuntos, SlideRacha, SlideNiveles, SlideRanking, SlideCTA];
+const SLIDES = [SlideIntro, SlideAsistencia, SlideParticipacion, SlideEstudiosBiblicos, SlideRacha, SlideNiveles, SlideRanking, SlideCTA];
 
 export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
