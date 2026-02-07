@@ -11,7 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { LayoutList, Plus, Edit2, Trash2, GripVertical, Star, Lock } from 'lucide-react';
+import { LayoutList, Plus, Edit2, Trash2, Star, Lock, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { programasApi } from '@/services/api';
 import type { Parte, CreateParteRequest } from '@/types';
 import { toast } from 'sonner';
@@ -174,92 +180,112 @@ export default function PartesProgramaPage() {
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 px-0 sm:px-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Parte</TableHead>
-                <TableHead className="text-center">Puntos</TableHead>
-                <TableHead className="text-center">XP</TableHead>
-                <TableHead className="text-center">Tipo</TableHead>
-                <TableHead className="text-center">Estado</TableHead>
-                <TableHead className="w-24"></TableHead>
+                <TableHead className="text-xs sm:text-sm pl-3 sm:pl-4">Parte</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm hidden sm:table-cell w-16">Pts</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm hidden md:table-cell w-16">XP</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm w-14">
+                  <span className="hidden sm:inline">Estado</span>
+                  <span className="sm:hidden">Act.</span>
+                </TableHead>
+                <TableHead className="w-10 pr-2 sm:pr-4"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {partes?.map((parte) => (
                 <TableRow key={parte.id} className={!parte.activo ? 'opacity-50' : ''}>
-                  <TableCell className="text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <GripVertical className="w-4 h-4 text-gray-300" />
-                      {parte.orden}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{parte.nombre}</p>
-                        {parte.esObligatoria && (
-                          <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                  {/* Parte: # + Name + Icons + Description + Pts/XP on mobile */}
+                  <TableCell className="pl-3 sm:pl-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground w-4 shrink-0">{parte.orden}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <p className="font-medium text-sm">{parte.nombre}</p>
+                          {parte.esObligatoria && (
+                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0" />
+                          )}
+                          {parte.esFija && (
+                            <Lock className="w-3 h-3 text-gray-400 shrink-0" />
+                          )}
+                        </div>
+                        {parte.esFija && parte.textoFijo && (
+                          <p className="text-[11px] text-blue-600 truncate max-w-[140px] sm:max-w-[250px]">{parte.textoFijo}</p>
                         )}
-                        {parte.esFija && (
-                          <Lock className="w-3.5 h-3.5 text-gray-400" />
-                        )}
+                        {/* Pts, XP and badges on mobile */}
+                        <div className="flex items-center gap-1.5 mt-0.5 sm:hidden flex-wrap">
+                          {parte.esObligatoria && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">Oblig.</Badge>
+                          )}
+                          {parte.esFija && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">Fija</Badge>
+                          )}
+                          <span className="text-[10px] text-muted-foreground">{parte.puntos} pts · {parte.xp} XP</span>
+                        </div>
                       </div>
-                      {parte.descripcion && (
-                        <p className="text-xs text-muted-foreground">{parte.descripcion}</p>
-                      )}
-                      {parte.esFija && parte.textoFijo && (
-                        <p className="text-xs text-blue-600 mt-1">Texto fijo: {parte.textoFijo}</p>
-                      )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="secondary">{parte.puntos} pts</Badge>
+
+                  {/* Puntos - hidden on mobile */}
+                  <TableCell className="text-center hidden sm:table-cell">
+                    <Badge variant="secondary" className="text-xs">{parte.puntos}</Badge>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-muted-foreground">{parte.xp} XP</span>
+
+                  {/* XP - hidden on mobile/tablet */}
+                  <TableCell className="text-center hidden md:table-cell">
+                    <span className="text-muted-foreground text-sm">{parte.xp}</span>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      {parte.esObligatoria && (
-                        <Badge variant="outline" className="text-xs">Obligatoria</Badge>
-                      )}
-                      {parte.esFija && (
-                        <Badge variant="outline" className="text-xs">Fija</Badge>
-                      )}
-                      {!parte.esObligatoria && !parte.esFija && (
-                        <span className="text-xs text-muted-foreground">Opcional</span>
-                      )}
-                    </div>
-                  </TableCell>
+
+                  {/* Estado */}
                   <TableCell className="text-center">
                     <Switch
                       checked={parte.activo}
                       onCheckedChange={() => handleToggleActivo(parte)}
                     />
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => handleOpenEdit(parte)}>
+
+                  {/* Acciones */}
+                  <TableCell className="pr-2 sm:pr-4">
+                    {/* Desktop */}
+                    <div className="hidden sm:flex gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleOpenEdit(parte)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="h-8 w-8"
                         onClick={() => handleDelete(parte)}
-                        className="text-red-600 hover:text-red-700"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 text-red-600" />
                       </Button>
+                    </div>
+                    {/* Mobile dropdown */}
+                    <div className="sm:hidden">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenEdit(parte)}>
+                            <Edit2 className="h-4 w-4 mr-2" />Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDelete(parte)} className="text-red-600">
+                            <Trash2 className="h-4 w-4 mr-2" />Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
               {partes?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     No hay partes configuradas
                   </TableCell>
                 </TableRow>

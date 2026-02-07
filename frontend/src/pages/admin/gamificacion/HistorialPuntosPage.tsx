@@ -52,7 +52,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { History, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Filter, ChevronsUpDown, Check } from 'lucide-react';
+import { History, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Filter, ChevronsUpDown, Check, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn, parseLocalDate } from '@/lib/utils';
 import { gamificacionApi, usuariosApi } from '@/services/api';
 import type { HistorialAdminItem, PeriodoRanking } from '@/types';
@@ -332,72 +338,111 @@ export default function HistorialPuntosPage() {
 
       {/* Tabla de historial */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 px-2 sm:px-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Usuario</TableHead>
-                <TableHead>Acción</TableHead>
-                <TableHead className="text-center">Puntos</TableHead>
-                <TableHead className="text-center">XP</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="text-xs sm:text-sm">Usuario</TableHead>
+                <TableHead className="text-xs sm:text-sm hidden md:table-cell">Acción</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm w-16">Pts</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm w-16 hidden sm:table-cell">XP</TableHead>
+                <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Fecha</TableHead>
+                <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {historial?.items.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell>
+                  {/* Usuario + Acción en mobile */}
+                  <TableCell className="max-w-[180px] sm:max-w-none">
                     <div className="flex items-center gap-2">
-                      <Avatar className="w-8 h-8">
+                      <Avatar className="w-8 h-8 shrink-0">
                         <AvatarImage src={entry.usuario.fotoUrl} />
                         <AvatarFallback>
                           {entry.usuario.nombre.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="font-medium">{entry.usuario.nombre}</span>
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm truncate block">{entry.usuario.nombre}</span>
+                        {/* Acción on mobile */}
+                        <div className="md:hidden">
+                          <Badge className={`text-[10px] px-1.5 py-0 ${CATEGORIA_COLORES[entry.categoria] || CATEGORIA_COLORES.OTRO}`}>
+                            {entry.categoria}
+                          </Badge>
+                          <p className="text-xs text-muted-foreground truncate">{entry.accion}</p>
+                        </div>
+                        {/* Fecha on mobile */}
+                        <p className="text-[10px] text-muted-foreground lg:hidden">
+                          {format(parseLocalDate(entry.fecha), 'dd MMM', { locale: es })}
+                        </p>
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+
+                  {/* Acción - hidden on mobile */}
+                  <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col gap-1">
-                      <Badge className={CATEGORIA_COLORES[entry.categoria] || CATEGORIA_COLORES.OTRO}>
+                      <Badge className={`text-xs ${CATEGORIA_COLORES[entry.categoria] || CATEGORIA_COLORES.OTRO}`}>
                         {entry.categoria}
                       </Badge>
                       <span className="text-sm">{entry.accion}</span>
                       {entry.descripcion && (
-                        <span className="text-xs text-muted-foreground">{entry.descripcion}</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[200px]">{entry.descripcion}</span>
                       )}
                     </div>
                   </TableCell>
+
+                  {/* Puntos */}
                   <TableCell className="text-center">
-                    <span className={`font-mono font-medium ${entry.puntos > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`font-mono font-medium text-sm ${entry.puntos > 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {entry.puntos > 0 ? '+' : ''}{entry.puntos}
                     </span>
+                    {/* XP on mobile */}
+                    <span className={`block sm:hidden font-mono text-xs ${entry.xp > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                      {entry.xp > 0 ? '+' : ''}{entry.xp} xp
+                    </span>
                   </TableCell>
-                  <TableCell className="text-center">
+
+                  {/* XP - hidden on mobile */}
+                  <TableCell className="text-center hidden sm:table-cell">
                     <span className={`font-mono font-medium ${entry.xp > 0 ? 'text-blue-600' : 'text-red-600'}`}>
                       {entry.xp > 0 ? '+' : ''}{entry.xp}
                     </span>
                   </TableCell>
-                  <TableCell>
+
+                  {/* Fecha - hidden on mobile/tablet */}
+                  <TableCell className="hidden lg:table-cell">
                     {format(parseLocalDate(entry.fecha), 'dd MMM yyyy', { locale: es })}
                   </TableCell>
+
+                  {/* Acciones */}
                   <TableCell>
-                    {entry.periodo ? (
-                      <Badge variant="outline">{entry.periodo.nombre}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(entry)}>
+                    {/* Desktop */}
+                    <div className="hidden sm:flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(entry)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenDelete(entry)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDelete(entry)}>
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
+                    </div>
+                    {/* Mobile dropdown */}
+                    <div className="sm:hidden">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenEdit(entry)}>
+                            <Edit2 className="h-4 w-4 mr-2" />Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenDelete(entry)} className="text-red-600">
+                            <Trash2 className="h-4 w-4 mr-2" />Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>

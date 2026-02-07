@@ -22,6 +22,7 @@ import {
     Pencil,
     UserPlus,
     Trash2,
+    MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -64,6 +65,12 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1173,16 +1180,18 @@ export default function AsistenciaPage() {
                                     <p className="text-gray-500">No hay QRs registrados</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <Table>
+                                <div className="overflow-hidden">
+                                    <Table className="table-fixed w-full">
                                         <TableHeader>
                                             <TableRow className="border-gray-200 bg-gray-50">
-                                                <TableHead className="text-gray-600">Código</TableHead>
-                                                <TableHead className="text-gray-600">Fecha y Horario</TableHead>
-                                                <TableHead className="text-gray-600">Tipo</TableHead>
-                                                <TableHead className="text-gray-600 text-center">Asistencias</TableHead>
-                                                <TableHead className="text-gray-600 text-center">Estado</TableHead>
-                                                <TableHead className="text-gray-600 text-right">Acciones</TableHead>
+                                                <TableHead className="text-gray-600 text-xs sm:text-sm pl-3 sm:pl-4 w-auto">QR</TableHead>
+                                                <TableHead className="text-gray-600 text-xs sm:text-sm hidden md:table-cell w-28">Tipo</TableHead>
+                                                <TableHead className="text-gray-600 text-xs sm:text-sm text-center hidden sm:table-cell w-20">Asist.</TableHead>
+                                                <TableHead className="text-gray-600 text-xs sm:text-sm text-center w-16">
+                                                    <span className="hidden sm:inline">Estado</span>
+                                                    <span className="sm:hidden">Act.</span>
+                                                </TableHead>
+                                                <TableHead className="text-gray-600 w-10 sm:w-auto pr-2 sm:pr-4"></TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -1191,42 +1200,54 @@ export default function AsistenciaPage() {
                                                 const tipoColor = qr.tipoAsistencia?.color || '#6B7280';
                                                 return (
                                                     <TableRow key={qr.id} className={`border-gray-200 transition-colors ${!active ? 'bg-gray-50/50' : 'hover:bg-blue-50/30'}`}>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-2">
-                                                                <div className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                                                <span className="font-mono text-sm font-bold text-gray-900">{qr.codigo}</span>
+                                                        {/* QR: Código + Fecha + Tipo (mobile) */}
+                                                        <TableCell className="pl-3 sm:pl-4">
+                                                            <div className="flex items-start gap-2">
+                                                                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                                                <div className="min-w-0">
+                                                                    <span className="font-mono text-sm font-bold text-gray-900">{qr.codigo}</span>
+                                                                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                                                                        <CalendarDays className="w-3 h-3 shrink-0" />
+                                                                        <span className="truncate">{parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                                                        <Clock className="w-3 h-3 shrink-0" />
+                                                                        {formatHora(qr.horaInicio)} - {formatHora(qr.horaFin)}
+                                                                    </div>
+                                                                    {/* Tipo + Asistencias on mobile */}
+                                                                    <div className="flex items-center gap-2 mt-1 md:hidden">
+                                                                        <Badge className="text-[10px] px-1.5 py-0 h-4" style={{ backgroundColor: tipoColor, color: 'white' }}>
+                                                                            {qr.tipoAsistencia?.label || 'Sin tipo'}
+                                                                        </Badge>
+                                                                        <span className="text-[10px] text-gray-500 sm:hidden">{qr.totalAsistencias || 0} asist.</span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <div className="space-y-1">
-                                                                <div className="flex items-center gap-2 text-sm text-gray-900">
-                                                                    <CalendarDays className="w-4 h-4 text-gray-400" />
-                                                                    {parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                                                                </div>
-                                                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                                    <Clock className="w-3 h-3 text-gray-400" />
-                                                                    {formatHora(qr.horaInicio)} - {formatHora(qr.horaFin)}
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
+                                                        {/* Tipo - hidden on mobile */}
+                                                        <TableCell className="hidden md:table-cell">
                                                             <Badge className="text-xs font-medium" style={{ backgroundColor: tipoColor, color: 'white' }}>
                                                                 {qr.tipoAsistencia?.label || 'Sin tipo'}
                                                             </Badge>
                                                         </TableCell>
-                                                        <TableCell className="text-center">
+                                                        {/* Asistencias - hidden on mobile */}
+                                                        <TableCell className="text-center hidden sm:table-cell">
                                                             <div className="flex items-center justify-center gap-1">
                                                                 <Users className="w-4 h-4 text-gray-400" />
                                                                 <span className="font-medium text-gray-700">{qr.totalAsistencias || 0}</span>
                                                             </div>
                                                         </TableCell>
+                                                        {/* Estado */}
                                                         <TableCell className="text-center">
-                                                            <Badge variant="outline" className={active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}>
-                                                                {active ? 'Activo' : 'Inactivo'}
+                                                            <Badge variant="outline" className={`text-[10px] sm:text-xs px-1.5 sm:px-2 ${active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                                                                <span className="hidden sm:inline">{active ? 'Activo' : 'Inactivo'}</span>
+                                                                <span className="sm:hidden">{active ? 'On' : 'Off'}</span>
                                                             </Badge>
                                                         </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <div className="flex items-center justify-end gap-1">
+                                                        {/* Acciones */}
+                                                        <TableCell className="pr-2 sm:pr-4">
+                                                            {/* Desktop actions */}
+                                                            <div className="hidden sm:flex items-center justify-end gap-1">
                                                                 <Button size="icon" variant="ghost" onClick={() => navigate(`/asistencias/room/${qr.codigo}`)} className="h-8 w-8 hover:bg-purple-50 hover:text-purple-600" title="Ver en vivo">
                                                                     <Radio className="w-4 h-4" />
                                                                 </Button>
@@ -1244,6 +1265,36 @@ export default function AsistenciaPage() {
                                                                 <Button size="icon" variant="ghost" onClick={() => { setDeletingQR(qr); setDeleteQROpen(true); }} className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600" title="Eliminar QR">
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </Button>
+                                                            </div>
+                                                            {/* Mobile: dropdown menu */}
+                                                            <div className="sm:hidden">
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                            <MoreVertical className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end">
+                                                                        <DropdownMenuItem onClick={() => navigate(`/asistencias/room/${qr.codigo}`)}>
+                                                                            <Radio className="h-4 w-4 mr-2" />Ver en vivo
+                                                                        </DropdownMenuItem>
+                                                                        {qr.urlWhatsapp && (
+                                                                            <DropdownMenuItem onClick={() => handleCopyLink(qr.urlWhatsapp!)}>
+                                                                                <Copy className="h-4 w-4 mr-2" />Copiar link
+                                                                            </DropdownMenuItem>
+                                                                        )}
+                                                                        <DropdownMenuItem onClick={() => openEditQRModal(qr)}>
+                                                                            <Pencil className="h-4 w-4 mr-2" />Editar
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => handleToggleQR(qr)}>
+                                                                            {qr.activo ? <ToggleRight className="h-4 w-4 mr-2" /> : <ToggleLeft className="h-4 w-4 mr-2" />}
+                                                                            {qr.activo ? 'Desactivar' : 'Activar'}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => { setDeletingQR(qr); setDeleteQROpen(true); }} className="text-red-600">
+                                                                            <Trash2 className="h-4 w-4 mr-2" />Eliminar
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
                                                             </div>
                                                         </TableCell>
                                                     </TableRow>

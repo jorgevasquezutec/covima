@@ -184,7 +184,7 @@ export default function PeriodosRankingPage() {
   const periodoActivo = periodos?.find((p) => p.estado === 'ACTIVO');
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -209,34 +209,40 @@ export default function PeriodosRankingPage() {
       {/* Alert si hay período activo */}
       {periodoActivo && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0">
-              <Play className="h-5 w-5 text-green-600" />
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <Play className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <h3 className="font-semibold text-green-800">
+                  Período activo: {periodoActivo.nombre}
+                </h3>
+                <p className="text-sm text-green-700 mt-1">
+                  Inicio: {formatDate(periodoActivo.fechaInicio)}
+                </p>
+                {periodoActivo.fechaFin && (
+                  <p className="text-sm text-green-700">
+                    Cierre: {formatDate(periodoActivo.fechaFin)}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-green-800">Período activo: {periodoActivo.nombre}</h3>
-              <p className="text-sm text-green-700">
-                Inicio: {formatDate(periodoActivo.fechaInicio)}
-                {periodoActivo.fechaFin && ` | Cierre programado: ${formatDate(periodoActivo.fechaFin)}`}
-              </p>
-            </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => pausarMutation.mutate(periodoActivo.id)}
                 disabled={pausarMutation.isPending}
               >
-                <Pause className="h-4 w-4 mr-1" />
-                Pausar
+                <Pause className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Pausar</span>
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowCerrarDialog(periodoActivo)}
               >
-                <Square className="h-4 w-4 mr-1" />
-                Cerrar
+                <Square className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Cerrar</span>
               </Button>
             </div>
           </div>

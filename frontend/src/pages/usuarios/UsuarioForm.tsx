@@ -96,9 +96,9 @@ export default function UsuarioForm({
         esJA: usuario.esJA ?? true,
         fechaNacimiento: usuario.fechaNacimiento ? usuario.fechaNacimiento.split('T')[0] : '',
         direccion: usuario.direccion || '',
-        tipoDocumento: usuario.tipoDocumento as 'DNI' | 'CE' | 'PASAPORTE' | undefined,
+        tipoDocumento: (usuario.tipoDocumento ?? undefined) as 'DNI' | 'CE' | 'PASAPORTE' | undefined,
         numeroDocumento: usuario.numeroDocumento || '',
-        tallaPolo: usuario.tallaPolo as 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | undefined,
+        tallaPolo: (usuario.tallaPolo ?? undefined) as 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | undefined,
         esBautizado: usuario.esBautizado ?? undefined,
         biografia: usuario.biografia || '',
         notificarNuevasConversaciones: usuario.notificarNuevasConversaciones ?? false,
@@ -249,7 +249,7 @@ export default function UsuarioForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit, () => toast.error('Revisa los campos marcados en rojo'))} className="space-y-4">
       {/* Foto de perfil - solo en edición */}
       {isEditing && (
         <div className="flex items-center gap-4 pb-4 border-b border-gray-200">
@@ -647,6 +647,20 @@ export default function UsuarioForm({
             </p>
           </div>
         </>
+      )}
+
+      {/* Resumen de errores de validación */}
+      {Object.keys(errors).length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <p className="text-xs font-medium text-red-700 mb-1">Corrige los siguientes campos:</p>
+          <ul className="text-xs text-red-600 space-y-0.5">
+            {Object.entries(errors).map(([field, error]) => (
+              <li key={field}>
+                &bull; <span className="capitalize">{field === 'phoneNumber' ? 'Teléfono' : field === 'nombre' ? 'Nombre' : field === 'roles' ? 'Roles' : field === 'esJA' ? 'Membresía JA' : field === 'email' ? 'Email' : field === 'notificarNuevasConversaciones' ? 'Notificaciones' : field === 'modoHandoffDefault' ? 'Modo de respuesta' : field}</span>: {(error as any)?.message || 'Campo requerido'}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="flex justify-end gap-3 pt-4">

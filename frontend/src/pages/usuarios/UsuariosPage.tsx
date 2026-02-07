@@ -45,7 +45,14 @@ import {
   Cake,
   Trophy,
   ClipboardList,
+  MoreVertical,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import UsuarioForm from './UsuarioForm';
 
 export default function UsuariosPage() {
@@ -306,48 +313,65 @@ export default function UsuariosPage() {
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-200 bg-gray-50 hover:bg-gray-50">
-                  <TableHead className="text-gray-600">Nombre</TableHead>
-                  <TableHead className="text-gray-600">Teléfono</TableHead>
-                  <TableHead className="text-gray-600">Cumpleaños</TableHead>
-                  <TableHead className="text-gray-600">Roles</TableHead>
-                  <TableHead className="text-gray-600">Estado</TableHead>
-                  <TableHead className="text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Trophy className="w-3.5 h-3.5" />
-                      Ranking
-                    </div>
+                  <TableHead className="text-gray-600 text-xs sm:text-sm">Usuario</TableHead>
+                  <TableHead className="text-gray-600 text-xs sm:text-sm hidden md:table-cell">Cumpleaños</TableHead>
+                  <TableHead className="text-gray-600 text-xs sm:text-sm hidden lg:table-cell">Roles</TableHead>
+                  <TableHead className="text-gray-600 text-center text-xs sm:text-sm w-16">
+                    <span className="hidden sm:inline">Estado</span>
+                    <span className="sm:hidden">Act.</span>
                   </TableHead>
-                  <TableHead className="text-gray-600 text-right">Acciones</TableHead>
+                  <TableHead className="text-gray-600 text-center text-xs sm:text-sm w-16">
+                    <Trophy className="w-3.5 h-3.5 mx-auto sm:hidden" />
+                    <span className="hidden sm:inline">Ranking</span>
+                  </TableHead>
+                  <TableHead className="text-gray-600 w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       Cargando...
                     </TableCell>
                   </TableRow>
                 ) : usuarios.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       No se encontraron usuarios
                     </TableCell>
                   </TableRow>
                 ) : (
                   usuarios.map((usuario) => (
                     <TableRow key={usuario.id} className="border-gray-200 hover:bg-gray-50">
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-gray-900">{usuario.nombre}</p>
-                          {usuario.email && (
-                            <p className="text-sm text-gray-500">{usuario.email}</p>
+                      {/* Usuario: Nombre + Teléfono + Roles (mobile) */}
+                      <TableCell className="max-w-[200px] sm:max-w-none">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate text-sm">{usuario.nombre}</p>
+                          <p className="text-xs text-gray-500">+{usuario.codigoPais} {usuario.telefono}</p>
+                          {/* Roles on mobile */}
+                          <div className="flex flex-wrap gap-1 mt-1 lg:hidden">
+                            {usuario.roles.map((rol) => (
+                              <Badge
+                                key={rol}
+                                variant="outline"
+                                className={`text-[10px] px-1.5 py-0 ${getRoleBadgeColor(rol)}`}
+                              >
+                                {rol}
+                              </Badge>
+                            ))}
+                          </div>
+                          {/* Birthday on mobile */}
+                          {usuario.fechaNacimiento && (
+                            <div className="flex items-center gap-1 text-gray-500 mt-1 md:hidden">
+                              <Cake className="w-3 h-3 text-pink-500" />
+                              <span className="text-[10px]">{formatBirthday(usuario.fechaNacimiento)}</span>
+                            </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-700">
-                        +{usuario.codigoPais} {usuario.telefono}
-                      </TableCell>
-                      <TableCell>
+
+                      {/* Cumpleaños - hidden on mobile */}
+                      <TableCell className="hidden md:table-cell">
                         {usuario.fechaNacimiento ? (
                           <div className="flex items-center gap-1 text-gray-600">
                             <Cake className="w-3.5 h-3.5 text-pink-500" />
@@ -357,7 +381,9 @@ export default function UsuariosPage() {
                           <span className="text-gray-400 text-sm">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
+
+                      {/* Roles - hidden on mobile/tablet */}
+                      <TableCell className="hidden lg:table-cell">
                         <div className="flex flex-wrap gap-1">
                           {usuario.roles.map((rol) => (
                             <Badge
@@ -370,55 +396,99 @@ export default function UsuariosPage() {
                           ))}
                         </div>
                       </TableCell>
-                      <TableCell>
+
+                      {/* Estado */}
+                      <TableCell className="text-center">
                         <Switch
                           checked={usuario.activo}
                           onCheckedChange={() => handleToggleActive(usuario)}
                         />
                       </TableCell>
-                      <TableCell>
+
+                      {/* Ranking */}
+                      <TableCell className="text-center">
                         <Switch
                           checked={usuario.participaEnRanking !== false}
                           onCheckedChange={() => handleToggleRanking(usuario)}
                         />
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+
+                      {/* Acciones */}
+                      <TableCell>
+                        {/* Desktop actions */}
+                        <div className="hidden sm:flex justify-end gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => {
                               setEditingUser(usuario);
                               setFormOpen(true);
                             }}
-                            className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                            className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                            title="Editar"
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => {
                               setResetPasswordUser(usuario);
                               setResetPasswordOpen(true);
                             }}
-                            className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                            className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                            title="Cambiar contraseña"
                           >
                             <Key className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => {
                               setPhoneEditUser(usuario);
                               setPhoneValue(`+${usuario.codigoPais}${usuario.telefono}`);
                               setPhoneEditOpen(true);
                             }}
-                            className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                            className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
                             title="Editar teléfono"
                           >
                             <Phone className="w-4 h-4" />
                           </Button>
+                        </div>
+
+                        {/* Mobile dropdown */}
+                        <div className="sm:hidden">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => {
+                                setEditingUser(usuario);
+                                setFormOpen(true);
+                              }}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar usuario
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setResetPasswordUser(usuario);
+                                setResetPasswordOpen(true);
+                              }}>
+                                <Key className="h-4 w-4 mr-2" />
+                                Cambiar contraseña
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setPhoneEditUser(usuario);
+                                setPhoneValue(`+${usuario.codigoPais}${usuario.telefono}`);
+                                setPhoneEditOpen(true);
+                              }}>
+                                <Phone className="h-4 w-4 mr-2" />
+                                Editar teléfono
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>

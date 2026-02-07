@@ -598,7 +598,7 @@ export default function Dashboard() {
 
               {/* Partes más hechas */}
               {dashboardEquipo.partesMasHechas.length > 0 && (() => {
-                const PIE_COLORS = ['#8b5cf6', '#6366f1', '#a78bfa', '#c084fc', '#7c3aed', '#818cf8', '#a5b4fc', '#ddd6fe'];
+                const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
                 const data = dashboardEquipo.partesMasHechas.slice(0, 8);
                 return (
                 <Card className="bg-white border-gray-200 shadow-sm">
@@ -609,7 +609,7 @@ export default function Dashboard() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-2 sm:px-6">
-                    <div className="h-64">
+                    <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -618,12 +618,9 @@ export default function Dashboard() {
                             nameKey="nombre"
                             cx="50%"
                             cy="50%"
-                            outerRadius={80}
+                            outerRadius={75}
                             innerRadius={40}
                             paddingAngle={2}
-                            label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
-                            labelLine={false}
-                            style={{ fontSize: 10 }}
                           >
                             {data.map((_, index) => (
                               <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
@@ -632,6 +629,18 @@ export default function Dashboard() {
                           <Tooltip formatter={(value) => [value ?? 0, 'Veces']} />
                         </PieChart>
                       </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2">
+                      {data.map((item, index) => {
+                        const total = data.reduce((sum, d) => sum + d.cantidad, 0);
+                        const pct = total > 0 ? Math.round((item.cantidad / total) * 100) : 0;
+                        return (
+                          <div key={index} className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
+                            <span className="text-xs text-gray-700">{item.nombre} <span className="text-gray-400">{pct}%</span></span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -852,7 +861,7 @@ export default function Dashboard() {
 
           {/* Mis Partes más hechas */}
           {miDashboard.partesMasHechas.length > 0 && (() => {
-            const PIE_COLORS = ['#8b5cf6', '#6366f1', '#a78bfa', '#c084fc', '#7c3aed', '#818cf8'];
+            const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
             const data = miDashboard.partesMasHechas.slice(0, 6);
             return (
             <Card className="bg-white border-gray-200 shadow-sm">
@@ -863,7 +872,7 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-2 sm:px-6">
-                <div className="h-56">
+                <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -875,9 +884,6 @@ export default function Dashboard() {
                         outerRadius={70}
                         innerRadius={35}
                         paddingAngle={2}
-                        label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
-                        labelLine={false}
-                        style={{ fontSize: 10 }}
                       >
                         {data.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
@@ -886,6 +892,18 @@ export default function Dashboard() {
                       <Tooltip formatter={(value) => [value ?? 0, 'Veces']} />
                     </PieChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2">
+                  {data.map((item, index) => {
+                    const total = data.reduce((sum, d) => sum + d.cantidad, 0);
+                    const pct = total > 0 ? Math.round((item.cantidad / total) * 100) : 0;
+                    return (
+                      <div key={index} className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
+                        <span className="text-xs text-gray-700">{item.nombre} <span className="text-gray-400">{pct}%</span></span>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -1010,7 +1028,10 @@ export default function Dashboard() {
             {miAsistencia?.historial && miAsistencia.historial.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Historial reciente</p>
-                {miAsistencia.historial.slice(0, 5).map((item, index) => (
+                {[...miAsistencia.historial]
+                  .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                  .slice(0, 5)
+                  .map((item, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"

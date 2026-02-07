@@ -33,7 +33,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Star, Plus, Edit2, Trash2, Users, Zap, RefreshCw } from 'lucide-react';
+import { Star, Plus, Edit2, Trash2, Users, Zap, RefreshCw, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { gamificacionApi } from '@/services/api';
 import type { NivelBiblico, ActualizarNivelRequest } from '@/types';
 import { toast } from 'sonner';
@@ -236,13 +242,14 @@ export default function NivelesPage() {
 
       {/* Info de fórmula */}
       <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-blue-700">
-              <Zap className="w-4 h-4" />
+        <CardContent className="py-3 px-3 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-start sm:items-center gap-2 text-sm text-blue-700">
+              <Zap className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0" />
               <span>
-                <strong>XP Automático:</strong> El XP se calcula con la fórmula{' '}
-                <code className="bg-blue-100 px-1 rounded">100 × (nivel - 1)²</code>
+                <strong>XP Automático:</strong>{' '}
+                <span className="hidden sm:inline">El XP se calcula con la fórmula </span>
+                <code className="bg-blue-100 px-1 rounded text-xs">100 × (nivel - 1)²</code>
               </span>
             </div>
             <Button
@@ -250,7 +257,7 @@ export default function NivelesPage() {
               size="sm"
               onClick={() => recalcularXpMutation.mutate()}
               disabled={recalcularXpMutation.isPending}
-              className="text-blue-700 border-blue-300 hover:bg-blue-100"
+              className="text-blue-700 border-blue-300 hover:bg-blue-100 w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${recalcularXpMutation.isPending ? 'animate-spin' : ''}`} />
               {recalcularXpMutation.isPending ? 'Recalculando...' : 'Recalcular XP'}
@@ -260,7 +267,7 @@ export default function NivelesPage() {
       </Card>
 
       {/* Preview de la ruta de niveles */}
-      <Card>
+      <Card className="hidden sm:block">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Vista Previa - Ruta de Niveles</CardTitle>
         </CardHeader>
@@ -289,50 +296,72 @@ export default function NivelesPage() {
 
       {/* Tabla de niveles */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 px-0 sm:px-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">#</TableHead>
-                <TableHead>Nivel</TableHead>
-                <TableHead>Descripción</TableHead>
-                <TableHead className="text-center">XP Requerido</TableHead>
-                <TableHead className="text-center">Usuarios</TableHead>
-                <TableHead className="text-center">Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="text-xs sm:text-sm pl-3 sm:pl-4">Nivel</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm hidden sm:table-cell w-24">XP</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm hidden md:table-cell w-20">
+                  <Users className="w-4 h-4 mx-auto" />
+                </TableHead>
+                <TableHead className="text-center text-xs sm:text-sm w-14">
+                  <span className="hidden sm:inline">Estado</span>
+                  <span className="sm:hidden">Act.</span>
+                </TableHead>
+                <TableHead className="w-10 pr-2 sm:pr-4"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {nivelesSorted.map((nivel) => (
                 <TableRow key={nivel.id} className={!nivel.activo ? 'opacity-50' : ''}>
-                  <TableCell className="font-medium">{nivel.numero}</TableCell>
-                  <TableCell>
+                  {/* Nivel: # + Icon + Name + Description + XP/Users on mobile */}
+                  <TableCell className="pl-3 sm:pl-4">
                     <div className="flex items-center gap-2">
                       <span
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
+                        className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-lg"
                         style={{ backgroundColor: `${nivel.color}20` }}
                       >
                         {nivel.icono}
                       </span>
-                      <div>
-                        <p className="font-medium" style={{ color: nivel.color }}>
-                          {nivel.nombre}
-                        </p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground">#{nivel.numero}</span>
+                          <p className="font-medium text-sm truncate" style={{ color: nivel.color }}>
+                            {nivel.nombre}
+                          </p>
+                        </div>
+                        {nivel.descripcion && (
+                          <p className="text-[11px] text-muted-foreground truncate max-w-[140px] sm:max-w-[200px]">
+                            {nivel.descripcion}
+                          </p>
+                        )}
+                        {/* XP and Users on mobile */}
+                        <div className="sm:hidden flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                          <span className="font-mono font-medium">{nivel.xpRequerido.toLocaleString()} XP</span>
+                          <span className="flex items-center gap-0.5">
+                            <Users className="w-3 h-3" />
+                            {nivel._count?.usuariosEnNivel || 0}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate text-muted-foreground">
-                    {nivel.descripcion || '-'}
-                  </TableCell>
-                  <TableCell className="text-center font-mono">
+
+                  {/* XP - hidden on mobile */}
+                  <TableCell className="text-center font-mono text-sm hidden sm:table-cell">
                     {nivel.xpRequerido.toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-center">
+
+                  {/* Usuarios - hidden on mobile/tablet */}
+                  <TableCell className="text-center hidden md:table-cell">
                     <Badge variant="outline" className="gap-1">
                       <Users className="w-3 h-3" />
                       {nivel._count?.usuariosEnNivel || 0}
                     </Badge>
                   </TableCell>
+
+                  {/* Estado */}
                   <TableCell className="text-center">
                     <Switch
                       checked={nivel.activo}
@@ -341,23 +370,45 @@ export default function NivelesPage() {
                       }
                     />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenEdit(nivel)}
-                      >
+
+                  {/* Acciones */}
+                  <TableCell className="pr-2 sm:pr-4">
+                    {/* Desktop */}
+                    <div className="hidden sm:flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(nivel)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         onClick={() => handleDelete(nivel)}
                         disabled={(nivel._count?.usuariosEnNivel || 0) > 0}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                    </div>
+                    {/* Mobile dropdown */}
+                    <div className="sm:hidden">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenEdit(nivel)}>
+                            <Edit2 className="h-4 w-4 mr-2" />Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(nivel)}
+                            disabled={(nivel._count?.usuariosEnNivel || 0) > 0}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -145,21 +145,21 @@ export default function MisEstudiantesPage() {
   const totalPages = meta?.totalPages || 1;
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
-            <BookOpen className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Mis Estudiantes</h1>
-            <p className="text-gray-500">Control de estudios bíblicos</p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <BookOpen className="w-6 h-6 text-blue-600" />
+            Mis Estudiantes
+          </h1>
+          <p className="text-gray-500 mt-1">
+            Control de estudios bíblicos
+          </p>
         </div>
-        <Button onClick={handleOpenModal}>
-          <Plus className="h-4 w-4 mr-2" />
-          Agregar
+        <Button onClick={handleOpenModal} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+          <Plus className="w-4 h-4 mr-2" />
+          Agregar Estudiante
         </Button>
       </div>
 

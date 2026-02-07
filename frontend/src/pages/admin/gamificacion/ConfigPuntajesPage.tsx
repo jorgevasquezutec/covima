@@ -172,28 +172,30 @@ export default function ConfigPuntajesPage() {
 
       {/* Sección de Participación - desde Partes */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Badge className={getCategoriaColor('PARTICIPACION')}>{getCategoriaLabel('PARTICIPACION')}</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 sm:px-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Acción</TableHead>
-                <TableHead className="text-center w-24">Puntos</TableHead>
-                <TableHead className="text-center w-24">XP</TableHead>
-                <TableHead className="w-20"></TableHead>
+                <TableHead className="text-xs sm:text-sm">Acción</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20">Pts</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20 hidden sm:table-cell">XP</TableHead>
+                <TableHead className="w-12 sm:w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {participacionPartes.map((parte) => (
                 <TableRow key={parte.id}>
                   <TableCell>
-                    <div>
-                      <p className="font-medium">{parte.nombre}</p>
-                      <p className="text-xs text-muted-foreground">{parte.descripcion || `Participar en ${parte.nombre.toLowerCase()}`}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{parte.nombre}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-none">{parte.descripcion || `Participar en ${parte.nombre.toLowerCase()}`}</p>
+                      {/* XP on mobile */}
+                      <p className="text-xs text-muted-foreground sm:hidden">{parte.xp || 0} XP</p>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
@@ -205,13 +207,13 @@ export default function ConfigPuntajesPage() {
                           setEditData((prev) => prev && { ...prev, puntos: Number(e.target.value) })
                         }
                         onFocus={(e) => e.target.select()}
-                        className="w-20 text-center"
+                        className="w-14 sm:w-20 text-center text-sm"
                       />
                     ) : (
-                      <span className="font-semibold">{parte.puntos || 0}</span>
+                      <span className="font-semibold text-sm">{parte.puntos || 0}</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center hidden sm:table-cell">
                     {editingId === parte.id && editingType === 'parte' ? (
                       <Input
                         type="number"
@@ -229,20 +231,15 @@ export default function ConfigPuntajesPage() {
                   <TableCell>
                     {editingId === parte.id && editingType === 'parte' ? (
                       <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={handleSave}
-                          disabled={isSaving}
-                        >
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSave} disabled={isSaving}>
                           <Save className="w-4 h-4 text-green-600" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={handleCancel}>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCancel}>
                           <X className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
                     ) : (
-                      <Button size="icon" variant="ghost" onClick={() => handleEditParte(parte)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEditParte(parte)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
                     )}
@@ -258,28 +255,30 @@ export default function ConfigPuntajesPage() {
       {groupedConfigs &&
         Object.entries(groupedConfigs).map(([categoria, configs]) => (
           <Card key={categoria}>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Badge className={getCategoriaColor(categoria)}>{getCategoriaLabel(categoria)}</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-0 sm:px-6">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Acción</TableHead>
-                    <TableHead className="text-center w-24">Puntos</TableHead>
-                    <TableHead className="text-center w-24">XP</TableHead>
-                    <TableHead className="w-20"></TableHead>
+                    <TableHead className="text-xs sm:text-sm">Acción</TableHead>
+                    <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20">Pts</TableHead>
+                    <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20 hidden sm:table-cell">XP</TableHead>
+                    <TableHead className="w-12 sm:w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {configs.map((config) => (
                     <TableRow key={config.id}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{config.nombre}</p>
-                          <p className="text-xs text-muted-foreground">{config.descripcion}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{config.nombre}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-none">{config.descripcion}</p>
+                          {/* XP on mobile */}
+                          <p className="text-xs text-muted-foreground sm:hidden">{config.xp} XP</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -291,13 +290,13 @@ export default function ConfigPuntajesPage() {
                               setEditData((prev) => prev && { ...prev, puntos: Number(e.target.value) })
                             }
                             onFocus={(e) => e.target.select()}
-                            className="w-20 text-center"
+                            className="w-14 sm:w-20 text-center text-sm"
                           />
                         ) : (
-                          <span className="font-semibold">{config.puntos}</span>
+                          <span className="font-semibold text-sm">{config.puntos}</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center hidden sm:table-cell">
                         {editingId === config.id && editingType === 'config' ? (
                           <Input
                             type="number"
@@ -315,20 +314,15 @@ export default function ConfigPuntajesPage() {
                       <TableCell>
                         {editingId === config.id && editingType === 'config' ? (
                           <div className="flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={handleSave}
-                              disabled={isSaving}
-                            >
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSave} disabled={isSaving}>
                               <Save className="w-4 h-4 text-green-600" />
                             </Button>
-                            <Button size="icon" variant="ghost" onClick={handleCancel}>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCancel}>
                               <X className="w-4 h-4 text-red-600" />
                             </Button>
                           </div>
                         ) : (
-                          <Button size="icon" variant="ghost" onClick={() => handleEditConfig(config)}>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEditConfig(config)}>
                             <Edit2 className="w-4 h-4" />
                           </Button>
                         )}

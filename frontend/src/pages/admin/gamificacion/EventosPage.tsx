@@ -11,7 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Calendar, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Edit2, Trash2, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { gamificacionApi } from '@/services/api';
 import { useAuthStore } from '@/store/auth';
 import type { EventoEspecialConfig, CrearEventoRequest, ActualizarEventoRequest } from '@/types';
@@ -203,45 +209,59 @@ export default function EventosPage() {
         )}
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
+      <Card className="overflow-hidden">
+        <CardContent className="pt-6 px-0 sm:px-6">
+          <div className="overflow-x-auto">
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">Icono</TableHead>
-                <TableHead>Evento</TableHead>
-                <TableHead className="text-center">Puntos</TableHead>
-                <TableHead className="text-center">XP</TableHead>
-                {isAdmin && <TableHead className="text-center">Estado</TableHead>}
-                {isAdmin && <TableHead className="w-24"></TableHead>}
+                <TableHead className="text-xs sm:text-sm pl-3 sm:pl-4 w-auto">Evento</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm hidden sm:table-cell w-16">Pts</TableHead>
+                <TableHead className="text-center text-xs sm:text-sm hidden md:table-cell w-14">XP</TableHead>
+                {isAdmin && <TableHead className="text-center text-xs sm:text-sm w-12">
+                  <span className="hidden sm:inline">Activo</span>
+                  <span className="sm:hidden">On</span>
+                </TableHead>}
+                <TableHead className="w-10 pr-2 sm:pr-4"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedEventos?.map((evento) => (
                 <TableRow key={evento.id} className={!evento.activo ? 'opacity-50' : ''}>
-                  <TableCell>
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
-                      style={{ backgroundColor: `${evento.color}20` }}
-                    >
-                      {evento.icono}
+                  {/* Evento: Icon + Name + Code + Pts/XP on mobile */}
+                  <TableCell className="pl-2 sm:pl-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <div
+                        className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg flex items-center justify-center text-base sm:text-lg"
+                        style={{ backgroundColor: `${evento.color}20` }}
+                      >
+                        {evento.icono}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate max-w-[120px] sm:max-w-none">{evento.nombre}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{evento.codigo}</p>
+                        {evento.descripcion && (
+                          <p className="text-[11px] text-muted-foreground truncate max-w-[100px] sm:max-w-[250px] hidden sm:block">{evento.descripcion}</p>
+                        )}
+                        {/* Pts and XP on mobile */}
+                        <p className="sm:hidden text-[10px] text-muted-foreground mt-0.5">
+                          {evento.puntos} pts · {evento.xp} XP
+                        </p>
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{evento.nombre}</p>
-                      <p className="text-xs text-muted-foreground">{evento.codigo}</p>
-                      {evento.descripcion && (
-                        <p className="text-xs text-muted-foreground mt-1">{evento.descripcion}</p>
-                      )}
-                    </div>
+
+                  {/* Puntos - hidden on mobile */}
+                  <TableCell className="text-center hidden sm:table-cell">
+                    <Badge variant="secondary" className="text-xs">{evento.puntos}</Badge>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="secondary">{evento.puntos} pts</Badge>
+
+                  {/* XP - hidden on mobile/tablet */}
+                  <TableCell className="text-center hidden md:table-cell">
+                    <span className="text-muted-foreground text-sm">{evento.xp}</span>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-muted-foreground">{evento.xp} XP</span>
-                  </TableCell>
+
+                  {/* Estado */}
                   {isAdmin && (
                     <TableCell className="text-center">
                       <Switch
@@ -250,34 +270,58 @@ export default function EventosPage() {
                       />
                     </TableCell>
                   )}
-                  {isAdmin && (
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleOpenEdit(evento)}>
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDelete(evento)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
+
+                  {/* Acciones */}
+                  <TableCell className="pr-2 sm:pr-4">
+                    {isAdmin ? (
+                      <>
+                        {/* Desktop */}
+                        <div className="hidden sm:flex gap-1">
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleOpenEdit(evento)}>
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => handleDelete(evento)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
+                        {/* Mobile dropdown */}
+                        <div className="sm:hidden">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenEdit(evento)}>
+                                <Edit2 className="h-4 w-4 mr-2" />Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDelete(evento)} className="text-red-600">
+                                <Trash2 className="h-4 w-4 mr-2" />Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </>
+                    ) : null}
+                  </TableCell>
                 </TableRow>
               ))}
               {eventos?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 6 : 4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8 text-muted-foreground">
                     No hay eventos configurados
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          </div>
 
           {/* Paginación */}
           {totalPages > 1 && (

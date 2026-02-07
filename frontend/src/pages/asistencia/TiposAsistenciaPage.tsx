@@ -43,7 +43,15 @@ import {
     Church,
     Heart,
     Star,
+    MoreVertical,
+    Settings,
 } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const ICONOS_DISPONIBLES = [
     { value: 'BookOpen', label: 'Libro', icon: BookOpen },
@@ -348,114 +356,172 @@ export default function TiposAsistenciaPage() {
             {/* Table */}
             <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="border-gray-200 bg-gray-50 hover:bg-gray-50">
-                                    <TableHead className="text-gray-600">Tipo</TableHead>
-                                    <TableHead className="text-gray-600">Descripción</TableHead>
-                                    <TableHead className="text-gray-600">Campos</TableHead>
-                                    <TableHead className="text-gray-600">Solo Presencia</TableHead>
-                                    <TableHead className="text-gray-600">Estado</TableHead>
-                                    <TableHead className="text-gray-600 text-right">Acciones</TableHead>
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="border-gray-200 bg-gray-50 hover:bg-gray-50">
+                                <TableHead className="text-gray-600 text-xs sm:text-sm">Tipo</TableHead>
+                                <TableHead className="text-gray-600 text-xs sm:text-sm hidden md:table-cell">Campos</TableHead>
+                                <TableHead className="text-gray-600 text-xs sm:text-sm hidden sm:table-cell text-center">Estado</TableHead>
+                                <TableHead className="text-gray-600 w-12"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-gray-500 py-8">
+                                        Cargando...
+                                    </TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                                            Cargando...
-                                        </TableCell>
-                                    </TableRow>
-                                ) : tipos.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                                            No hay tipos de asistencia configurados
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    tipos.map((tipo) => (
-                                        <TableRow key={tipo.id} className="border-gray-200 hover:bg-gray-50">
-                                            <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <div
-                                                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white"
-                                                        style={{ backgroundColor: tipo.color || '#3B82F6' }}
-                                                    >
-                                                        {getIconComponent(tipo.icono)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium text-gray-900">{tipo.label}</p>
-                                                        <p className="text-sm text-gray-500">{tipo.nombre}</p>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-gray-700 max-w-xs truncate">
-                                                {tipo.descripcion || '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleOpenCampos(tipo)}
-                                                    className="border-gray-300"
-                                                    disabled={tipo.soloPresencia}
+                            ) : tipos.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-gray-500 py-8">
+                                        No hay tipos de asistencia configurados
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                tipos.map((tipo) => (
+                                    <TableRow key={tipo.id} className="border-gray-200 hover:bg-gray-50">
+                                        {/* Tipo: Icon + Label + Name + Description */}
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <div
+                                                    className="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-white"
+                                                    style={{ backgroundColor: tipo.color || '#3B82F6' }}
                                                 >
-                                                    {tipo.soloPresencia ? (
-                                                        'N/A'
-                                                    ) : (
-                                                        <>
-                                                            <GripVertical className="w-4 h-4 mr-1" />
-                                                            {tipo.campos?.length || 0} campos
-                                                        </>
+                                                    {getIconComponent(tipo.icono)}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-gray-900 text-sm">{tipo.label}</p>
+                                                    <p className="text-xs text-gray-500">{tipo.nombre}</p>
+                                                    {/* Description + badges on mobile */}
+                                                    {tipo.descripcion && (
+                                                        <p className="text-xs text-gray-400 truncate max-w-[180px] sm:max-w-[250px] mt-0.5">
+                                                            {tipo.descripcion}
+                                                        </p>
                                                     )}
-                                                </Button>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={tipo.soloPresencia ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'}
-                                                >
-                                                    {tipo.soloPresencia ? 'Sí' : 'No'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={tipo.activo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}
-                                                >
-                                                    {tipo.activo ? 'Activo' : 'Inactivo'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleOpenEditTipo(tipo)}
-                                                        className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setTipoToDelete(tipo);
-                                                            setDeleteDialogOpen(true);
-                                                        }}
-                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
+                                                    <div className="flex gap-1.5 mt-1 sm:hidden">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`text-[10px] px-1.5 py-0 ${tipo.activo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
+                                                        >
+                                                            {tipo.activo ? 'Activo' : 'Inactivo'}
+                                                        </Badge>
+                                                        {tipo.soloPresencia && (
+                                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-700 border-blue-200">
+                                                                Solo presencia
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                            </div>
+                                        </TableCell>
+
+                                        {/* Campos - hidden on mobile */}
+                                        <TableCell className="hidden md:table-cell">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleOpenCampos(tipo)}
+                                                className="border-gray-300 h-8 text-xs"
+                                                disabled={tipo.soloPresencia}
+                                            >
+                                                {tipo.soloPresencia ? (
+                                                    'N/A'
+                                                ) : (
+                                                    <>
+                                                        <GripVertical className="w-3.5 h-3.5 mr-1" />
+                                                        {tipo.campos?.length || 0} campos
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </TableCell>
+
+                                        {/* Estado - hidden on mobile */}
+                                        <TableCell className="hidden sm:table-cell text-center">
+                                            <Badge
+                                                variant="outline"
+                                                className={tipo.activo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}
+                                            >
+                                                {tipo.activo ? 'Activo' : 'Inactivo'}
+                                            </Badge>
+                                        </TableCell>
+
+                                        {/* Acciones */}
+                                        <TableCell>
+                                            {/* Desktop actions */}
+                                            <div className="hidden sm:flex justify-end gap-1">
+                                                {!tipo.soloPresencia && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleOpenCampos(tipo)}
+                                                        className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50 md:hidden"
+                                                        title="Configurar campos"
+                                                    >
+                                                        <Settings className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleOpenEditTipo(tipo)}
+                                                    className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                                    title="Editar"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        setTipoToDelete(tipo);
+                                                        setDeleteDialogOpen(true);
+                                                    }}
+                                                    className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+
+                                            {/* Mobile dropdown */}
+                                            <div className="sm:hidden">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        {!tipo.soloPresencia && (
+                                                            <DropdownMenuItem onClick={() => handleOpenCampos(tipo)}>
+                                                                <Settings className="h-4 w-4 mr-2" />
+                                                                Configurar campos
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuItem onClick={() => handleOpenEditTipo(tipo)}>
+                                                            <Pencil className="h-4 w-4 mr-2" />
+                                                            Editar tipo
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => {
+                                                                setTipoToDelete(tipo);
+                                                                setDeleteDialogOpen(true);
+                                                            }}
+                                                            className="text-red-600"
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-2" />
+                                                            Eliminar
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
                 </CardContent>
             </Card>
 

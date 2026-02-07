@@ -135,25 +135,22 @@ export default function CalendarioAdminPage() {
   };
 
   return (
-    <div className="space-y-6 overflow-x-hidden">
+    <div className="p-4 space-y-6 overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <Calendar className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
-            <span className="truncate">Calendario de Actividades</span>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Calendar className="w-6 h-6 text-blue-600" />
+            Calendario de Actividades
           </h1>
-          <p className="text-sm text-muted-foreground hidden sm:block">
+          <p className="text-gray-500 mt-1">
             Gestiona las actividades mensuales de COVIMA
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" onClick={() => handleNew()} className="text-xs sm:text-sm">
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Nueva Actividad</span>
-            <span className="sm:hidden">Nueva</span>
-          </Button>
-        </div>
+        <Button onClick={() => handleNew()} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+          <Plus className="w-4 h-4 mr-2" />
+          Nueva Actividad
+        </Button>
       </div>
 
       {/* Calendar - Full Width */}
