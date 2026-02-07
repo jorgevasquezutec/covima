@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import Sidebar from './Sidebar';
 import { useSidebarStore } from '@/store/sidebar';
@@ -9,6 +10,9 @@ import { LevelUpModal } from '@/pages/gamificacion/components/LevelUpModal';
 import { gamificacionApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { HelpCircle } from 'lucide-react';
+
+// Páginas donde el FAB interfiere con otros controles
+const HIDE_FAB_ROUTES = ['/inbox'];
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -22,6 +26,7 @@ interface LevelUpData {
 export default function MainLayout({ children }: MainLayoutProps) {
   const { collapsed } = useSidebarStore();
   const { user, token } = useAuthStore();
+  const location = useLocation();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpData, setLevelUpData] = useState<LevelUpData | null>(null);
@@ -147,15 +152,17 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </div>
       </main>
 
-      {/* FAB global - Onboarding */}
-      <Button
-        onClick={() => setShowOnboarding(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-indigo-600 hover:bg-indigo-700 z-40"
-        size="icon"
-        title="¿Cómo funciona el sistema de puntos?"
-      >
-        <HelpCircle className="h-6 w-6" />
-      </Button>
+      {/* FAB global - Onboarding (oculto en páginas con controles inferiores) */}
+      {!HIDE_FAB_ROUTES.some(route => location.pathname.startsWith(route)) && (
+        <Button
+          onClick={() => setShowOnboarding(true)}
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-indigo-600 hover:bg-indigo-700 z-40"
+          size="icon"
+          title="¿Cómo funciona el sistema de puntos?"
+        >
+          <HelpCircle className="h-6 w-6" />
+        </Button>
+      )}
 
       <OnboardingModal open={showOnboarding} onClose={handleCloseOnboarding} />
       <LevelUpModal
