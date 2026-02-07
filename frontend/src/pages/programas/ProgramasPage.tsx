@@ -21,6 +21,7 @@ import {
     Square,
     CheckSquare,
     Trophy,
+    MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,9 +58,16 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { programasApi } from '@/services/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, parseLocalDate } from '@/lib/utils';
 import type { Programa, PreviewNotificacionesResponse } from '@/types';
 
 const estadoConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -365,53 +373,53 @@ export default function ProgramasPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div>
                             <Table>
                                 <TableHeader>
                                     <TableRow className="border-gray-200 bg-gray-50">
-                                        <TableHead className="text-gray-600">Código</TableHead>
-                                        <TableHead className="text-gray-600">Fecha</TableHead>
-                                        <TableHead className="text-gray-600">Hora</TableHead>
-                                        <TableHead className="text-gray-600">Título</TableHead>
-                                        <TableHead className="text-gray-600 text-center">Asignaciones</TableHead>
-                                        <TableHead className="text-gray-600">Estado</TableHead>
-                                        <TableHead className="text-gray-600 text-right">Acciones</TableHead>
+                                        <TableHead className="text-gray-600 text-xs sm:text-sm">Fecha / Programa</TableHead>
+                                        <TableHead className="text-gray-600 text-center text-xs sm:text-sm w-12">
+                                            <Users className="h-4 w-4 mx-auto sm:hidden" />
+                                            <span className="hidden sm:inline">Asig.</span>
+                                        </TableHead>
+                                        <TableHead className="text-gray-600 text-xs sm:text-sm hidden sm:table-cell w-28">Estado</TableHead>
+                                        <TableHead className="text-gray-600 text-right"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {programas.map((programa) => (
+                                    {programas.map((programa) => {
+                                        const fecha = parseLocalDate(programa.fecha);
+                                        const fechaCorta = fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
+                                        return (
                                         <TableRow key={programa.id} className="border-gray-200 hover:bg-gray-50">
-                                            <TableCell className="text-gray-700 font-mono text-sm">
-                                                {programa.codigo}
-                                            </TableCell>
-                                            <TableCell className="text-gray-900 font-medium">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="h-4 w-4 text-blue-600" />
-                                                    {formatDate(programa.fecha)}
+                                            <TableCell className="text-gray-900 py-2.5 px-3">
+                                                <div className="flex flex-col min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="font-medium text-sm">{fechaCorta}</span>
+                                                        <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{programa.codigo}</span>
+                                                        <Badge className={`${estadoConfig[programa.estado].color} sm:hidden inline-flex items-center gap-0.5 border text-[10px] px-1.5`}>
+                                                            {estadoConfig[programa.estado].icon}
+                                                        </Badge>
+                                                    </div>
+                                                    <span className="text-xs text-gray-500 truncate mt-0.5">{programa.titulo}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-gray-700">
-                                                {programa.horaInicio ? `${programa.horaInicio}${programa.horaFin ? ` - ${programa.horaFin}` : ''}` : '-'}
+                                            <TableCell className="text-center py-2.5 px-1">
+                                                <span className="text-sm font-medium text-gray-700">{programa.asignaciones.length}</span>
                                             </TableCell>
-                                            <TableCell className="text-gray-700">{programa.titulo}</TableCell>
-                                            <TableCell className="text-center">
-                                                <div className="flex items-center justify-center gap-1 text-gray-700">
-                                                    <Users className="h-4 w-4 text-green-600" />
-                                                    {programa.asignaciones.length}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge className={`${estadoConfig[programa.estado].color} flex items-center gap-1 w-fit border`}>
+                                            <TableCell className="py-2.5 px-2 hidden sm:table-cell">
+                                                <Badge className={`${estadoConfig[programa.estado].color} inline-flex items-center gap-1 border text-xs`}>
                                                     {estadoConfig[programa.estado].icon}
                                                     {estadoConfig[programa.estado].label}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex items-center justify-end gap-1">
+                                            <TableCell className="text-right py-2.5 px-2">
+                                                {/* Acciones en desktop */}
+                                                <div className="hidden sm:flex items-center justify-end gap-0.5">
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="hover:bg-blue-50 hover:text-blue-600"
+                                                        className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
                                                         onClick={() => handleGenerarTexto(programa)}
                                                         title="Ver programa"
                                                     >
@@ -420,9 +428,9 @@ export default function ProgramasPage() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="hover:bg-green-50 hover:text-green-600"
+                                                        className="h-8 w-8 hover:bg-green-50 hover:text-green-600"
                                                         onClick={() => handlePreviewNotificaciones(programa)}
-                                                        title="Preview notificaciones WhatsApp"
+                                                        title="Notificaciones WhatsApp"
                                                     >
                                                         <MessageCircle className="h-4 w-4" />
                                                     </Button>
@@ -430,10 +438,10 @@ export default function ProgramasPage() {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="hover:bg-purple-50 hover:text-purple-600"
+                                                            className="h-8 w-8 hover:bg-purple-50 hover:text-purple-600"
                                                             onClick={() => handlePreviewFinalizar(programa)}
                                                             disabled={loadingPreviewFinalizar}
-                                                            title="Finalizar y asignar puntos"
+                                                            title="Finalizar"
                                                         >
                                                             {loadingPreviewFinalizar ? (
                                                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -445,7 +453,7 @@ export default function ProgramasPage() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="hover:bg-yellow-50 hover:text-yellow-600"
+                                                        className="h-8 w-8 hover:bg-yellow-50 hover:text-yellow-600"
                                                         onClick={() => navigate(`/programas/${programa.id}/editar`)}
                                                         title="Editar"
                                                     >
@@ -454,16 +462,54 @@ export default function ProgramasPage() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="hover:bg-red-50 hover:text-red-600"
+                                                        className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
                                                         onClick={() => setDeletePrograma(programa)}
                                                         title="Eliminar"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
+                                                {/* Menú en móvil */}
+                                                <div className="sm:hidden">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-48">
+                                                            <DropdownMenuItem onClick={() => handleGenerarTexto(programa)}>
+                                                                <Eye className="h-4 w-4 mr-2" />
+                                                                Ver programa
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handlePreviewNotificaciones(programa)}>
+                                                                <MessageCircle className="h-4 w-4 mr-2" />
+                                                                Notificaciones
+                                                            </DropdownMenuItem>
+                                                            {['borrador', 'completo', 'enviado'].includes(programa.estado) && (
+                                                                <DropdownMenuItem onClick={() => handlePreviewFinalizar(programa)}>
+                                                                    <Trophy className="h-4 w-4 mr-2" />
+                                                                    Finalizar
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            <DropdownMenuItem onClick={() => navigate(`/programas/${programa.id}/editar`)}>
+                                                                <Edit className="h-4 w-4 mr-2" />
+                                                                Editar
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => setDeletePrograma(programa)}
+                                                                className="text-red-600 focus:text-red-600"
+                                                            >
+                                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                                Eliminar
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                    );
+                                    })}
                                 </TableBody>
                             </Table>
                         </div>
@@ -502,14 +548,15 @@ export default function ProgramasPage() {
 
             {/* Dialog para ver programa */}
             <Dialog open={!!viewPrograma} onOpenChange={() => { setViewPrograma(null); setTextoWhatsapp(''); }}>
-                <DialogContent className="bg-white border-gray-200 max-w-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
+                <DialogContent className="bg-white border-gray-200 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="shrink-0">
                         <DialogTitle className="text-gray-900 flex items-center gap-2">
                             <FileText className="h-5 w-5 text-blue-600" />
                             {viewPrograma?.titulo}
                         </DialogTitle>
                         <DialogDescription className="text-gray-500">
                             {viewPrograma && formatDate(viewPrograma.fecha)}
+                            {viewPrograma?.horaInicio && ` • ${viewPrograma.horaInicio}${viewPrograma.horaFin ? ` - ${viewPrograma.horaFin}` : ''}`}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -517,26 +564,122 @@ export default function ProgramasPage() {
                         <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                         </div>
-                    ) : textoWhatsapp ? (
-                        <div className="space-y-4">
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-sm text-gray-700 whitespace-pre-wrap max-h-96 overflow-y-auto">
-                                {textoWhatsapp}
-                            </div>
-                            <DialogFooter>
-                                <Button
-                                    onClick={handleCopyTexto}
-                                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                                >
-                                    <Copy className="h-4 w-4 mr-2" />
-                                    Copiar para WhatsApp
-                                </Button>
-                            </DialogFooter>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            No se pudo generar el texto
-                        </div>
-                    )}
+                    ) : viewPrograma ? (
+                        <Tabs defaultValue="vista" className="flex-1 flex flex-col min-h-0">
+                            <TabsList className="grid w-full grid-cols-2 shrink-0">
+                                <TabsTrigger value="vista">Vista Programa</TabsTrigger>
+                                <TabsTrigger value="whatsapp">Texto WhatsApp</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="vista" className="flex-1 overflow-y-auto mt-4">
+                                <div className="space-y-3">
+                                    {/* Agrupar asignaciones y links por parte */}
+                                    {(() => {
+                                        const partesMap = new Map<number, {
+                                            parte: typeof viewPrograma.asignaciones[0]['parte'];
+                                            asignados: string[];
+                                            links: typeof viewPrograma.links;
+                                        }>();
+
+                                        // Agregar partes del programa en orden
+                                        viewPrograma.partes.forEach(p => {
+                                            if (!partesMap.has(p.parteId)) {
+                                                partesMap.set(p.parteId, {
+                                                    parte: p.parte,
+                                                    asignados: [],
+                                                    links: []
+                                                });
+                                            }
+                                        });
+
+                                        // Agregar asignaciones
+                                        viewPrograma.asignaciones.forEach(a => {
+                                            const entry = partesMap.get(a.parte.id);
+                                            if (entry) {
+                                                const nombre = a.usuario?.nombre || a.nombreLibre || 'Sin asignar';
+                                                entry.asignados.push(nombre);
+                                            }
+                                        });
+
+                                        // Agregar links
+                                        viewPrograma.links.forEach(l => {
+                                            const entry = partesMap.get(l.parte.id);
+                                            if (entry) {
+                                                entry.links.push(l);
+                                            }
+                                        });
+
+                                        return Array.from(partesMap.values()).map((item, idx) => (
+                                            <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
+                                                <div className="bg-gray-50 px-3 py-2 flex items-center gap-2">
+                                                    <span className="text-lg">{item.parte.icono || '📋'}</span>
+                                                    <span className="font-medium text-gray-900 text-sm">{item.parte.nombre}</span>
+                                                    <Badge variant="outline" className="text-[10px] ml-auto">
+                                                        {item.parte.categoria}
+                                                    </Badge>
+                                                </div>
+                                                <div className="px-3 py-2 space-y-2">
+                                                    {item.asignados.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {item.asignados.map((nombre, i) => (
+                                                                <span key={i} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
+                                                                    <Users className="h-3 w-3" />
+                                                                    {nombre}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : item.parte.textoFijo ? (
+                                                        <span className="text-sm text-gray-600">{item.parte.textoFijo}</span>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400 italic">Sin asignaciones</span>
+                                                    )}
+                                                    {item.links.length > 0 && (
+                                                        <div className="space-y-1 pt-1 border-t border-gray-100">
+                                                            {item.links.map((link, i) => (
+                                                                <a
+                                                                    key={i}
+                                                                    href={link.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                                                >
+                                                                    <span>🔗</span>
+                                                                    <span className="truncate">{link.nombre}</span>
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="whatsapp" className="flex-1 flex flex-col min-h-0 mt-4">
+                                {textoWhatsapp ? (
+                                    <>
+                                        <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-sm text-gray-700 whitespace-pre-wrap overflow-y-auto">
+                                            {textoWhatsapp}
+                                        </div>
+                                        <div className="pt-4 shrink-0">
+                                            <Button
+                                                onClick={handleCopyTexto}
+                                                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                                            >
+                                                <Copy className="h-4 w-4 mr-2" />
+                                                Copiar para WhatsApp
+                                            </Button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        No se pudo generar el texto
+                                    </div>
+                                )}
+                            </TabsContent>
+                        </Tabs>
+                    ) : null}
                 </DialogContent>
             </Dialog>
 

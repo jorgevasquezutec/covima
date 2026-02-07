@@ -13,7 +13,7 @@ import {
     Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -24,7 +24,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { asistenciaApi, usuariosApi } from '@/services/api';
@@ -34,6 +33,9 @@ import { parseLocalDate } from '@/lib/utils';
 
 interface Props {
     onSuccess?: () => void;
+    embedded?: boolean;
+    selectedQRCode?: string; // código del QR seleccionado desde el padre
+    refreshKey?: number; // incrementar para forzar recarga de QRs
 }
 
 // Helper para verificar si QR está en horario válido (considerando margenTemprana)
@@ -62,7 +64,7 @@ const isQRInTime = (qr: QRAsistencia): boolean => {
     }
 };
 
-export default function RegistroManualAsistencia({ onSuccess }: Props) {
+export default function RegistroManualAsistencia({ onSuccess, embedded, selectedQRCode, refreshKey }: Props) {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [qrs, setQrs] = useState<QRAsistencia[]>([]);
@@ -85,7 +87,10 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
 
     // Modo histórico (para QRs pasados)
     const [modoHistorico, setModoHistorico] = useState(false);
-    const [tipoAsistenciaManual, setTipoAsistenciaManual] = useState<'temprana' | 'normal' | 'tardia'>('normal');
+    const [tipoAsistenciaManual, setTipoAsistenciaManual] = useState<'temprana' | 'normal' | 'tardia' | null>(null);
+
+    // Registros recientes (feedback visual)
+    const [recentRegistrations, setRecentRegistrations] = useState<Array<{ name: string; time: Date }>>([]);
 
     // Cargar QRs (activos en horario, o todos si es histórico)
     useEffect(() => {
@@ -103,6 +108,10 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                     const response = await asistenciaApi.getAllQRs({ activo: true, limit: 50 });
                     const qrsEnHorario = response.data.filter(qr => qr.activo && isQRInTime(qr));
                     setQrs(qrsEnHorario);
+                    // Auto-seleccionar si hay exactamente 1 QR activo
+                    if (qrsEnHorario.length === 1) {
+                        setSelectedQR(qrsEnHorario[0]);
+                    }
                 }
             } catch {
                 toast.error('Error al cargar QRs');
@@ -111,7 +120,15 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
             }
         };
         loadQRs();
-    }, [modoHistorico]);
+    }, [modoHistorico, refreshKey]);
+
+    // Sincronizar QR seleccionado desde el padre
+    useEffect(() => {
+        if (selectedQRCode && qrs.length > 0) {
+            const qr = qrs.find(q => q.codigo === selectedQRCode);
+            if (qr) setSelectedQR(qr);
+        }
+    }, [selectedQRCode, qrs]);
 
     // Cargar todos los usuarios cuando se entra en modo masivo
     useEffect(() => {
@@ -214,6 +231,11 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
             return;
         }
 
+        if (modoHistorico && !tipoAsistenciaManual) {
+            toast.error('Selecciona el tipo de asistencia para registro histórico');
+            return;
+        }
+
         try {
             setSubmitting(true);
 
@@ -225,7 +247,7 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                     const result = await asistenciaApi.registrarHistoricaMasivo({
                         codigoQR: selectedQR.codigo,
                         usuarioIds,
-                        tipoAsistenciaManual,
+                        tipoAsistenciaManual: tipoAsistenciaManual!,
                         datosFormulario,
                     });
                     toast.success(
@@ -236,12 +258,20 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                         codigoQR: selectedQR.codigo,
                         usuarioIds,
                         datosFormulario,
+                        ...(tipoAsistenciaManual && { tipoAsistenciaManual }),
                     });
                     toast.success(
                         `${result.registrados} registrados, ${result.yaRegistrados} ya registrados${result.errores > 0 ? `, ${result.errores} errores` : ''}`
                     );
                 }
 
+                setRecentRegistrations(prev => [
+                    ...Array.from(selectedUsuarioIds).map(id => {
+                        const u = todosUsuarios.find(u => u.id === id);
+                        return { name: u?.nombre || `ID ${id}`, time: new Date() };
+                    }),
+                    ...prev,
+                ].slice(0, 10));
                 setSelectedUsuarioIds(new Set());
             } else if (modoHistorico) {
                 // Registro histórico individual
@@ -250,12 +280,15 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                     usuarioId: modo === 'usuario' ? selectedUsuario?.id : undefined,
                     telefonoManual: modo === 'manual' ? telefonoManual : undefined,
                     nombreManual: modo === 'manual' ? nombreManual : undefined,
-                    tipoAsistenciaManual,
+                    tipoAsistenciaManual: tipoAsistenciaManual!,
                     datosFormulario,
                 });
 
                 const tipoLabel = ` (${tipoAsistenciaManual === 'temprana' ? 'Temprana' : tipoAsistenciaManual === 'normal' ? 'Normal' : 'Tardía'})`;
                 toast.success(`Asistencia registrada correctamente${tipoLabel}`);
+
+                const regName = modo === 'usuario' ? selectedUsuario?.nombre : nombreManual || telefonoManual;
+                if (regName) setRecentRegistrations(prev => [{ name: regName, time: new Date() }, ...prev].slice(0, 10));
 
                 setSelectedUsuario(null);
                 setSearchTerm('');
@@ -269,9 +302,16 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                     telefonoManual: modo === 'manual' ? telefonoManual : undefined,
                     nombreManual: modo === 'manual' ? nombreManual : undefined,
                     datosFormulario,
+                    ...(tipoAsistenciaManual && { tipoAsistenciaManual }),
                 });
 
-                toast.success('Asistencia registrada correctamente');
+                const tipoLabel = tipoAsistenciaManual
+                    ? ` (${tipoAsistenciaManual === 'temprana' ? 'Temprana' : tipoAsistenciaManual === 'normal' ? 'Normal' : 'Tardía'})`
+                    : '';
+                toast.success(`Asistencia registrada correctamente${tipoLabel}`);
+
+                const regName = modo === 'usuario' ? selectedUsuario?.nombre : nombreManual || telefonoManual;
+                if (regName) setRecentRegistrations(prev => [{ name: regName, time: new Date() }, ...prev].slice(0, 10));
 
                 setSelectedUsuario(null);
                 setSearchTerm('');
@@ -288,91 +328,28 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
         }
     };
 
-    if (loading) {
-        return (
-            <Card className="bg-white border-gray-200 shadow-sm">
-                <CardContent className="py-12">
-                    <div className="flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                        <span className="ml-2 text-gray-600">Cargando...</span>
+    // Contenido compartido entre modo embedded y standalone
+    const renderContent = () => (
+        <div className="space-y-4">
+            {/* QR selector: oculto si viene del padre, chip si hay 1, dropdown si hay varios */}
+            {selectedQRCode && !modoHistorico ? (
+                /* QR controlado por el padre — mostrar chip */
+                selectedQR && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                        <Badge
+                            className="text-[10px] px-1.5 py-0.5 shrink-0"
+                            style={{ backgroundColor: selectedQR.tipoAsistencia?.color || '#3B82F6', color: 'white' }}
+                        >
+                            {selectedQR.tipoAsistencia?.label}
+                        </Badge>
+                        <span className="font-mono text-sm font-medium text-gray-700">{selectedQR.codigo}</span>
+                        <div className="flex items-center gap-1 ml-auto">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] text-green-600 font-medium">Activo</span>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (qrs.length === 0) {
-        return (
-            <Card className="bg-white border-gray-200 shadow-sm">
-                <CardContent className="py-12">
-                    <div className="text-center">
-                        <QrCode className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        {modoHistorico ? (
-                            <>
-                                <p className="text-gray-500 font-medium">No hay QRs registrados</p>
-                                <p className="text-gray-400 text-sm mt-1">
-                                    Crea un QR primero para poder registrar asistencia
-                                </p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-4"
-                                    onClick={() => setModoHistorico(false)}
-                                >
-                                    Volver
-                                </Button>
-                            </>
-                        ) : (
-                            <>
-                                <p className="text-gray-500 font-medium">No hay QRs activos en este momento</p>
-                                <p className="text-gray-400 text-sm mt-1">
-                                    Los QRs solo están disponibles durante su horario configurado
-                                </p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-4"
-                                    onClick={() => setModoHistorico(true)}
-                                >
-                                    <History className="w-4 h-4 mr-2" />
-                                    Ver QRs históricos
-                                </Button>
-                            </>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <Card className="bg-white border-gray-200 shadow-sm">
-            <CardHeader className="pb-4">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <UserPlus className="w-5 h-5 text-green-600 shrink-0" />
-                        <CardTitle className="text-gray-900 text-base sm:text-lg">Registro Manual</CardTitle>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <History className="w-3.5 h-3.5 text-gray-400" />
-                        <Label htmlFor="modo-historico" className="text-xs text-gray-500 hidden sm:inline">
-                            Histórico
-                        </Label>
-                        <Switch
-                            id="modo-historico"
-                            checked={modoHistorico}
-                            onCheckedChange={setModoHistorico}
-                        />
-                    </div>
-                </div>
-                <CardDescription className="text-gray-500 text-sm mt-1">
-                    {modoHistorico
-                        ? 'Registra en QRs pasados (solo admin)'
-                        : 'Registra asistencia manualmente'}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-0">
-                {/* Selector de QR */}
+                )
+            ) : modoHistorico || qrs.length > 1 ? (
                 <div className="space-y-1.5">
                     <Label className="text-gray-700 text-sm">
                         {modoHistorico ? 'QR (histórico)' : 'QR activo'}
@@ -420,311 +397,456 @@ export default function RegistroManualAsistencia({ onSuccess }: Props) {
                         </SelectContent>
                     </Select>
                 </div>
+            ) : selectedQR && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                    <Badge
+                        className="text-[10px] px-1.5 py-0.5 shrink-0"
+                        style={{ backgroundColor: selectedQR.tipoAsistencia?.color || '#3B82F6', color: 'white' }}
+                    >
+                        {selectedQR.tipoAsistencia?.label}
+                    </Badge>
+                    <span className="font-mono text-sm font-medium text-gray-700">{selectedQR.codigo}</span>
+                    <div className="flex items-center gap-1 ml-auto">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-[10px] text-green-600 font-medium">Activo</span>
+                    </div>
+                </div>
+            )}
 
-                {/* Selector de tipo de asistencia (solo modo histórico) */}
-                {modoHistorico && selectedQR && (
+            {/* Selector de tipo de asistencia */}
+            {selectedQR && (
+                <div className="space-y-1.5">
+                    <Label className="text-gray-700 text-sm">
+                        Tipo de asistencia
+                        {modoHistorico && <span className="text-red-500 ml-0.5">*</span>}
+                    </Label>
+                    <div className="flex gap-1.5">
+                        <Button
+                            type="button"
+                            variant={tipoAsistenciaManual === 'temprana' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setTipoAsistenciaManual(prev => prev === 'temprana' ? null : 'temprana')}
+                            className={`flex-1 text-xs px-2 ${tipoAsistenciaManual === 'temprana' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                        >
+                            Temprana
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={tipoAsistenciaManual === 'normal' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setTipoAsistenciaManual(prev => prev === 'normal' ? null : 'normal')}
+                            className={`flex-1 text-xs px-2 ${tipoAsistenciaManual === 'normal' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                        >
+                            Normal
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={tipoAsistenciaManual === 'tardia' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setTipoAsistenciaManual(prev => prev === 'tardia' ? null : 'tardia')}
+                            className={`flex-1 text-xs px-2 ${tipoAsistenciaManual === 'tardia' ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
+                        >
+                            Tardía
+                        </Button>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                        {tipoAsistenciaManual
+                            ? 'Prevalece sobre el cálculo automático por hora'
+                            : modoHistorico
+                                ? 'Selecciona el tipo de asistencia'
+                                : 'Sin selección = se calcula automáticamente por hora'}
+                    </p>
+                </div>
+            )}
+
+            {selectedQR && (
+                <>
+                    {/* Modo de registro */}
                     <div className="space-y-2">
-                        <Label className="text-gray-700 text-sm">Tipo de asistencia</Label>
-                        <div className="flex gap-1.5">
+                        <Label className="text-gray-700 text-sm">Tipo de registro</Label>
+                        <div className="flex gap-2">
                             <Button
                                 type="button"
-                                variant={tipoAsistenciaManual === 'temprana' ? 'default' : 'outline'}
+                                variant={modo === 'usuario' ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setTipoAsistenciaManual('temprana')}
-                                className={`flex-1 text-xs px-2 ${tipoAsistenciaManual === 'temprana' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                onClick={() => setModo('usuario')}
+                                className={`flex-1 text-xs ${modo === 'usuario' ? 'bg-blue-600' : ''}`}
                             >
-                                Temprana
+                                <User className="w-4 h-4 mr-1 shrink-0" />
+                                Individual
                             </Button>
                             <Button
                                 type="button"
-                                variant={tipoAsistenciaManual === 'normal' ? 'default' : 'outline'}
+                                variant={modo === 'masivo' ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setTipoAsistenciaManual('normal')}
-                                className={`flex-1 text-xs px-2 ${tipoAsistenciaManual === 'normal' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                                onClick={() => setModo('masivo')}
+                                className={`flex-1 text-xs ${modo === 'masivo' ? 'bg-blue-600' : ''}`}
                             >
-                                Normal
+                                <Users className="w-4 h-4 mr-1 shrink-0" />
+                                Masivo
                             </Button>
                             <Button
                                 type="button"
-                                variant={tipoAsistenciaManual === 'tardia' ? 'default' : 'outline'}
+                                variant={modo === 'manual' ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setTipoAsistenciaManual('tardia')}
-                                className={`flex-1 text-xs px-2 ${tipoAsistenciaManual === 'tardia' ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
+                                onClick={() => setModo('manual')}
+                                className={`flex-1 text-xs ${modo === 'manual' ? 'bg-blue-600' : ''}`}
                             >
-                                Tardía
+                                <Phone className="w-4 h-4 mr-1 shrink-0" />
+                                Manual
                             </Button>
                         </div>
-                        <p className="text-xs text-gray-400">
-                            Puntos según tipo seleccionado
-                        </p>
                     </div>
-                )}
 
-                {selectedQR && (
-                    <>
-                        {/* Modo de registro */}
+                    {modo === 'usuario' ? (
+                        /* Búsqueda de usuario individual */
                         <div className="space-y-2">
-                            <Label className="text-gray-700 text-sm">Tipo de registro</Label>
+                            <Label className="text-gray-700 text-sm">Buscar usuario</Label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                    placeholder="Nombre o teléfono"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-9 bg-white border-gray-300 text-sm h-9"
+                                />
+                                {searching && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                                )}
+                            </div>
+
+                            {/* Resultados de búsqueda */}
+                            {usuarios.length > 0 && (
+                                <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+                                    {usuarios.map((usuario) => (
+                                        <div
+                                            key={usuario.id}
+                                            className={`p-2.5 cursor-pointer transition-colors border-b last:border-b-0 ${selectedUsuario?.id === usuario.id
+                                                    ? 'bg-blue-50 border-blue-200'
+                                                    : 'hover:bg-gray-50'
+                                                }`}
+                                            onClick={() => {
+                                                setSelectedUsuario(usuario);
+                                                setSearchTerm(usuario.nombre);
+                                                setUsuarios([]);
+                                            }}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-gray-900 text-sm truncate">{usuario.nombre}</p>
+                                                    <p className="text-xs text-gray-500">{usuario.telefono}</p>
+                                                </div>
+                                                {selectedUsuario?.id === usuario.id && (
+                                                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 ml-2" />
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Usuario seleccionado */}
+                            {selectedUsuario && (
+                                <div className="p-2.5 bg-green-50 border border-green-200 rounded-lg">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-green-900 text-sm truncate">{selectedUsuario.nombre}</p>
+                                                <p className="text-xs text-green-700">{selectedUsuario.telefono}</p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-green-700 hover:text-red-600 hover:bg-red-50 shrink-0"
+                                            onClick={() => {
+                                                setSelectedUsuario(null);
+                                                setSearchTerm('');
+                                            }}
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : modo === 'masivo' ? (
+                        /* Selección masiva de usuarios */
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-gray-700 text-sm">Seleccionar usuarios</Label>
+                                {selectedUsuarioIds.size > 0 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                        {selectedUsuarioIds.size} seleccionados
+                                    </Badge>
+                                )}
+                            </div>
+
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                    placeholder="Buscar por nombre o teléfono..."
+                                    value={masivoBusqueda}
+                                    onChange={(e) => setMasivoBusqueda(e.target.value)}
+                                    className="pl-9 bg-white border-gray-300 text-sm h-9"
+                                />
+                            </div>
+
+                            {/* Acciones rápidas */}
                             <div className="flex gap-2">
                                 <Button
                                     type="button"
-                                    variant={modo === 'usuario' ? 'default' : 'outline'}
+                                    variant="outline"
                                     size="sm"
-                                    onClick={() => setModo('usuario')}
-                                    className={`flex-1 text-xs ${modo === 'usuario' ? 'bg-blue-600' : ''}`}
+                                    onClick={seleccionarTodos}
+                                    className="text-xs h-7"
                                 >
-                                    <User className="w-4 h-4 mr-1 shrink-0" />
-                                    Individual
+                                    Seleccionar todos
                                 </Button>
                                 <Button
                                     type="button"
-                                    variant={modo === 'masivo' ? 'default' : 'outline'}
+                                    variant="outline"
                                     size="sm"
-                                    onClick={() => setModo('masivo')}
-                                    className={`flex-1 text-xs ${modo === 'masivo' ? 'bg-blue-600' : ''}`}
+                                    onClick={deseleccionarTodos}
+                                    className="text-xs h-7"
+                                    disabled={selectedUsuarioIds.size === 0}
                                 >
-                                    <Users className="w-4 h-4 mr-1 shrink-0" />
-                                    Masivo
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant={modo === 'manual' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => setModo('manual')}
-                                    className={`flex-1 text-xs ${modo === 'manual' ? 'bg-blue-600' : ''}`}
-                                >
-                                    <Phone className="w-4 h-4 mr-1 shrink-0" />
-                                    Manual
+                                    Limpiar
                                 </Button>
                             </div>
-                        </div>
 
-                        {modo === 'usuario' ? (
-                            /* Búsqueda de usuario individual */
-                            <div className="space-y-2">
-                                <Label className="text-gray-700 text-sm">Buscar usuario</Label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <Input
-                                        placeholder="Nombre o teléfono"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-9 bg-white border-gray-300 text-sm h-9"
-                                    />
-                                    {searching && (
-                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-                                    )}
+                            {loadingUsuarios ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                    <span className="ml-2 text-sm text-gray-500">Cargando usuarios...</span>
                                 </div>
-
-                                {/* Resultados de búsqueda */}
-                                {usuarios.length > 0 && (
-                                    <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
-                                        {usuarios.map((usuario) => (
-                                            <div
-                                                key={usuario.id}
-                                                className={`p-2.5 cursor-pointer transition-colors border-b last:border-b-0 ${selectedUsuario?.id === usuario.id
-                                                        ? 'bg-blue-50 border-blue-200'
-                                                        : 'hover:bg-gray-50'
+                            ) : (
+                                <ScrollArea className="h-56 border border-gray-200 rounded-lg">
+                                    <div className="divide-y divide-gray-100">
+                                        {usuariosFiltrados.map((usuario) => {
+                                            const isSelected = selectedUsuarioIds.has(usuario.id);
+                                            return (
+                                                <label
+                                                    key={usuario.id}
+                                                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
+                                                        isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
                                                     }`}
-                                                onClick={() => {
-                                                    setSelectedUsuario(usuario);
-                                                    setSearchTerm(usuario.nombre);
-                                                    setUsuarios([]);
-                                                }}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="min-w-0">
-                                                        <p className="font-medium text-gray-900 text-sm truncate">{usuario.nombre}</p>
+                                                >
+                                                    <Checkbox
+                                                        checked={isSelected}
+                                                        onCheckedChange={() => toggleUsuarioMasivo(usuario.id)}
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                                            {usuario.nombre}
+                                                        </p>
                                                         <p className="text-xs text-gray-500">{usuario.telefono}</p>
                                                     </div>
-                                                    {selectedUsuario?.id === usuario.id && (
-                                                        <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 ml-2" />
-                                                    )}
-                                                </div>
+                                                </label>
+                                            );
+                                        })}
+                                        {usuariosFiltrados.length === 0 && (
+                                            <div className="py-6 text-center text-sm text-gray-400">
+                                                No se encontraron usuarios
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
-                                )}
-
-                                {/* Usuario seleccionado */}
-                                {selectedUsuario && (
-                                    <div className="p-2.5 bg-green-50 border border-green-200 rounded-lg">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-                                                <div className="min-w-0">
-                                                    <p className="font-medium text-green-900 text-sm truncate">{selectedUsuario.nombre}</p>
-                                                    <p className="text-xs text-green-700">{selectedUsuario.telefono}</p>
-                                                </div>
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-green-700 hover:text-red-600 hover:bg-red-50 shrink-0"
-                                                onClick={() => {
-                                                    setSelectedUsuario(null);
-                                                    setSearchTerm('');
-                                                }}
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : modo === 'masivo' ? (
-                            /* Selección masiva de usuarios */
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-gray-700 text-sm">Seleccionar usuarios</Label>
-                                    {selectedUsuarioIds.size > 0 && (
-                                        <Badge variant="secondary" className="text-xs">
-                                            {selectedUsuarioIds.size} seleccionados
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <Input
-                                        placeholder="Buscar por nombre o teléfono..."
-                                        value={masivoBusqueda}
-                                        onChange={(e) => setMasivoBusqueda(e.target.value)}
-                                        className="pl-9 bg-white border-gray-300 text-sm h-9"
-                                    />
-                                </div>
-
-                                {/* Acciones rápidas */}
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={seleccionarTodos}
-                                        className="text-xs h-7"
-                                    >
-                                        Seleccionar todos
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={deseleccionarTodos}
-                                        className="text-xs h-7"
-                                        disabled={selectedUsuarioIds.size === 0}
-                                    >
-                                        Limpiar
-                                    </Button>
-                                </div>
-
-                                {loadingUsuarios ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                                        <span className="ml-2 text-sm text-gray-500">Cargando usuarios...</span>
-                                    </div>
-                                ) : (
-                                    <ScrollArea className="h-56 border border-gray-200 rounded-lg">
-                                        <div className="divide-y divide-gray-100">
-                                            {usuariosFiltrados.map((usuario) => {
-                                                const isSelected = selectedUsuarioIds.has(usuario.id);
-                                                return (
-                                                    <label
-                                                        key={usuario.id}
-                                                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
-                                                            isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                                                        }`}
-                                                    >
-                                                        <Checkbox
-                                                            checked={isSelected}
-                                                            onCheckedChange={() => toggleUsuarioMasivo(usuario.id)}
-                                                        />
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-medium text-gray-900 truncate">
-                                                                {usuario.nombre}
-                                                            </p>
-                                                            <p className="text-xs text-gray-500">{usuario.telefono}</p>
-                                                        </div>
-                                                    </label>
-                                                );
-                                            })}
-                                            {usuariosFiltrados.length === 0 && (
-                                                <div className="py-6 text-center text-sm text-gray-400">
-                                                    No se encontraron usuarios
-                                                </div>
-                                            )}
-                                        </div>
-                                    </ScrollArea>
-                                )}
-                            </div>
-                        ) : (
-                            /* Ingreso manual */
-                            <div className="space-y-3">
-                                <div className="space-y-1.5">
-                                    <Label className="text-gray-700 text-sm">Nombre</Label>
-                                    <Input
-                                        placeholder="Nombre del asistente"
-                                        value={nombreManual}
-                                        onChange={(e) => setNombreManual(e.target.value)}
-                                        className="bg-white border-gray-300 text-sm h-9"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-gray-700 text-sm">Teléfono (opcional)</Label>
-                                    <Input
-                                        placeholder="51987654321"
-                                        value={telefonoManual}
-                                        onChange={(e) => setTelefonoManual(e.target.value)}
-                                        className="bg-white border-gray-300 text-sm h-9"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Formulario dinámico */}
-                        {selectedQR.tipoAsistencia && !selectedQR.tipoAsistencia.soloPresencia && (
-                            <div className="pt-3 border-t border-gray-200">
-                                <DynamicForm
-                                    campos={selectedQR.tipoAsistencia.campos || []}
-                                    onSubmit={handleSubmit}
-                                    isSubmitting={submitting}
-                                    submitLabel={modo === 'masivo' ? `Registrar ${selectedUsuarioIds.size} asistencias` : 'Registrar'}
+                                </ScrollArea>
+                            )}
+                        </div>
+                    ) : (
+                        /* Ingreso manual */
+                        <div className="space-y-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-gray-700 text-sm">Nombre</Label>
+                                <Input
+                                    placeholder="Nombre del asistente"
+                                    value={nombreManual}
+                                    onChange={(e) => setNombreManual(e.target.value)}
+                                    className="bg-white border-gray-300 text-sm h-9"
                                 />
                             </div>
-                        )}
+                            <div className="space-y-1.5">
+                                <Label className="text-gray-700 text-sm">Teléfono (opcional)</Label>
+                                <Input
+                                    placeholder="51987654321"
+                                    value={telefonoManual}
+                                    onChange={(e) => setTelefonoManual(e.target.value)}
+                                    className="bg-white border-gray-300 text-sm h-9"
+                                />
+                            </div>
+                        </div>
+                    )}
 
-                        {/* Si es solo presencia, mostrar botón directo */}
-                        {selectedQR.tipoAsistencia?.soloPresencia && (
-                            <Button
-                                onClick={() => handleSubmit({})}
-                                disabled={
-                                    submitting ||
-                                    (modo === 'usuario' && !selectedUsuario) ||
-                                    (modo === 'manual' && !telefonoManual && !nombreManual) ||
-                                    (modo === 'masivo' && selectedUsuarioIds.size === 0)
-                                }
-                                className="w-full bg-green-600 hover:bg-green-700 h-9 text-sm"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                                        Registrando...
-                                    </>
-                                ) : modo === 'masivo' ? (
-                                    <>
-                                        <Users className="w-4 h-4 mr-1.5" />
-                                        Registrar {selectedUsuarioIds.size} asistencias
-                                    </>
-                                ) : (
-                                    <>
-                                        <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                                        Registrar Asistencia
-                                    </>
-                                )}
-                            </Button>
-                        )}
+                    {/* Formulario dinámico */}
+                    {selectedQR.tipoAsistencia && !selectedQR.tipoAsistencia.soloPresencia && (
+                        <div className="pt-3 border-t border-gray-200">
+                            <DynamicForm
+                                campos={selectedQR.tipoAsistencia.campos || []}
+                                onSubmit={handleSubmit}
+                                isSubmitting={submitting}
+                                submitLabel={modo === 'masivo' ? `Registrar ${selectedUsuarioIds.size} asistencias` : 'Registrar'}
+                            />
+                        </div>
+                    )}
+
+                    {/* Si es solo presencia, mostrar botón directo */}
+                    {selectedQR.tipoAsistencia?.soloPresencia && (
+                        <Button
+                            onClick={() => handleSubmit({})}
+                            disabled={
+                                submitting ||
+                                (modo === 'usuario' && !selectedUsuario) ||
+                                (modo === 'manual' && !telefonoManual && !nombreManual) ||
+                                (modo === 'masivo' && selectedUsuarioIds.size === 0)
+                            }
+                            className="w-full bg-green-600 hover:bg-green-700 h-9 text-sm"
+                        >
+                            {submitting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                    Registrando...
+                                </>
+                            ) : modo === 'masivo' ? (
+                                <>
+                                    <Users className="w-4 h-4 mr-1.5" />
+                                    Registrar {selectedUsuarioIds.size} asistencias
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                                    Registrar Asistencia
+                                </>
+                            )}
+                        </Button>
+                    )}
+                </>
+            )}
+
+            {/* Registros recientes */}
+            {recentRegistrations.length > 0 && (
+                <div className="pt-3 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-gray-500">Registrados recién</p>
+                        <button
+                            type="button"
+                            onClick={() => setRecentRegistrations([])}
+                            className="text-[10px] text-gray-400 hover:text-gray-600"
+                        >
+                            Limpiar
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                        {recentRegistrations.map((reg, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs font-normal bg-green-50 text-green-700 border-green-200">
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                {reg.name}
+                            </Badge>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Histórico link */}
+            {!modoHistorico ? (
+                <button
+                    type="button"
+                    onClick={() => setModoHistorico(true)}
+                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 pt-2"
+                >
+                    <History className="w-3.5 h-3.5" />
+                    Registrar en QR pasado (histórico)
+                </button>
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => setModoHistorico(false)}
+                    className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-700 pt-2"
+                >
+                    <History className="w-3.5 h-3.5" />
+                    Volver a QRs activos
+                </button>
+            )}
+        </div>
+    );
+
+    if (loading) {
+        const loadingContent = (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Cargando...</span>
+            </div>
+        );
+        if (embedded) return loadingContent;
+        return (
+            <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="py-12">{loadingContent}</CardContent>
+            </Card>
+        );
+    }
+
+    if (qrs.length === 0) {
+        const emptyContent = (
+            <div className="text-center py-12">
+                <QrCode className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                {modoHistorico ? (
+                    <>
+                        <p className="text-gray-500 font-medium">No hay QRs registrados</p>
+                        <p className="text-gray-400 text-sm mt-1">
+                            Crea un QR primero para poder registrar asistencia
+                        </p>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-4"
+                            onClick={() => setModoHistorico(false)}
+                        >
+                            Volver
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <p className="text-gray-500 font-medium">No hay QRs activos en este momento</p>
+                        <p className="text-gray-400 text-sm mt-1">
+                            Los QRs solo están disponibles durante su horario configurado
+                        </p>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-4"
+                            onClick={() => setModoHistorico(true)}
+                        >
+                            <History className="w-4 h-4 mr-2" />
+                            Ver QRs históricos
+                        </Button>
                     </>
                 )}
+            </div>
+        );
+        if (embedded) return emptyContent;
+        return (
+            <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="py-12">{emptyContent}</CardContent>
+            </Card>
+        );
+    }
+
+    // Modo embedded: solo el contenido, sin Card wrapper
+    if (embedded) return renderContent();
+
+    // Modo standalone: con Card wrapper
+    return (
+        <Card className="bg-white border-gray-200 shadow-sm">
+            <CardHeader className="pb-4">
+                <div className="flex items-center gap-2 min-w-0">
+                    <UserPlus className="w-5 h-5 text-green-600 shrink-0" />
+                    <CardTitle className="text-gray-900 text-base sm:text-lg">Registro Manual</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+                {renderContent()}
             </CardContent>
         </Card>
     );

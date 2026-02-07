@@ -126,6 +126,15 @@ export class RegistrarAsistenciaManualDto {
   @IsOptional()
   @IsObject()
   datosFormulario?: Record<string, any>;
+
+  @ApiPropertyOptional({
+    example: 'temprana',
+    description:
+      'Override del tipo de asistencia (temprana/normal/tardia). Si se envía, prevalece sobre el cálculo automático por hora.',
+  })
+  @IsOptional()
+  @IsString()
+  tipoAsistenciaManual?: 'temprana' | 'normal' | 'tardia';
 }
 
 export class ConfirmarAsistenciaDto {
@@ -208,6 +217,14 @@ export class RegistrarAsistenciaMasivaDto {
   @IsOptional()
   @IsObject()
   datosFormulario?: Record<string, any>;
+
+  @ApiPropertyOptional({
+    example: 'temprana',
+    description: 'Override del tipo de asistencia',
+  })
+  @IsOptional()
+  @IsString()
+  tipoAsistenciaManual?: 'temprana' | 'normal' | 'tardia';
 }
 
 export class RegistrarAsistenciaHistoricaMasivaDto {

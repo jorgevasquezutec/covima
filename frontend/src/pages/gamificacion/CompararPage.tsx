@@ -199,18 +199,18 @@ export default function CompararPage() {
             <CardContent className="space-y-3">
               {/* Selected badges */}
               {selectedNames.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
                   {selectedNames.map((u, i) => (
                     <Badge
                       key={u!.id}
                       variant="secondary"
-                      className="pl-2 pr-1 py-1"
+                      className="pl-1.5 pr-0.5 py-0.5 text-[11px]"
                       style={{ borderLeft: `3px solid ${COLORS[i]}` }}
                     >
-                      <span className="text-xs">{u!.nombre.split(' ')[0]}</span>
+                      <span className="truncate max-w-[60px]">{u!.nombre.split(' ')[0]}</span>
                       <button
                         onClick={() => handleRemoveUsuario(u!.id)}
-                        className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                        className="ml-0.5 hover:bg-gray-300 rounded-full p-0.5"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -371,7 +371,15 @@ export default function CompararPage() {
                       ))}
                       <RechartsTooltip content={<RadarTooltipContent />} />
                       <Legend
-                        wrapperStyle={{ fontSize: '13px' }}
+                        wrapperStyle={{
+                          fontSize: '11px',
+                          paddingTop: '10px',
+                        }}
+                        formatter={(value: string) => {
+                          // Truncar nombres largos en móvil
+                          const maxLen = 12;
+                          return value.length > maxLen ? value.slice(0, maxLen) + '...' : value;
+                        }}
                       />
                     </RadarChart>
                   </ResponsiveContainer>
@@ -383,21 +391,23 @@ export default function CompararPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Resumen</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                <CardContent className="px-2 sm:px-6">
+                  <div className="overflow-x-auto -mx-2 sm:mx-0">
+                    <table className="w-full text-xs sm:text-sm min-w-[300px]">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 px-2 text-gray-500 font-medium">
+                          <th className="text-left py-2 px-1.5 sm:px-2 text-gray-500 font-medium whitespace-nowrap">
                             Métrica
                           </th>
                           {comparacion.usuarios.map((u, i) => (
                             <th
                               key={u.usuarioId}
-                              className="text-center py-2 px-2 font-medium"
+                              className="text-center py-2 px-1 sm:px-2 font-medium whitespace-nowrap"
                               style={{ color: COLORS[i] }}
                             >
-                              {u.nombre.split(' ')[0]}
+                              <span className="truncate block max-w-[60px] sm:max-w-none">
+                                {u.nombre.split(' ')[0]}
+                              </span>
                             </th>
                           ))}
                         </tr>
@@ -405,7 +415,7 @@ export default function CompararPage() {
                       <tbody>
                         {Object.entries(RAW_LABELS).map(([key, label]) => (
                           <tr key={key} className="border-b last:border-0">
-                            <td className="py-2 px-2 text-gray-600">
+                            <td className="py-2 px-1.5 sm:px-2 text-gray-600 whitespace-nowrap">
                               {label}
                             </td>
                             {comparacion.usuarios.map((u) => {
@@ -424,7 +434,7 @@ export default function CompararPage() {
                               return (
                                 <td
                                   key={u.usuarioId}
-                                  className="text-center py-2 px-2 font-mono"
+                                  className="text-center py-2 px-1 sm:px-2 font-mono"
                                 >
                                   {u.raw[rawKey as keyof typeof u.raw]}
                                 </td>
@@ -433,22 +443,23 @@ export default function CompararPage() {
                           </tr>
                         ))}
                         <tr>
-                          <td className="py-2 px-2 text-gray-600 font-medium">
+                          <td className="py-2 px-1.5 sm:px-2 text-gray-600 font-medium whitespace-nowrap">
                             Nivel
                           </td>
                           {comparacion.usuarios.map((u) => (
                             <td
                               key={u.usuarioId}
-                              className="text-center py-2 px-2"
+                              className="text-center py-2 px-1 sm:px-2"
                             >
                               <Badge
                                 variant="outline"
+                                className="text-[10px] sm:text-xs px-1 sm:px-2"
                                 style={{
                                   borderColor: u.nivel.color || undefined,
                                   color: u.nivel.color || undefined,
                                 }}
                               >
-                                {u.nivel.icono} {u.nivel.nombre}
+                                {u.nivel.icono} <span className="hidden sm:inline">{u.nivel.nombre}</span>
                               </Badge>
                             </td>
                           ))}

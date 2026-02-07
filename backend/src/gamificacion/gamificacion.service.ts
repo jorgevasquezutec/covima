@@ -674,31 +674,31 @@ export class GamificacionService {
     horaInicio: Date,
     margenTemprana: number = 15, // minutos antes de horaInicio = temprana
     margenTardia: number = 30, // minutos después de horaInicio = tardía
+    tipoOverride?: 'temprana' | 'normal' | 'tardia',
   ): Promise<AsignarPuntosResult> {
     let codigoPuntaje: string;
 
-    // Extraer solo hora y minutos para comparar
-    const registroMinutos =
-      horaRegistro.getHours() * 60 + horaRegistro.getMinutes();
-    const inicioMinutos = horaInicio.getHours() * 60 + horaInicio.getMinutes();
-
-    // Calcular límites
-    const limiteTempranaMin = inicioMinutos - margenTemprana; // Desde aquí es temprana
-    const limiteTardiaMin = inicioMinutos + margenTardia; // Después de aquí es tardía
-
-    // Determinar tipo de asistencia basado en hora y márgenes
-    // Temprana: llegó antes de hora inicio (pero dentro del margen temprana)
-    // Normal: llegó entre hora inicio y hora inicio + margen tardía
-    // Tardía: llegó después de hora inicio + margen tardía
-    if (registroMinutos < inicioMinutos) {
-      // Llegó antes de la hora de inicio = temprana
-      codigoPuntaje = 'asistencia_temprana';
-    } else if (registroMinutos <= limiteTardiaMin) {
-      // Llegó entre hora inicio y límite tardía = normal
-      codigoPuntaje = 'asistencia_normal';
+    if (tipoOverride) {
+      // Override manual: el admin/líder forzó el tipo
+      codigoPuntaje = `asistencia_${tipoOverride}`;
     } else {
-      // Llegó después del límite tardía = tardía
-      codigoPuntaje = 'asistencia_tardia';
+      // Extraer solo hora y minutos para comparar
+      const registroMinutos =
+        horaRegistro.getHours() * 60 + horaRegistro.getMinutes();
+      const inicioMinutos =
+        horaInicio.getHours() * 60 + horaInicio.getMinutes();
+
+      // Calcular límites
+      const limiteTardiaMin = inicioMinutos + margenTardia; // Después de aquí es tardía
+
+      // Determinar tipo de asistencia basado en hora y márgenes
+      if (registroMinutos < inicioMinutos) {
+        codigoPuntaje = 'asistencia_temprana';
+      } else if (registroMinutos <= limiteTardiaMin) {
+        codigoPuntaje = 'asistencia_normal';
+      } else {
+        codigoPuntaje = 'asistencia_tardia';
+      }
     }
 
     // Asignar puntos base

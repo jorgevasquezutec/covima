@@ -119,6 +119,8 @@ export interface Parte {
   esObligatoria: boolean;
   textoFijo?: string;
   activo: boolean;
+  icono?: string;
+  categoria?: string;
   // Gamificación
   puntos: number;
   xp: number;

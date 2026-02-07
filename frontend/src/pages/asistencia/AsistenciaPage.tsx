@@ -14,10 +14,8 @@ import {
     ToggleRight,
     ChevronLeft,
     ChevronRight,
-    TrendingUp,
     Radio,
     Filter,
-    ChevronDown,
     Info,
     Download,
     CalendarDays,
@@ -66,11 +64,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -118,14 +112,11 @@ export default function AsistenciaPage() {
     const [exporting, setExporting] = useState(false);
     const [qrs, setQrs] = useState<QRAsistencia[]>([]);
     const [allQrs, setAllQrs] = useState<QRAsistencia[]>([]);
-    const [qrListExpanded, setQrListExpanded] = useState(false);
     const [qrListMeta, setQrListMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
     const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
-    const [estadisticas, setEstadisticas] = useState<EstadisticasGenerales | null>(null);
+    const [, setEstadisticas] = useState<EstadisticasGenerales | null>(null);
     const [meta, setMeta] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 });
     const [tipos, setTipos] = useState<TipoAsistencia[]>([]);
-    const [qrsExpanded, setQrsExpanded] = useState(true);
-    const [registroManualExpanded, setRegistroManualExpanded] = useState(false);
 
     // Filters
     const [estadoFilter, setEstadoFilter] = useState<string>('all');
@@ -170,6 +161,9 @@ export default function AsistenciaPage() {
 
     // Delete QR Dialog state
     const [deleteQROpen, setDeleteQROpen] = useState(false);
+    const [previewQR, setPreviewQR] = useState<QRAsistencia | null>(null);
+    const [selectedBannerQR, setSelectedBannerQR] = useState<string>('');
+    const [dataRefreshKey, setDataRefreshKey] = useState(0);
     const [deletingQR, setDeletingQR] = useState<QRAsistencia | null>(null);
     const [deletingQRLoading, setDeletingQRLoading] = useState(false);
 
@@ -228,6 +222,11 @@ export default function AsistenciaPage() {
             ]);
 
             setQrs(qrsData.data);
+            // Auto-seleccionar primer QR para el banner si no hay uno seleccionado
+            if (!selectedBannerQR && qrsData.data.length > 0) {
+                const sorted = [...qrsData.data].sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));
+                setSelectedBannerQR(sorted[0].codigo);
+            }
             setAsistencias(asistenciasData.data);
             setMeta(asistenciasData.meta);
             setEstadisticas(statsData);
@@ -237,6 +236,7 @@ export default function AsistenciaPage() {
             toast.error('Error al cargar datos');
         } finally {
             setLoading(false);
+            setDataRefreshKey(k => k + 1);
         }
     };
 
@@ -637,7 +637,7 @@ export default function AsistenciaPage() {
             </div>
 
             {/* Stats Cards - Compactos */}
-            {estadisticas && (
+            {/* {estadisticas && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Card className="bg-white border-gray-200 shadow-sm">
                         <CardContent className="p-3">
@@ -696,187 +696,476 @@ export default function AsistenciaPage() {
                         </CardContent>
                     </Card>
                 </div>
-            )}
+            )} */}
 
-            {/* QRs Activos - Colapsable */}
-            <Collapsible open={qrsExpanded} onOpenChange={setQrsExpanded}>
-                <Card className="bg-white border-gray-200 shadow-sm">
-                    <CollapsibleTrigger asChild>
-                        <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <QrCode className="w-5 h-5 text-blue-600" />
-                                    <CardTitle className="text-gray-900">QRs Activos</CardTitle>
-                                    <Badge variant="outline" className="ml-2">{qrs.length}</Badge>
+            {/* Tabs */}
+            <Tabs defaultValue="registro" className="w-full">
+                <TabsList className="w-full sm:w-auto">
+                    <TabsTrigger value="registro" className="flex-1 sm:flex-initial gap-1.5">
+                        <UserPlus className="w-4 h-4" />
+                        Registro
+                    </TabsTrigger>
+                    <TabsTrigger value="historial" className="flex-1 sm:flex-initial gap-1.5">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Historial
+                        {meta.total > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{meta.total}</Badge>}
+                    </TabsTrigger>
+                    <TabsTrigger value="qrs" className="flex-1 sm:flex-initial gap-1.5">
+                        <QrCode className="w-4 h-4" />
+                        QRs
+                        {qrs.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{qrs.length}</Badge>}
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* Tab: QRs Activos + Registro Manual — 2 columnas en desktop */}
+                <TabsContent value="registro">
+                    <div className="lg:grid lg:grid-cols-[2fr_3fr] lg:gap-6 space-y-4 lg:space-y-0">
+                        {/* Izquierda: QRs Activos */}
+                        <div className="space-y-2 max-h-[60vh] lg:max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+                            {/* <h3 className="text-sm font-medium text-gray-500 mb-2">QRs Activos ({qrs.length})</h3> */}
+                            {qrs.length > 0 ? (
+                                [...qrs].sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || '')).map((qr) => {
+                                    const tipoColor = qr.tipoAsistencia?.color || '#3B82F6';
+                                    const isSelected = selectedBannerQR === qr.codigo;
+                                    return (
+                                        <div
+                                            key={qr.id}
+                                            className={`rounded-lg border-2 p-3 transition-all hover:shadow-md cursor-pointer ${isSelected ? 'bg-blue-50/50 ring-2 ring-blue-200 border-blue-300' : 'bg-gradient-to-r from-white to-gray-50'}`}
+                                            style={!isSelected ? { borderColor: tipoColor } : undefined}
+                                            onClick={() => setSelectedBannerQR(qr.codigo)}
+                                        >
+                                            <div className="flex gap-3">
+                                                {/* QR Code on the left - clickable to open modal */}
+                                                <div
+                                                    className="shrink-0 p-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                                                    onClick={(e) => { e.stopPropagation(); setPreviewQR(qr); }}
+                                                    title="Click para ampliar"
+                                                >
+                                                    <QRCodeSVG
+                                                        value={qr.urlWhatsapp || qr.urlGenerada || ''}
+                                                        size={72}
+                                                        level="L"
+                                                        bgColor="#ffffff"
+                                                        fgColor={tipoColor}
+                                                    />
+                                                </div>
+
+                                                {/* Info on the right */}
+                                                <div className="flex-1 min-w-0">
+                                                    {/* Row 1: Badge + Code + Status */}
+                                                    <div className="flex items-center gap-2 mb-1.5">
+                                                        <Badge
+                                                            className="text-[10px] font-semibold px-1.5 py-0.5 shrink-0"
+                                                            style={{ backgroundColor: tipoColor, color: 'white' }}
+                                                        >
+                                                            {qr.tipoAsistencia?.label || 'Sin tipo'}
+                                                        </Badge>
+                                                        <span className="font-mono text-xs font-bold text-gray-900 truncate">{qr.codigo}</span>
+                                                        <div className="flex items-center gap-1 ml-auto shrink-0">
+                                                            <div className={`w-2 h-2 rounded-full ${qr.activo ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                                                            <span className={`text-[10px] font-medium ${qr.activo ? 'text-green-600' : 'text-gray-500'}`}>
+                                                                {qr.activo ? 'Activo' : 'Inactivo'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Row 2: Date | Time | Attendance */}
+                                                    <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-2">
+                                                        <span className="flex items-center gap-1">
+                                                            <CalendarDays className="w-3 h-3 shrink-0" />
+                                                            {parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                                        </span>
+                                                        <span className="text-gray-300">|</span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock className="w-3 h-3 shrink-0" />
+                                                            {formatHora(qr.horaInicio)}-{formatHora(qr.horaFin)}
+                                                        </span>
+                                                        <span className="text-gray-300">|</span>
+                                                        <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                                            <Users className="w-3 h-3 shrink-0" />
+                                                            {qr.totalAsistencias || 0}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Row 3: Actions */}
+                                                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                        {qr.urlWhatsapp && (
+                                                            <Button size="sm" variant="ghost" onClick={() => handleCopyLink(qr.urlWhatsapp!)} className="h-7 px-2 text-[10px] hover:bg-green-50 hover:text-green-600">
+                                                                <Copy className="w-3 h-3 mr-1" />
+                                                                Link
+                                                            </Button>
+                                                        )}
+                                                        <Button size="icon" variant="ghost" onClick={() => openEditQRModal(qr)} className="h-7 w-7 hover:bg-blue-50 hover:text-blue-600" title="Editar">
+                                                            <Pencil className="w-3 h-3" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" onClick={() => handleToggleQR(qr)} className={`h-7 w-7 ${qr.activo ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`} title={qr.activo ? 'Desactivar' : 'Activar'}>
+                                                            {qr.activo ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" onClick={() => navigate(`/asistencias/room/${qr.codigo}`)} className="h-7 w-7 hover:bg-purple-50 hover:text-purple-600" title="En vivo">
+                                                            <Radio className="w-3 h-3" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="text-center py-8 border border-dashed border-gray-200 rounded-lg">
+                                    <QrCode className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-500">No hay QRs activos</p>
                                 </div>
-                                <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${qrsExpanded ? 'rotate-180' : ''}`} />
-                            </div>
-                        </CardHeader>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                        <CardContent className="pt-0">
-                            {qrs.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <QrCode className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                    <p className="text-gray-500">No hay QRs activos</p>
+                            )}
+                        </div>
+
+                        {/* Derecha: Registro Manual */}
+                        <Card className="bg-white border-gray-200 shadow-sm lg:sticky lg:top-4 lg:self-start">
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-2">
+                                    <UserPlus className="w-5 h-5 text-green-600" />
+                                    <CardTitle className="text-gray-900">Registro Manual</CardTitle>
+                                    <Badge variant="outline" className="ml-auto bg-green-50 text-green-700 border-green-200">
+                                        Admin/Líder
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                                <RegistroManualAsistencia embedded selectedQRCode={selectedBannerQR} refreshKey={dataRefreshKey} onSuccess={() => loadData()} />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                {/* Tab: Historial de Asistencias */}
+                <TabsContent value="historial">
+                    <Card className="bg-white border-gray-200 shadow-sm">
+                        <CardHeader className="pb-3">
+                            <div className="flex flex-col gap-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div>
+                                        <CardTitle className="text-gray-900">Registros de Asistencia</CardTitle>
+                                        <CardDescription className="text-gray-500">
+                                            {meta.total} registros encontrados
+                                        </CardDescription>
+                                    </div>
+
+                                    {/* Acciones masivas */}
+                                    {selectedIds.length > 0 && (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleConfirmarMultiples('confirmado')}
+                                                className="bg-green-600 hover:bg-green-700"
+                                            >
+                                                <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                Confirmar ({selectedIds.length})
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleConfirmarMultiples('rechazado')}
+                                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                            >
+                                                <XCircle className="w-4 h-4 mr-1" />
+                                                Rechazar
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Filtros */}
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <Select value={estadoFilter} onValueChange={(v) => { setEstadoFilter(v); setSelectedIds([]); }}>
+                                        <SelectTrigger className="w-[140px] h-9 bg-white border-gray-300 text-sm">
+                                            <Filter className="w-3 h-3 mr-2 text-gray-500" />
+                                            <SelectValue placeholder="Estado" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border-gray-200">
+                                            <SelectItem value="all">Todos</SelectItem>
+                                            <SelectItem value="pendiente_confirmacion">Pendientes</SelectItem>
+                                            <SelectItem value="confirmado">Confirmados</SelectItem>
+                                            <SelectItem value="rechazado">Rechazados</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+                                    <Select value={tipoFilter} onValueChange={(v) => { setTipoFilter(v); setSelectedIds([]); }}>
+                                        <SelectTrigger className="w-[160px] h-9 bg-white border-gray-300 text-sm">
+                                            <SelectValue placeholder="Tipo" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border-gray-200">
+                                            <SelectItem value="all">Todos los tipos</SelectItem>
+                                            {tipos.map(tipo => (
+                                                <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                                                    {tipo.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Filtro de rango de fechas */}
+                                    <div className="flex items-center gap-1">
+                                        <DateRangePickerString
+                                            valueFrom={fechaDesde}
+                                            valueTo={fechaHasta}
+                                            onChange={(from, to) => { setFechaDesde(from); setFechaHasta(to); setSelectedIds([]); }}
+                                            placeholder="Rango de fechas"
+                                            className="w-[280px] h-9"
+                                            numberOfMonths={1}
+                                        />
+                                        {(fechaDesde || fechaHasta) && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => { setFechaDesde(''); setFechaHasta(''); setSelectedIds([]); }}
+                                                className="h-9 px-2 text-gray-500 hover:text-gray-700"
+                                            >
+                                                <XCircle className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    {estadoFilter === 'pendiente_confirmacion' && asistencias.filter(a => a.estado === 'pendiente_confirmacion').length > 0 && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={toggleSelectAll}
+                                            className="h-9 text-sm"
+                                        >
+                                            {selectedIds.length === asistencias.filter(a => a.estado === 'pendiente_confirmacion').length
+                                                ? 'Deseleccionar todos'
+                                                : 'Seleccionar todos'}
+                                        </Button>
+                                    )}
+
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => {
-                                            setNewQR({ ...newQR, semanaInicio: getFechaActual() });
-                                            setCreateQROpen(true);
-                                        }}
-                                        className="mt-3"
+                                        onClick={() => handleExportExcel()}
+                                        disabled={exporting}
+                                        className="h-9 text-sm ml-auto"
                                     >
-                                        <Plus className="w-4 h-4 mr-1" />
-                                        Crear QR
+                                        <Download className="w-4 h-4 mr-1" />
+                                        {exporting ? 'Exportando...' : 'Excel'}
                                     </Button>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                                    {qrs.map((qr) => {
-                                        const tipoColor = qr.tipoAsistencia?.color || '#3B82F6';
-                                        return (
-                                            <div
-                                                key={qr.id}
-                                                className="relative border-2 rounded-xl p-3 sm:p-4 transition-all hover:shadow-lg bg-gradient-to-br from-white to-gray-50 group"
-                                                style={{ borderColor: tipoColor }}
-                                            >
-                                                {/* Header con tipo y estado */}
-                                                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                                                    <Badge
-                                                        className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1"
-                                                        style={{
-                                                            backgroundColor: tipoColor,
-                                                            color: 'white',
-                                                        }}
-                                                    >
-                                                        {qr.tipoAsistencia?.label || 'Sin tipo'}
-                                                    </Badge>
-                                                    <div className="flex items-center gap-1">
-                                                        <div className={`w-2 h-2 rounded-full ${qr.activo ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                                                        <span className={`text-[10px] sm:text-xs font-medium ${qr.activo ? 'text-green-600' : 'text-gray-500'}`}>
-                                                            {qr.activo ? 'Activo' : 'Inactivo'}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                            </div>
+                        </CardHeader>
 
-                                                {/* QR Code - Click to open room */}
-                                                <div
-                                                    className="flex justify-center mb-2 sm:mb-3 cursor-pointer group/qr"
-                                                    onClick={() => navigate(`/asistencias/room/${qr.codigo}`)}
-                                                >
-                                                    <div className="relative p-1.5 sm:p-2 bg-white rounded-lg shadow-sm group-hover/qr:shadow-md transition-shadow">
-                                                        <QRCodeSVG
-                                                            value={qr.urlWhatsapp || qr.urlGenerada || ''}
-                                                            size={75}
-                                                            level="M"
-                                                            bgColor="#ffffff"
-                                                            fgColor={tipoColor}
-                                                            className="w-[70px] h-[70px] sm:w-[90px] sm:h-[90px]"
-                                                        />
-                                                        {/* Overlay en hover */}
-                                                        <div className="absolute inset-0 bg-purple-600/80 rounded-lg flex items-center justify-center opacity-0 group-hover/qr:opacity-100 transition-opacity">
-                                                            <div className="text-center text-white">
-                                                                <Radio className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 animate-pulse" />
-                                                                <span className="text-[10px] sm:text-xs font-medium">Ver en vivo</span>
+                        <CardContent className="p-0">
+                            {/* Vista Desktop - Tabla */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="border-gray-200 bg-gray-50">
+                                            <TableHead className="w-12">
+                                                <Checkbox
+                                                    checked={selectedIds.length > 0 && selectedIds.length === asistencias.filter(a => a.estado === 'pendiente_confirmacion').length}
+                                                    onCheckedChange={toggleSelectAll}
+                                                    disabled={asistencias.filter(a => a.estado === 'pendiente_confirmacion').length === 0}
+                                                />
+                                            </TableHead>
+                                            <TableHead className="text-gray-600">Participante</TableHead>
+                                            <TableHead className="text-gray-600">Fecha</TableHead>
+                                            <TableHead className="text-gray-600">Tipo</TableHead>
+                                            <TableHead className="text-gray-600">Datos</TableHead>
+                                            <TableHead className="text-gray-600">Estado</TableHead>
+                                            <TableHead className="text-gray-600 text-right">Acciones</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                                                    Cargando...
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : asistencias.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                                                    No hay registros
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            asistencias.map((asistencia) => {
+                                                const datosStr = formatDatosFormulario(asistencia.datosFormulario);
+                                                return (
+                                                    <TableRow key={asistencia.id} className="border-gray-200 hover:bg-gray-50">
+                                                        <TableCell>
+                                                            <Checkbox
+                                                                checked={selectedIds.includes(asistencia.id)}
+                                                                onCheckedChange={(checked) => {
+                                                                    if (checked) {
+                                                                        setSelectedIds([...selectedIds, asistencia.id]);
+                                                                    } else {
+                                                                        setSelectedIds(selectedIds.filter(id => id !== asistencia.id));
+                                                                    }
+                                                                }}
+                                                                disabled={asistencia.estado !== 'pendiente_confirmacion'}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900">
+                                                                        {asistencia.usuario?.nombre || asistencia.nombreRegistro || 'Sin nombre'}
+                                                                    </p>
+                                                                    {!asistencia.usuario && asistencia.telefonoRegistro && (
+                                                                        <p className="text-xs text-gray-500">{asistencia.telefonoRegistro}</p>
+                                                                    )}
+                                                                </div>
+                                                                {!asistencia.usuario && asistencia.telefonoRegistro && (
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        onClick={() => handleOpenRegisterUser(asistencia)}
+                                                                        className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                                                                        title="Registrar como usuario"
+                                                                    >
+                                                                        <UserPlus className="w-4 h-4" />
+                                                                    </Button>
+                                                                )}
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-gray-700">
+                                                            {parseLocalDate(asistencia.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {asistencia.tipo ? (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    style={{
+                                                                        borderColor: asistencia.tipo.color || '#6B7280',
+                                                                        color: asistencia.tipo.color || '#6B7280'
+                                                                    }}
+                                                                >
+                                                                    {asistencia.tipo.label}
+                                                                </Badge>
+                                                            ) : '-'}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {datosStr ? (
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild>
+                                                                        <Button variant="ghost" size="sm" className="h-7 px-2 text-gray-500">
+                                                                            <Info className="w-3 h-3 mr-1" />
+                                                                            Ver datos
+                                                                        </Button>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent className="w-64 bg-white border-gray-200">
+                                                                        <div className="space-y-2">
+                                                                            {Object.entries(asistencia.datosFormulario || {}).map(([key, value]) => (
+                                                                                <div key={key} className="flex justify-between text-sm">
+                                                                                    <span className="text-gray-500">{key.replace(/_/g, ' ')}</span>
+                                                                                    <span className="font-medium text-gray-900">
+                                                                                        {typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                            ) : (
+                                                                <span className="text-gray-400 text-sm">-</span>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>{getEstadoBadge(asistencia.estado)}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex justify-end gap-1">
+                                                                {asistencia.estado === 'pendiente_confirmacion' && (
+                                                                    <>
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            onClick={() => handleConfirmar(asistencia.id, 'confirmado')}
+                                                                            className="h-8 w-8 text-green-600 hover:bg-green-50"
+                                                                        >
+                                                                            <CheckCircle2 className="w-4 h-4" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            onClick={() => handleConfirmar(asistencia.id, 'rechazado')}
+                                                                            className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                                                        >
+                                                                            <XCircle className="w-4 h-4" />
+                                                                        </Button>
+                                                                    </>
+                                                                )}
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={() => handleOpenDelete(asistencia)}
+                                                                    className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                                                    title="Eliminar asistencia"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
 
-                                                {/* Código y fecha */}
-                                                <div className="text-center mb-2 sm:mb-3">
-                                                    <p className="font-mono text-base sm:text-lg font-bold text-gray-900 tracking-wider">{qr.codigo}</p>
-                                                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600 mt-1">
-                                                        <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                                        <span>{parseLocalDate(qr.semanaInicio).toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-center gap-1 text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
-                                                        <Clock className="w-3 h-3" />
-                                                        <span>{formatHora(qr.horaInicio)} - {formatHora(qr.horaFin)}</span>
-                                                    </div>
-                                                </div>
+                            {/* Vista Mobile - Cards */}
+                            <div className="md:hidden p-4 space-y-3">
+                                {loading ? (
+                                    <p className="text-center text-gray-500 py-8">Cargando...</p>
+                                ) : asistencias.length === 0 ? (
+                                    <p className="text-center text-gray-500 py-8">No hay registros</p>
+                                ) : (
+                                    asistencias.map((asistencia) => (
+                                        <AsistenciaCard key={asistencia.id} asistencia={asistencia} />
+                                    ))
+                                )}
+                            </div>
 
-                                                {/* Estadística de asistencias */}
-                                                {(qr.totalAsistencias ?? 0) > 0 && (
-                                                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 px-2 sm:px-3 bg-blue-50 rounded-lg mb-2 sm:mb-3">
-                                                        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
-                                                        <span className="text-xs sm:text-sm font-medium text-blue-700">{qr.totalAsistencias} asistencias</span>
-                                                    </div>
-                                                )}
-
-                                                {/* Acciones */}
-                                                <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center" onClick={(e) => e.stopPropagation()}>
-                                                    {qr.urlWhatsapp && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => handleCopyLink(qr.urlWhatsapp!)}
-                                                            className="h-8 sm:h-9 text-xs text-green-600 border-green-200 hover:bg-green-50 px-2 sm:px-3"
-                                                        >
-                                                            <Copy className="w-3 h-3 mr-1" />
-                                                            <span className="hidden xs:inline">Copiar link</span>
-                                                            <span className="xs:hidden">Link</span>
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        onClick={() => openEditQRModal(qr)}
-                                                        className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
-                                                        title="Editar QR"
-                                                    >
-                                                        <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        onClick={() => handleToggleQR(qr)}
-                                                        className={`h-8 w-8 sm:h-9 sm:w-9 ${qr.activo ? 'text-green-600 border-green-200 hover:bg-green-50' : 'text-gray-400 border-gray-200 hover:bg-gray-50'}`}
-                                                        title={qr.activo ? 'Desactivar' : 'Activar'}
-                                                    >
-                                                        {qr.activo ? <ToggleRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ToggleLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                                                    </Button>
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        onClick={() => {
-                                                            setDeletingQR(qr);
-                                                            setDeleteQROpen(true);
-                                                        }}
-                                                        className="h-8 w-8 sm:h-9 sm:w-9 text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
-                                                        title="Eliminar QR"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                            {/* Pagination */}
+                            {meta.totalPages > 1 && (
+                                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                                    <p className="text-sm text-gray-500">
+                                        {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} de {meta.total}
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={meta.page === 1}
+                                            onClick={() => setMeta(m => ({ ...m, page: m.page - 1 }))}
+                                            className="border-gray-300"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={meta.page === meta.totalPages}
+                                            onClick={() => setMeta(m => ({ ...m, page: m.page + 1 }))}
+                                            className="border-gray-300"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
-                    </CollapsibleContent>
-                </Card>
-            </Collapsible>
+                    </Card>
+                </TabsContent>
 
-            {/* Lista de todos los QRs */}
-            <Collapsible open={qrListExpanded} onOpenChange={setQrListExpanded}>
-                <Card className="bg-white border-gray-200 shadow-sm">
-                    <CollapsibleTrigger asChild>
-                        <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <QrCode className="w-5 h-5 text-purple-600" />
-                                    <CardTitle className="text-gray-900">Todos los QRs</CardTitle>
-                                    <Badge variant="outline" className="ml-2">{qrListMeta.total}</Badge>
-                                </div>
-                                <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${qrListExpanded ? 'rotate-180' : ''}`} />
+                {/* Tab: QRs */}
+                <TabsContent value="qrs">
+                    {/* Todos los QRs */}
+                    <Card className="bg-white border-gray-200 shadow-sm">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2">
+                                <QrCode className="w-5 h-5 text-purple-600" />
+                                <CardTitle className="text-gray-900">Todos los QRs</CardTitle>
+                                <Badge variant="outline" className="ml-2">{qrListMeta.total}</Badge>
                             </div>
                         </CardHeader>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
                         <CardContent className="pt-0">
                             {allQrs.length === 0 ? (
                                 <div className="text-center py-8">
@@ -921,13 +1210,7 @@ export default function AsistenciaPage() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <Badge
-                                                                className="text-xs font-medium"
-                                                                style={{
-                                                                    backgroundColor: tipoColor,
-                                                                    color: 'white',
-                                                                }}
-                                                            >
+                                                            <Badge className="text-xs font-medium" style={{ backgroundColor: tipoColor, color: 'white' }}>
                                                                 {qr.tipoAsistencia?.label || 'Sin tipo'}
                                                             </Badge>
                                                         </TableCell>
@@ -938,66 +1221,27 @@ export default function AsistenciaPage() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-center">
-                                                            <Badge
-                                                                variant="outline"
-                                                                className={active
-                                                                    ? 'bg-green-50 text-green-700 border-green-200'
-                                                                    : 'bg-gray-50 text-gray-500 border-gray-200'
-                                                                }
-                                                            >
+                                                            <Badge variant="outline" className={active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}>
                                                                 {active ? 'Activo' : 'Inactivo'}
                                                             </Badge>
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <div className="flex items-center justify-end gap-1">
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={() => navigate(`/asistencias/room/${qr.codigo}`)}
-                                                                    className="h-8 w-8 hover:bg-purple-50 hover:text-purple-600"
-                                                                    title="Ver en vivo"
-                                                                >
+                                                                <Button size="icon" variant="ghost" onClick={() => navigate(`/asistencias/room/${qr.codigo}`)} className="h-8 w-8 hover:bg-purple-50 hover:text-purple-600" title="Ver en vivo">
                                                                     <Radio className="w-4 h-4" />
                                                                 </Button>
                                                                 {qr.urlWhatsapp && (
-                                                                    <Button
-                                                                        size="icon"
-                                                                        variant="ghost"
-                                                                        onClick={() => handleCopyLink(qr.urlWhatsapp!)}
-                                                                        className="h-8 w-8 hover:bg-green-50 hover:text-green-600"
-                                                                        title="Copiar link WhatsApp"
-                                                                    >
+                                                                    <Button size="icon" variant="ghost" onClick={() => handleCopyLink(qr.urlWhatsapp!)} className="h-8 w-8 hover:bg-green-50 hover:text-green-600" title="Copiar link WhatsApp">
                                                                         <Copy className="w-4 h-4" />
                                                                     </Button>
                                                                 )}
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={() => openEditQRModal(qr)}
-                                                                    className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
-                                                                    title="Editar QR"
-                                                                >
+                                                                <Button size="icon" variant="ghost" onClick={() => openEditQRModal(qr)} className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600" title="Editar QR">
                                                                     <Pencil className="w-4 h-4" />
                                                                 </Button>
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={() => handleToggleQR(qr)}
-                                                                    className={`h-8 w-8 ${qr.activo ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                                                                    title={qr.activo ? 'Desactivar' : 'Activar'}
-                                                                >
+                                                                <Button size="icon" variant="ghost" onClick={() => handleToggleQR(qr)} className={`h-8 w-8 ${qr.activo ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`} title={qr.activo ? 'Desactivar' : 'Activar'}>
                                                                     {qr.activo ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                                                                 </Button>
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={() => {
-                                                                        setDeletingQR(qr);
-                                                                        setDeleteQROpen(true);
-                                                                    }}
-                                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                                    title="Eliminar QR"
-                                                                >
+                                                                <Button size="icon" variant="ghost" onClick={() => { setDeletingQR(qr); setDeleteQROpen(true); }} className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600" title="Eliminar QR">
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </Button>
                                                             </div>
@@ -1009,381 +1253,79 @@ export default function AsistenciaPage() {
                                     </Table>
                                 </div>
                             )}
-
-                            {/* Paginación de QRs */}
                             {qrListMeta.totalPages > 1 && (
                                 <div className="flex items-center justify-between px-2 py-3 border-t border-gray-200 mt-4">
                                     <p className="text-sm text-gray-500">
                                         Página {qrListMeta.page} de {qrListMeta.totalPages} ({qrListMeta.total} QRs)
                                     </p>
                                     <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={qrListMeta.page === 1}
-                                            onClick={() => setQrListMeta(m => ({ ...m, page: m.page - 1 }))}
-                                            className="border-gray-300"
-                                        >
+                                        <Button variant="outline" size="sm" disabled={qrListMeta.page === 1} onClick={() => setQrListMeta(m => ({ ...m, page: m.page - 1 }))} className="border-gray-300">
                                             <ChevronLeft className="w-4 h-4" />
                                         </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={qrListMeta.page === qrListMeta.totalPages}
-                                            onClick={() => setQrListMeta(m => ({ ...m, page: m.page + 1 }))}
-                                            className="border-gray-300"
-                                        >
+                                        <Button variant="outline" size="sm" disabled={qrListMeta.page === qrListMeta.totalPages} onClick={() => setQrListMeta(m => ({ ...m, page: m.page + 1 }))} className="border-gray-300">
                                             <ChevronRight className="w-4 h-4" />
                                         </Button>
                                     </div>
                                 </div>
                             )}
                         </CardContent>
-                    </CollapsibleContent>
-                </Card>
-            </Collapsible>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
-            {/* Registro Manual */}
-            <Collapsible open={registroManualExpanded} onOpenChange={setRegistroManualExpanded}>
-                <Card className="bg-white border-gray-200 shadow-sm">
-                    <CollapsibleTrigger asChild>
-                        <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <UserPlus className="w-5 h-5 text-green-600" />
-                                    <CardTitle className="text-gray-900">Registro Manual</CardTitle>
-                                    <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
-                                        Admin/Líder
-                                    </Badge>
-                                </div>
-                                <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${registroManualExpanded ? 'rotate-180' : ''}`} />
-                            </div>
-                        </CardHeader>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                        <CardContent className="pt-0">
-                            <RegistroManualAsistencia onSuccess={() => loadData()} />
-                        </CardContent>
-                    </CollapsibleContent>
-                </Card>
-            </Collapsible>
-
-            {/* Asistencias */}
-            <Card className="bg-white border-gray-200 shadow-sm">
-                <CardHeader className="pb-3">
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <div>
-                                <CardTitle className="text-gray-900">Registros de Asistencia</CardTitle>
-                                <CardDescription className="text-gray-500">
-                                    {meta.total} registros encontrados
-                                </CardDescription>
-                            </div>
-
-                            {/* Acciones masivas */}
-                            {selectedIds.length > 0 && (
-                                <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        onClick={() => handleConfirmarMultiples('confirmado')}
-                                        className="bg-green-600 hover:bg-green-700"
-                                    >
-                                        <CheckCircle2 className="w-4 h-4 mr-1" />
-                                        Confirmar ({selectedIds.length})
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleConfirmarMultiples('rechazado')}
-                                        className="text-red-600 border-red-200 hover:bg-red-50"
-                                    >
-                                        <XCircle className="w-4 h-4 mr-1" />
-                                        Rechazar
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Filtros */}
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <Select value={estadoFilter} onValueChange={(v) => { setEstadoFilter(v); setSelectedIds([]); }}>
-                                <SelectTrigger className="w-[140px] h-9 bg-white border-gray-300 text-sm">
-                                    <Filter className="w-3 h-3 mr-2 text-gray-500" />
-                                    <SelectValue placeholder="Estado" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white border-gray-200">
-                                    <SelectItem value="all">Todos</SelectItem>
-                                    <SelectItem value="pendiente_confirmacion">Pendientes</SelectItem>
-                                    <SelectItem value="confirmado">Confirmados</SelectItem>
-                                    <SelectItem value="rechazado">Rechazados</SelectItem>
-                                </SelectContent>
-                            </Select>
-
-                            <Select value={tipoFilter} onValueChange={(v) => { setTipoFilter(v); setSelectedIds([]); }}>
-                                <SelectTrigger className="w-[160px] h-9 bg-white border-gray-300 text-sm">
-                                    <SelectValue placeholder="Tipo" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white border-gray-200">
-                                    <SelectItem value="all">Todos los tipos</SelectItem>
-                                    {tipos.map(tipo => (
-                                        <SelectItem key={tipo.id} value={tipo.id.toString()}>
-                                            {tipo.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
-                            {/* Filtro de rango de fechas */}
-                            <div className="flex items-center gap-1">
-                                <DateRangePickerString
-                                    valueFrom={fechaDesde}
-                                    valueTo={fechaHasta}
-                                    onChange={(from, to) => { setFechaDesde(from); setFechaHasta(to); setSelectedIds([]); }}
-                                    placeholder="Rango de fechas"
-                                    className="w-[280px] h-9"
-                                    numberOfMonths={1}
-                                />
-                                {(fechaDesde || fechaHasta) && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => { setFechaDesde(''); setFechaHasta(''); setSelectedIds([]); }}
-                                        className="h-9 px-2 text-gray-500 hover:text-gray-700"
-                                    >
-                                        <XCircle className="w-4 h-4" />
-                                    </Button>
-                                )}
-                            </div>
-
-                            {estadoFilter === 'pendiente_confirmacion' && asistencias.filter(a => a.estado === 'pendiente_confirmacion').length > 0 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={toggleSelectAll}
-                                    className="h-9 text-sm"
-                                >
-                                    {selectedIds.length === asistencias.filter(a => a.estado === 'pendiente_confirmacion').length
-                                        ? 'Deseleccionar todos'
-                                        : 'Seleccionar todos'}
-                                </Button>
-                            )}
-
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleExportExcel()}
-                                disabled={exporting}
-                                className="h-9 text-sm ml-auto"
-                            >
-                                <Download className="w-4 h-4 mr-1" />
-                                {exporting ? 'Exportando...' : 'Excel'}
-                            </Button>
-                        </div>
-                    </div>
-                </CardHeader>
-
-                <CardContent className="p-0">
-                    {/* Vista Desktop - Tabla */}
-                    <div className="hidden md:block overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="border-gray-200 bg-gray-50">
-                                    <TableHead className="w-12">
-                                        <Checkbox
-                                            checked={selectedIds.length > 0 && selectedIds.length === asistencias.filter(a => a.estado === 'pendiente_confirmacion').length}
-                                            onCheckedChange={toggleSelectAll}
-                                            disabled={asistencias.filter(a => a.estado === 'pendiente_confirmacion').length === 0}
+            {/* QR Preview Dialog */}
+            <Dialog open={!!previewQR} onOpenChange={(open) => !open && setPreviewQR(null)}>
+                <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-sm">
+                    {previewQR && (() => {
+                        const tipoColor = previewQR.tipoAsistencia?.color || '#3B82F6';
+                        return (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2 text-gray-900">
+                                        <Badge style={{ backgroundColor: tipoColor, color: 'white' }}>
+                                            {previewQR.tipoAsistencia?.label || 'Sin tipo'}
+                                        </Badge>
+                                        <span className="font-mono">{previewQR.codigo}</span>
+                                    </DialogTitle>
+                                    <DialogDescription className="flex items-center gap-3 text-gray-500">
+                                        <span className="flex items-center gap-1">
+                                            <CalendarDays className="w-3.5 h-3.5" />
+                                            {parseLocalDate(previewQR.semanaInicio).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            {formatHora(previewQR.horaInicio)} - {formatHora(previewQR.horaFin)}
+                                        </span>
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="flex justify-center py-4">
+                                    <div className="p-3 bg-white rounded-xl shadow-sm border">
+                                        <QRCodeSVG
+                                            value={previewQR.urlWhatsapp || previewQR.urlGenerada || ''}
+                                            size={220}
+                                            level="M"
+                                            bgColor="#ffffff"
+                                            fgColor={tipoColor}
                                         />
-                                    </TableHead>
-                                    <TableHead className="text-gray-600">Participante</TableHead>
-                                    <TableHead className="text-gray-600">Fecha</TableHead>
-                                    <TableHead className="text-gray-600">Tipo</TableHead>
-                                    <TableHead className="text-gray-600">Datos</TableHead>
-                                    <TableHead className="text-gray-600">Estado</TableHead>
-                                    <TableHead className="text-gray-600 text-right">Acciones</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="text-center text-gray-500 py-8">
-                                            Cargando...
-                                        </TableCell>
-                                    </TableRow>
-                                ) : asistencias.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="text-center text-gray-500 py-8">
-                                            No hay registros
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    asistencias.map((asistencia) => {
-                                        const datosStr = formatDatosFormulario(asistencia.datosFormulario);
-                                        return (
-                                            <TableRow key={asistencia.id} className="border-gray-200 hover:bg-gray-50">
-                                                <TableCell>
-                                                    <Checkbox
-                                                        checked={selectedIds.includes(asistencia.id)}
-                                                        onCheckedChange={(checked) => {
-                                                            if (checked) {
-                                                                setSelectedIds([...selectedIds, asistencia.id]);
-                                                            } else {
-                                                                setSelectedIds(selectedIds.filter(id => id !== asistencia.id));
-                                                            }
-                                                        }}
-                                                        disabled={asistencia.estado !== 'pendiente_confirmacion'}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">
-                                                                {asistencia.usuario?.nombre || asistencia.nombreRegistro || 'Sin nombre'}
-                                                            </p>
-                                                            {!asistencia.usuario && asistencia.telefonoRegistro && (
-                                                                <p className="text-xs text-gray-500">{asistencia.telefonoRegistro}</p>
-                                                            )}
-                                                        </div>
-                                                        {!asistencia.usuario && asistencia.telefonoRegistro && (
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                onClick={() => handleOpenRegisterUser(asistencia)}
-                                                                className="h-7 w-7 text-blue-600 hover:bg-blue-50"
-                                                                title="Registrar como usuario"
-                                                            >
-                                                                <UserPlus className="w-4 h-4" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-gray-700">
-                                                    {parseLocalDate(asistencia.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {asistencia.tipo ? (
-                                                        <Badge
-                                                            variant="outline"
-                                                            style={{
-                                                                borderColor: asistencia.tipo.color || '#6B7280',
-                                                                color: asistencia.tipo.color || '#6B7280'
-                                                            }}
-                                                        >
-                                                            {asistencia.tipo.label}
-                                                        </Badge>
-                                                    ) : '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {datosStr ? (
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <Button variant="ghost" size="sm" className="h-7 px-2 text-gray-500">
-                                                                    <Info className="w-3 h-3 mr-1" />
-                                                                    Ver datos
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-64 bg-white border-gray-200">
-                                                                <div className="space-y-2">
-                                                                    {Object.entries(asistencia.datosFormulario || {}).map(([key, value]) => (
-                                                                        <div key={key} className="flex justify-between text-sm">
-                                                                            <span className="text-gray-500">{key.replace(/_/g, ' ')}</span>
-                                                                            <span className="font-medium text-gray-900">
-                                                                                {typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value)}
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    ) : (
-                                                        <span className="text-gray-400 text-sm">-</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>{getEstadoBadge(asistencia.estado)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-1">
-                                                        {asistencia.estado === 'pendiente_confirmacion' && (
-                                                            <>
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={() => handleConfirmar(asistencia.id, 'confirmado')}
-                                                                    className="h-8 w-8 text-green-600 hover:bg-green-50"
-                                                                >
-                                                                    <CheckCircle2 className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={() => handleConfirmar(asistencia.id, 'rechazado')}
-                                                                    className="h-8 w-8 text-red-600 hover:bg-red-50"
-                                                                >
-                                                                    <XCircle className="w-4 h-4" />
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            onClick={() => handleOpenDelete(asistencia)}
-                                                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                                            title="Eliminar asistencia"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    {/* Vista Mobile - Cards */}
-                    <div className="md:hidden p-4 space-y-3">
-                        {loading ? (
-                            <p className="text-center text-gray-500 py-8">Cargando...</p>
-                        ) : asistencias.length === 0 ? (
-                            <p className="text-center text-gray-500 py-8">No hay registros</p>
-                        ) : (
-                            asistencias.map((asistencia) => (
-                                <AsistenciaCard key={asistencia.id} asistencia={asistencia} />
-                            ))
-                        )}
-                    </div>
-
-                    {/* Pagination */}
-                    {meta.totalPages > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-                            <p className="text-sm text-gray-500">
-                                {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} de {meta.total}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={meta.page === 1}
-                                    onClick={() => setMeta(m => ({ ...m, page: m.page - 1 }))}
-                                    className="border-gray-300"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={meta.page === meta.totalPages}
-                                    onClick={() => setMeta(m => ({ ...m, page: m.page + 1 }))}
-                                    className="border-gray-300"
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 justify-center">
+                                    {previewQR.urlWhatsapp && (
+                                        <Button variant="outline" size="sm" onClick={() => handleCopyLink(previewQR.urlWhatsapp!)} className="text-green-600 border-green-200 hover:bg-green-50">
+                                            <Copy className="w-3.5 h-3.5 mr-1.5" />
+                                            Copiar link
+                                        </Button>
+                                    )}
+                                    <Button variant="outline" size="sm" onClick={() => { setPreviewQR(null); navigate(`/asistencias/room/${previewQR.codigo}`); }} className="text-purple-600 border-purple-200 hover:bg-purple-50">
+                                        <Radio className="w-3.5 h-3.5 mr-1.5" />
+                                        Ver en vivo
+                                    </Button>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
 
             {/* Create QR Dialog */}
             <Dialog open={createQROpen} onOpenChange={setCreateQROpen}>

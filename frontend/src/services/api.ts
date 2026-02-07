@@ -617,6 +617,7 @@ export const asistenciaApi = {
     telefonoManual?: string;
     nombreManual?: string;
     datosFormulario?: Record<string, unknown>;
+    tipoAsistenciaManual?: 'temprana' | 'normal' | 'tardia';
   }): Promise<Asistencia> => {
     const response = await api.post<Asistencia>('/asistencia/registrar-manual', data);
     return response.data;
@@ -638,6 +639,7 @@ export const asistenciaApi = {
     codigoQR: string;
     usuarioIds: number[];
     datosFormulario?: Record<string, unknown>;
+    tipoAsistenciaManual?: 'temprana' | 'normal' | 'tardia';
   }): Promise<RegistroMasivoResponse> => {
     const response = await api.post<RegistroMasivoResponse>('/asistencia/registrar-manual-masivo', data);
     return response.data;

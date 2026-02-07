@@ -64,6 +64,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
     environment:
       - TZ=America/Lima
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/covima_ja
@@ -94,6 +96,7 @@ volumes:
   redis_data:
   caddy_data:
   caddy_config:
+  uploads_data:
 
 networks:
   covima-network:

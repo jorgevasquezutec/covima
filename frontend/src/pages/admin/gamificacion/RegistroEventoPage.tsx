@@ -116,12 +116,12 @@ export default function RegistroEventoPage() {
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Configuración del evento */}
-        <Card>
+        <Card className="overflow-hidden min-w-0">
           <CardHeader>
             <CardTitle className="text-lg">Detalles del Evento</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Tipo de Evento</Label>
               <Popover open={eventoComboOpen} onOpenChange={setEventoComboOpen}>
                 <PopoverTrigger asChild>
@@ -129,23 +129,23 @@ export default function RegistroEventoPage() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={eventoComboOpen}
-                    className="w-full justify-between h-11"
+                    className="w-full justify-between h-11 max-w-full"
                   >
                     {eventoSeleccionado ? (
-                      <div className="flex items-center gap-2">
-                        <span>{eventoSeleccionado.icono}</span>
-                        <span>{eventoSeleccionado.nombre}</span>
-                        <Badge variant="secondary" className="ml-2">
+                      <span className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                        <span className="shrink-0">{eventoSeleccionado.icono}</span>
+                        <span className="truncate">{eventoSeleccionado.nombre}</span>
+                        <Badge variant="secondary" className="shrink-0 ml-auto">
                           {eventoSeleccionado.puntos} pts
                         </Badge>
-                      </div>
+                      </span>
                     ) : (
                       <span className="text-muted-foreground">Buscar evento...</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-32px)] p-0" side="bottom" align="center" collisionPadding={16}>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" side="bottom" align="start">
                   <Command>
                     <CommandInput placeholder="Buscar evento..." />
                     <CommandList>
@@ -162,13 +162,13 @@ export default function RegistroEventoPage() {
                           >
                             <Check
                               className={cn(
-                                "mr-2 h-4 w-4",
+                                "mr-2 h-4 w-4 shrink-0",
                                 selectedEvento === evento.id.toString() ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            <span className="mr-2">{evento.icono}</span>
-                            <span className="flex-1">{evento.nombre}</span>
-                            <Badge variant="secondary">{evento.puntos} pts</Badge>
+                            <span className="mr-2 shrink-0">{evento.icono}</span>
+                            <span className="flex-1 truncate">{evento.nombre}</span>
+                            <Badge variant="secondary" className="shrink-0 ml-2">{evento.puntos} pts</Badge>
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -179,12 +179,12 @@ export default function RegistroEventoPage() {
             </div>
 
             {eventoSeleccionado && (
-              <div className="p-3 rounded-lg bg-muted/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">{eventoSeleccionado.icono}</span>
-                  <div>
-                    <p className="font-medium">{eventoSeleccionado.nombre}</p>
-                    <p className="text-xs text-muted-foreground">{eventoSeleccionado.descripcion}</p>
+              <div className="p-3 rounded-lg bg-muted/50 overflow-hidden">
+                <div className="flex items-center gap-2 mb-2 min-w-0">
+                  <span className="text-2xl shrink-0">{eventoSeleccionado.icono}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{eventoSeleccionado.nombre}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{eventoSeleccionado.descripcion}</p>
                   </div>
                 </div>
                 <div className="flex gap-4 text-sm">
@@ -221,14 +221,14 @@ export default function RegistroEventoPage() {
         </Card>
 
         {/* Selección de participantes */}
-        <Card>
+        <Card className="overflow-hidden min-w-0">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Participantes
+            <CardTitle className="text-lg flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2 min-w-0">
+                <Users className="w-5 h-5 shrink-0" />
+                <span className="truncate">Participantes</span>
               </span>
-              <Badge variant="outline">{selectedUsuarios.length} seleccionados</Badge>
+              <Badge variant="outline" className="shrink-0">{selectedUsuarios.length} selec.</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">

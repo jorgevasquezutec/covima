@@ -788,6 +788,7 @@ export class AsistenciaService {
             qr.horaInicio,
             qr.margenTemprana,
             qr.margenTardia,
+            dto.tipoAsistenciaManual,
           );
       } catch (error) {
         console.error('Error asignando puntos de gamificación:', error);
@@ -1143,6 +1144,7 @@ export class AsistenciaService {
             qr.horaInicio,
             qr.margenTemprana,
             qr.margenTardia,
+            dto.tipoAsistenciaManual,
           );
         } catch (error) {
           console.error(
