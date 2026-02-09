@@ -40,4 +40,4 @@ COPY --from=builder /app/tsconfig.seed.json ./
 EXPOSE 3001
 
 # Comando de inicio: migrar, seed y ejecutar
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
