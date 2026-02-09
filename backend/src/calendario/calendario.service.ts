@@ -235,9 +235,9 @@ export class CalendarioService {
       if (!usuario.fechaNacimiento) continue;
 
       const fechaNac = new Date(usuario.fechaNacimiento);
-      if (fechaNac.getMonth() + 1 === mes) {
-        // Crear fecha de cumpleaños para este año
-        const fechaCumple = new Date(anio, mes - 1, fechaNac.getDate());
+      if (fechaNac.getUTCMonth() + 1 === mes) {
+        // Crear fecha de cumpleaños para este año (usar UTC para evitar desfase de zona horaria)
+        const fechaCumple = new Date(Date.UTC(anio, mes - 1, fechaNac.getUTCDate()));
 
         cumpleanos.push({
           id: -usuario.id, // ID negativo para distinguir de actividades reales

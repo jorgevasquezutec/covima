@@ -780,14 +780,19 @@ export class AsistenciaService {
     let gamificacionResult: AsignarPuntosResult | null = null;
     if (usuarioId) {
       try {
+        const horaInicio =
+          qr.horaInicio || new Date('1970-01-01T09:00:00');
+        const margenTemprana = qr.margenTemprana ?? 15;
+        const margenTardia = qr.margenTardia ?? 30;
+
         gamificacionResult =
           await this.gamificacionService.asignarPuntosPorAsistencia(
             usuarioId,
             asistencia.id,
             asistencia.createdAt,
-            qr.horaInicio,
-            qr.margenTemprana,
-            qr.margenTardia,
+            horaInicio,
+            margenTemprana,
+            margenTardia,
             dto.tipoAsistenciaManual,
           );
       } catch (error) {
@@ -1137,13 +1142,18 @@ export class AsistenciaService {
 
         // Asignar puntos
         try {
+          const horaInicio =
+            qr.horaInicio || new Date('1970-01-01T09:00:00');
+          const margenTemp = qr.margenTemprana ?? 15;
+          const margenTard = qr.margenTardia ?? 30;
+
           await this.gamificacionService.asignarPuntosPorAsistencia(
             usuarioId,
             asistencia.id,
             asistencia.createdAt,
-            qr.horaInicio,
-            qr.margenTemprana,
-            qr.margenTardia,
+            horaInicio,
+            margenTemp,
+            margenTard,
             dto.tipoAsistenciaManual,
           );
         } catch (error) {
