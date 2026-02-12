@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Calendar, Clock, Users, Link as LinkIcon, Loader2 } from 'lucide-react';
 import type { Programa } from '@/types';
-import { authApi } from '@/services/api';
 import api from '@/services/api';
 
 export default function ProgramaPublicPage() {
