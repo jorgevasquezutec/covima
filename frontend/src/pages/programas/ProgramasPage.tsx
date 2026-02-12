@@ -844,8 +844,8 @@ export default function ProgramasPage() {
                                                     <p>¡Hola <strong>{notif.usuario.nombre}</strong>! 👋</p>
                                                     <p className="mt-2">Te recordamos que tienes asignaciones para el programa del <strong>{previewNotif && formatDate(previewNotif.programa.fecha)}</strong>.</p>
                                                     <p className="mt-2">Tus partes: <strong>{notif.partes.join(', ')}</strong></p>
-                                                    <p className="mt-2">Responde "ver programa <strong>{previewNotif?.programa.codigo}</strong>" para ver el programa completo.</p>
                                                     <p className="mt-2">¡Que Dios te bendiga! 🙏</p>
+                                                    <p className="mt-2 text-xs text-blue-600">🔗 Botón: Ver programa → /programa/{previewNotif?.programa.codigo}</p>
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-2 text-center">
                                                     📱 Plantilla: <code className="bg-gray-100 px-1 rounded">recordatorio_programa</code>
