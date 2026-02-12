@@ -141,6 +141,14 @@ export class RedisService implements OnModuleDestroy {
     await this.publisher.del(key);
   }
 
+  async incr(key: string): Promise<number> {
+    return this.publisher.incr(key);
+  }
+
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    await this.publisher.expire(key, ttlSeconds);
+  }
+
   onModuleDestroy() {
     this.publisher.disconnect();
     this.subscriber.disconnect();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,6 @@ import {
   CalendarDays,
   BarChart3,
   User,
-  CheckCircle2,
   XCircle,
   Loader2,
   Trophy,
@@ -29,6 +28,7 @@ import {
   UserSearch,
   ClipboardList,
   BookOpen,
+  Check,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -47,6 +47,120 @@ interface AdminStats {
   programasEsteMes: number;
   programasPendientes: number;
   totalProgramas: number;
+}
+
+function WeeklyAttendanceRecord({ historial }: { historial?: MiAsistencia['historial'] }) {
+  const { allTipos, semanas } = useMemo(() => {
+    if (!historial || historial.length === 0) return { allTipos: [], semanas: [] };
+
+    // Find the Saturday that this date's week culminates in (next or same Saturday)
+    // Midweek activities (GP, estudios) group with the following Saturday (ES, PJA)
+    function getSabado(fechaStr: string): string {
+      const d = parseLocalDate(fechaStr);
+      const day = d.getDay(); // 0=Sun, 6=Sat
+      const diff = day === 6 ? 0 : 6 - day;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+
+    // Collect all unique tipos
+    const tiposMap = new Map<number, { id: number; nombre: string; label: string; color?: string }>();
+    for (const item of historial) {
+      if (item.tipo && !tiposMap.has(item.tipo.id)) {
+        tiposMap.set(item.tipo.id, item.tipo);
+      }
+    }
+    const allTipos = [...tiposMap.values()];
+
+    // Group by week (Saturday) using fechaEvento (the real event date)
+    const grouped = new Map<string, Set<number>>();
+    for (const item of historial) {
+      const weekKey = getSabado(item.fechaEvento);
+      if (!grouped.has(weekKey)) grouped.set(weekKey, new Set());
+      if (item.tipo) grouped.get(weekKey)!.add(item.tipo.id);
+    }
+
+    // Sort descending, take 5, then reverse for chronological display
+    const semanas = [...grouped.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .slice(0, 5)
+      .reverse()
+      .map(([weekKey, tipoIds]) => {
+        const fecha = parseLocalDate(weekKey);
+        const label = fecha.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+        return { semanaInicio: weekKey, label, tipoIds };
+      });
+
+    return { allTipos, semanas };
+  }, [historial]);
+
+  if (!semanas.length) {
+    return (
+      <div className="text-center py-4">
+        <XCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+        <p className="text-sm text-gray-500">Sin historial de asistencia</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Column headers - tipo labels */}
+      <div className="flex items-end mb-2 gap-1">
+        <div className="w-16 shrink-0" />
+        {allTipos.map((tipo) => (
+          <div key={tipo.id} className="flex-1 text-center">
+            <span className="text-[10px] font-medium text-gray-500 leading-tight block truncate px-0.5">
+              {tipo.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Grid rows - one per week */}
+      <div className="space-y-1.5">
+        {semanas.map((semana) => (
+          <div key={semana.semanaInicio} className="flex items-center gap-1">
+            <span className="w-16 shrink-0 text-[11px] text-gray-500 text-right pr-2">
+              {semana.label}
+            </span>
+            {allTipos.map((tipo) => {
+              const attended = semana.tipoIds.has(tipo.id);
+              return (
+                <div key={tipo.id} className="flex-1 flex justify-center">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                      attended ? 'shadow-sm' : 'bg-gray-100'
+                    }`}
+                    style={attended ? { backgroundColor: tipo.color || '#22c55e' } : undefined}
+                    title={`${tipo.label} - ${semana.label}`}
+                  >
+                    {attended ? (
+                      <Check className="w-4 h-4 text-white" strokeWidth={3} />
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-gray-300" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-green-500" />
+          <span className="text-[10px] text-gray-500">Asistió</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-gray-100" />
+          <span className="text-[10px] text-gray-500">No asistió</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function Dashboard() {
@@ -1004,7 +1118,7 @@ export default function Dashboard() {
       </Card>
 
       <div className={`grid grid-cols-1 ${!isAdminOrLider ? 'lg:grid-cols-2' : ''} gap-6`}>
-        {/* Mi Asistencia */}
+        {/* Mi Asistencia - Record Semanal */}
         <Card className="bg-white border-gray-200 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
@@ -1020,45 +1134,12 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">Total de asistencias</p>
-                <p className="text-xs text-gray-500">Historial reciente</p>
+                <p className="text-xs text-gray-500">Últimas 5 semanas</p>
               </div>
             </div>
 
-            {/* Historial reciente */}
-            {miAsistencia?.historial && miAsistencia.historial.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Historial reciente</p>
-                {[...miAsistencia.historial]
-                  .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-                  .slice(0, 5)
-                  .map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-gray-700">
-                        {parseLocalDate(item.fecha).toLocaleDateString('es-PE', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}
-                      </span>
-                    </div>
-                    {item.tipo && (
-                      <Badge variant="outline" className="text-xs">
-                        {item.tipo.label}
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <XCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">Sin historial de asistencia</p>
-              </div>
-            )}
+            {/* Record semanal */}
+            <WeeklyAttendanceRecord historial={miAsistencia?.historial} />
           </CardContent>
         </Card>
       </div>

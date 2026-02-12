@@ -9,6 +9,11 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto, ChangePasswordDto, LoginResponseDto } from './dto/login.dto';
+import {
+  ForgotPasswordDto,
+  VerifyResetCodeDto,
+  ResetPasswordWithTokenDto,
+} from './dto/forgot-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Auth')
@@ -39,5 +44,23 @@ export class AuthController {
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(req.user.id, changePasswordDto);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Solicitar código de recuperación vía WhatsApp' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('verify-reset-code')
+  @ApiOperation({ summary: 'Verificar código y obtener token de reset' })
+  async verifyResetCode(@Body() dto: VerifyResetCodeDto) {
+    return this.authService.verifyResetCode(dto);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Establecer nueva contraseña con token' })
+  async resetPassword(@Body() dto: ResetPasswordWithTokenDto) {
+    return this.authService.resetPasswordWithToken(dto);
   }
 }

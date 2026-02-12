@@ -513,7 +513,8 @@ export interface MiAsistencia {
   historial: {
     semanaInicio: string;
     fecha: string;
-    tipo?: { id: number; nombre: string; label: string };
+    fechaEvento: string;
+    tipo?: { id: number; nombre: string; label: string; color?: string };
     datosFormulario?: Record<string, unknown>;
   }[];
 }
@@ -946,6 +947,7 @@ export interface HistorialAdminItem {
   fecha: string;
   periodo?: { id: number; nombre: string } | null;
   createdAt: string;
+  tipoAsistencia?: { label: string; color: string | null } | null;
 }
 
 export interface HistorialAdminResponse {

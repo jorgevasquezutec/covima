@@ -1883,20 +1883,49 @@ export class GamificacionService {
       this.prisma.historialPuntos.count({ where }),
     ]);
 
+    // Fetch tipoAsistencia for attendance entries
+    const asistenciaIds = items
+      .filter((i) => i.referenciaTipo === 'asistencia' && i.referenciaId)
+      .map((i) => i.referenciaId!);
+
+    const asistenciasMap = new Map<number, { label: string; color: string | null }>();
+    if (asistenciaIds.length > 0) {
+      const asistencias = await this.prisma.asistencia.findMany({
+        where: { id: { in: asistenciaIds } },
+        select: {
+          id: true,
+          tipo: { select: { label: true, color: true } },
+        },
+      });
+      for (const a of asistencias) {
+        if (a.tipo) {
+          asistenciasMap.set(a.id, { label: a.tipo.label, color: a.tipo.color });
+        }
+      }
+    }
+
     return {
-      items: items.map((item) => ({
-        id: item.id,
-        usuario: item.usuarioGam.usuario,
-        categoria: item.configPuntaje?.categoria || 'OTRO',
-        accion:
-          item.configPuntaje?.nombre || item.descripcion || 'Acción manual',
-        descripcion: item.descripcion,
-        puntos: item.puntos,
-        xp: item.xp,
-        fecha: item.fecha,
-        periodo: item.periodoRanking,
-        createdAt: item.createdAt,
-      })),
+      items: items.map((item) => {
+        const tipoAsistencia =
+          item.referenciaTipo === 'asistencia' && item.referenciaId
+            ? asistenciasMap.get(item.referenciaId) ?? null
+            : null;
+
+        return {
+          id: item.id,
+          usuario: item.usuarioGam.usuario,
+          categoria: item.configPuntaje?.categoria || 'OTRO',
+          accion:
+            item.configPuntaje?.nombre || item.descripcion || 'Acción manual',
+          descripcion: item.descripcion,
+          puntos: item.puntos,
+          xp: item.xp,
+          fecha: item.fecha,
+          periodo: item.periodoRanking,
+          createdAt: item.createdAt,
+          tipoAsistencia,
+        };
+      }),
       total,
       page,
       limit,

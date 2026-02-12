@@ -292,9 +292,32 @@ export class WhatsappBotService {
     languageCode: string,
     bodyParameters: string[],
     messageContentForInbox?: string,
+    urlButtonParams?: { index: number; text: string }[],
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
     const normalizedPhone = phoneNumber.replace(/[\s+\-]/g, '');
+
+    const components: any[] = [
+      {
+        type: 'body',
+        parameters: bodyParameters.map((text) => ({
+          type: 'text',
+          text,
+        })),
+      },
+    ];
+
+    // Agregar botones de URL dinámica si se proporcionan
+    if (urlButtonParams) {
+      for (const btn of urlButtonParams) {
+        components.push({
+          type: 'button',
+          sub_type: 'url',
+          index: String(btn.index),
+          parameters: [{ type: 'text', text: btn.text }],
+        });
+      }
+    }
 
     const payload = {
       messaging_product: 'whatsapp',
@@ -304,15 +327,7 @@ export class WhatsappBotService {
       template: {
         name: templateName,
         language: { code: languageCode },
-        components: [
-          {
-            type: 'body',
-            parameters: bodyParameters.map((text) => ({
-              type: 'text',
-              text,
-            })),
-          },
-        ],
+        components,
       },
     };
 
@@ -424,6 +439,159 @@ export class WhatsappBotService {
       this.logger.error(
         `Error guardando mensaje en inbox para ${phoneNumber}: ${error.message}`,
       );
+    }
+  }
+
+  /**
+   * Enviar mensaje interactivo con botones (máx 3)
+   */
+  async sendInteractiveButtons(
+    conversationId: number,
+    body: string,
+    buttons: { id: string; title: string }[],
+  ): Promise<any> {
+    const telefono = this.conversationPhoneMap.get(conversationId);
+    if (!telefono) {
+      this.logger.error(`No phone found for conversationId ${conversationId}`);
+      return null;
+    }
+
+    const result = await this.sendWhatsAppInteractive(telefono, {
+      type: 'button',
+      body: { text: body },
+      action: {
+        buttons: buttons.slice(0, 3).map((b) => ({
+          type: 'reply',
+          reply: { id: b.id, title: b.title.slice(0, 20) },
+        })),
+      },
+    });
+
+    // Guardar en inbox como texto
+    await this.saveBotMessageToInbox(conversationId, telefono, body);
+    return result;
+  }
+
+  /**
+   * Enviar mensaje interactivo tipo lista (máx 10 items)
+   */
+  async sendInteractiveList(
+    conversationId: number,
+    body: string,
+    buttonText: string,
+    sections: { title: string; rows: { id: string; title: string; description?: string }[] }[],
+  ): Promise<any> {
+    const telefono = this.conversationPhoneMap.get(conversationId);
+    if (!telefono) {
+      this.logger.error(`No phone found for conversationId ${conversationId}`);
+      return null;
+    }
+
+    const result = await this.sendWhatsAppInteractive(telefono, {
+      type: 'list',
+      body: { text: body },
+      action: {
+        button: buttonText.slice(0, 20),
+        sections: sections.map((s) => ({
+          title: s.title.slice(0, 24),
+          rows: s.rows.slice(0, 10).map((r) => ({
+            id: r.id,
+            title: r.title.slice(0, 24),
+            description: r.description?.slice(0, 72),
+          })),
+        })),
+      },
+    });
+
+    // Guardar en inbox como texto
+    await this.saveBotMessageToInbox(conversationId, telefono, body);
+    return result;
+  }
+
+  /**
+   * Enviar mensaje interactivo a WhatsApp Cloud API
+   */
+  private async sendWhatsAppInteractive(to: string, interactive: any): Promise<any> {
+    const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
+    const normalizedTo = to.replace(/[\s+\-]/g, '');
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          url,
+          {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: normalizedTo,
+            type: 'interactive',
+            interactive,
+          },
+          { headers: this.getHeaders() },
+        ),
+      );
+
+      this.logger.debug(
+        `Interactive message sent to ${normalizedTo}: ${response.data?.messages?.[0]?.id}`,
+      );
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Error sending interactive to ${normalizedTo}: ${error.message}`,
+      );
+      if (error.response?.data) {
+        this.logger.error(
+          `WhatsApp API error: ${JSON.stringify(error.response.data)}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Guardar mensaje del bot en inbox (helper)
+   */
+  private async saveBotMessageToInbox(
+    conversationId: number,
+    telefono: string,
+    content: string,
+  ): Promise<void> {
+    const conversacion = await this.prisma.conversacion.findFirst({
+      where: { telefono },
+    });
+
+    if (conversacion) {
+      const mensaje = await this.prisma.mensaje.create({
+        data: {
+          conversacionId: conversacion.id,
+          contenido: content,
+          direccion: DireccionMensaje.SALIENTE,
+          tipo: 'bot',
+          estado: EstadoMensaje.ENVIADO,
+        },
+      });
+
+      await this.prisma.conversacion.update({
+        where: { id: conversacion.id },
+        data: {
+          ultimoMensaje: content.substring(0, 500),
+          updatedAt: new Date(),
+        },
+      });
+
+      try {
+        await this.inboxGateway.emitMensajeNuevo(conversacion.id, {
+          id: mensaje.id,
+          contenido: mensaje.contenido,
+          tipo: mensaje.tipo,
+          direccion: mensaje.direccion,
+          estado: mensaje.estado,
+          createdAt: mensaje.createdAt,
+          leidoAt: null,
+          enviadoPor: null,
+        });
+      } catch {
+        // Ignorar errores de WebSocket
+      }
     }
   }
 

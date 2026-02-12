@@ -5,6 +5,8 @@ import { useAuthStore } from '@/store/auth';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import MainLayout from '@/components/layout/MainLayout';
 import Login from '@/pages/Login';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ProgramaPublicPage from '@/pages/programas/ProgramaPublicPage';
 import Dashboard from '@/pages/Dashboard';
 import UsuariosPage from '@/pages/usuarios/UsuariosPage';
 import ProgramasPage from '@/pages/programas/ProgramasPage';
@@ -34,6 +36,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/programa/:codigo" element={<ProgramaPublicPage />} />
 
         {/* Ruta pública para registrar asistencia via QR */}
         <Route path="/asistencia/:codigo" element={<RegistrarAsistencia />} />

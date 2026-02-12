@@ -119,8 +119,6 @@ export class NotificacionesHandler {
         resumen += `• ${p.nombre}: ${p.partes.join(', ')}\n`;
       }
 
-      resumen += `\n¿Confirmas el envío? Responde *sí* o *no*.`;
-
       // Guardar estado para confirmación
       await this.prisma.conversacion.updateMany({
         where: { telefono: context.telefono },
@@ -138,9 +136,14 @@ export class NotificacionesHandler {
         },
       });
 
-      await this.whatsappService.sendMessage(context.conversationId, {
-        content: resumen,
-      });
+      await this.whatsappService.sendInteractiveButtons(
+        context.conversationId,
+        resumen,
+        [
+          { id: 'notif_confirmar', title: 'Confirmar envío' },
+          { id: 'notif_cancelar', title: 'Cancelar' },
+        ],
+      );
     } catch (error) {
       this.logger.error(`Error preparando envío: ${error.message}`);
       await this.whatsappService.sendMessage(context.conversationId, {
@@ -158,7 +161,7 @@ export class NotificacionesHandler {
   ): Promise<void> {
     const lower = message.toLowerCase().trim();
 
-    if (!['sí', 'si', 'yes', 'confirmar', 'enviar'].includes(lower)) {
+    if (!['sí', 'si', 'yes', 'confirmar', 'enviar', 'confirmar envío'].includes(lower)) {
       await this.whatsappService.sendMessage(context.conversationId, {
         content: '❌ Envío cancelado.',
       });
@@ -195,7 +198,9 @@ export class NotificacionesHandler {
 
     for (const [usuarioId, participante] of datos.participantes) {
       try {
-        // Enviar plantilla de WhatsApp
+        // Enviar plantilla de WhatsApp con botón URL al programa público
+        // El text del botón URL es solo el sufijo dinámico {{1}} (el código),
+        // la URL base se configura en la plantilla de Meta Business Suite
         const result = await this.whatsappService.sendTemplateToPhone(
           participante.telefono,
           'recordatorio_programa',
@@ -204,8 +209,9 @@ export class NotificacionesHandler {
             participante.nombre, // {{1}} nombre
             datos.fechaFormateada, // {{2}} fecha
             participante.partes.join(', '), // {{3}} partes asignadas
-            datos.codigo, // {{4}} código del programa
           ],
+          undefined, // messageContentForInbox
+          [{ index: 0, text: datos.codigo }], // sufijo URL: /programa/{codigo}
         );
 
         // Crear notificación en BD

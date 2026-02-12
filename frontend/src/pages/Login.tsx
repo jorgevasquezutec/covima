@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -244,8 +244,15 @@ export default function Login() {
               </Button>
             </form>
 
+            {/* Forgot password */}
+            <p className="text-center mt-4">
+              <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </p>
+
             {/* Footer */}
-            <p className="text-center text-gray-400 text-sm mt-8">
+            <p className="text-center text-gray-400 text-sm mt-6">
               Sistema de gestión para programas JA
             </p>
           </div>

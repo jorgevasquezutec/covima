@@ -114,6 +114,17 @@ export class IntentRouterService {
       return;
     }
 
+    // Manejar botones interactivos que necesitan respuesta especial
+    const specialHandled = await this.handleSpecialButton(context, message);
+    if (specialHandled) return;
+
+    // Mapear respuestas de botones interactivos a intents directos
+    const buttonIntent = this.resolveButtonIntent(message);
+    if (buttonIntent) {
+      await this.routeToHandler(context, buttonIntent, message);
+      return;
+    }
+
     // Clasificar intención del mensaje
     const intentResult = await this.openaiService.classifyIntent(
       message,
@@ -616,19 +627,76 @@ export class IntentRouterService {
    */
   private async sendGreeting(context: ConversationContext): Promise<void> {
     const nombre = context.usuarioId ? context.nombreWhatsapp : 'hermano/a';
-    const greeting = `¡Hola ${nombre}! 👋\n\n¿En qué puedo ayudarte?\n\nEscribe *ayuda* para ver los comandos disponibles.`;
-    await this.whatsappService.sendMessage(context.conversationId, {
-      content: greeting,
-    });
+    await this.whatsappService.sendInteractiveButtons(
+      context.conversationId,
+      `¡Hola ${nombre}! 👋\n\n¿En qué puedo ayudarte?`,
+      [
+        { id: 'greet_asistencia', title: 'Marcar asistencia' },
+        { id: 'greet_programa', title: 'Ver programa' },
+        { id: 'greet_ayuda', title: 'Ayuda' },
+      ],
+    );
+  }
+
+  /**
+   * Resolver intent directo desde respuestas de botones interactivos
+   */
+  /**
+   * Resolver intent directo desde respuestas de botones interactivos
+   * Retorna null si no es un botón conocido, 'handled' si ya se procesó internamente
+   */
+  private resolveButtonIntent(message: string): IntentResult | null {
+    const lower = message.toLowerCase().trim();
+
+    // Botones que mapean directo a intents existentes
+    const buttonMap: Record<string, string> = {
+      'ver programa': 'ver_programa',
+      'ayuda': 'ayuda',
+      'ver ayuda': 'ayuda',
+    };
+
+    const intent = buttonMap[lower];
+    if (!intent) return null;
+
+    return {
+      intent,
+      confidence: 1.0,
+      entities: {},
+      requiresAuth: false,
+      requiredRoles: [],
+    };
+  }
+
+  /**
+   * Manejar botones que necesitan respuesta especial (no un intent directo)
+   */
+  private async handleSpecialButton(
+    context: ConversationContext,
+    message: string,
+  ): Promise<boolean> {
+    const lower = message.toLowerCase().trim();
+
+    if (lower === 'marcar asistencia') {
+      await this.whatsappService.sendMessage(context.conversationId, {
+        content: '📋 Envíame el código QR de asistencia.\n\nFormato: *JAXXXXXXXX*',
+      });
+      return true;
+    }
+
+    return false;
   }
 
   /**
    * Intención desconocida
    */
   private async sendUnknownIntent(context: ConversationContext): Promise<void> {
-    await this.whatsappService.sendMessage(context.conversationId, {
-      content:
-        '🤔 No entendí tu mensaje. Escribe *ayuda* para ver los comandos disponibles.',
-    });
+    await this.whatsappService.sendInteractiveButtons(
+      context.conversationId,
+      '🤔 No entendí tu mensaje.',
+      [
+        { id: 'unk_ayuda', title: 'Ver ayuda' },
+        { id: 'unk_asistencia', title: 'Marcar asistencia' },
+      ],
+    );
   }
 }

@@ -331,15 +331,20 @@ export class AsistenciaHandler {
         telefonoRegistro = usuarioObjetivo.telefono;
         nombreRegistro = usuarioObjetivo.nombre;
       } else if (usuarios.length > 1) {
-        // Múltiples coincidencias - pedir más información
-        let mensaje = `⚠️ Encontré ${usuarios.length} usuarios con ese nombre:\n\n`;
-        usuarios.forEach((u, i) => {
-          mensaje += `${i + 1}. ${u.nombre} (${u.telefono})\n`;
-        });
-        mensaje += `\n_Por favor especifica el teléfono del usuario._`;
-        await this.whatsappService.sendMessage(context.conversationId, {
-          content: mensaje,
-        });
+        // Múltiples coincidencias - mostrar lista interactiva
+        await this.whatsappService.sendInteractiveList(
+          context.conversationId,
+          `⚠️ Encontré ${usuarios.length} usuarios con ese nombre:`,
+          'Seleccionar',
+          [{
+            title: 'Usuarios encontrados',
+            rows: usuarios.map((u) => ({
+              id: `user_${u.id}`,
+              title: u.nombre,
+              description: u.telefono,
+            })),
+          }],
+        );
         return;
       }
       // Si no encuentra usuario, usará el nombre proporcionado
@@ -448,22 +453,21 @@ export class AsistenciaHandler {
     const semanaInicio = getInicioSemana(hoy);
 
     try {
-      const asistencia = await this.prisma.asistencia.create({
-        data: {
-          usuarioId: usuarioObjetivo?.id,
-          telefonoRegistro: telefonoRegistro || null,
-          nombreRegistro: nombreRegistro || null,
-          tipoId: qr.tipoId,
-          fecha: hoy,
-          semanaInicio,
-          datosFormulario: datosFormulario || {},
-          metodoRegistro: 'manual',
-          estado: 'confirmado', // Auto-confirmado por admin/líder
-          qrId: qr.id,
-          confirmadoPor: context.usuarioId, // Quien registró
-          confirmadoAt: new Date(),
-        },
-        include: { tipo: true },
+      const asistencia: any = await this.asistenciaService.crearAsistencia({
+        usuarioId: usuarioObjetivo?.id,
+        telefonoRegistro: telefonoRegistro || null,
+        nombreRegistro: nombreRegistro || null,
+        tipoId: qr.tipoId,
+        fecha: hoy,
+        fechaEvento: qr.semanaInicio,
+        semanaInicio,
+        datosFormulario: datosFormulario,
+        metodoRegistro: 'manual',
+        estado: 'confirmado',
+        qrId: qr.id,
+        confirmadoPor: context.usuarioId,
+        confirmadoAt: new Date(),
+        include: 'tipo',
       });
 
       // Asignar puntos de gamificación si el usuario está registrado
@@ -674,22 +678,19 @@ export class AsistenciaHandler {
         },
       });
 
-      const asistencia = await this.prisma.asistencia.create({
-        data: {
-          usuarioId: usuario?.id,
-          telefonoRegistro: context.telefono,
-          nombreRegistro: context.nombreWhatsapp,
-          tipoId: qr.tipoId,
-          fecha: hoy,
-          semanaInicio,
-          datosFormulario: datosFormulario || {},
-          metodoRegistro: 'qr_bot',
-          estado: 'pendiente_confirmacion',
-          qrId: qr.id,
-        },
-        include: {
-          tipo: true,
-        },
+      const asistencia: any = await this.asistenciaService.crearAsistencia({
+        usuarioId: usuario?.id,
+        telefonoRegistro: context.telefono,
+        nombreRegistro: context.nombreWhatsapp,
+        tipoId: qr.tipoId,
+        fecha: hoy,
+        fechaEvento: qr.semanaInicio,
+        semanaInicio,
+        datosFormulario: datosFormulario,
+        metodoRegistro: 'qr_bot',
+        estado: 'pendiente_confirmacion',
+        qrId: qr.id,
+        include: 'tipo',
       });
 
       // Enviar confirmación
@@ -765,17 +766,88 @@ export class AsistenciaHandler {
   }
 
   /**
-   * Enviar pregunta del formulario
+   * Enviar pregunta del formulario (con mensajes interactivos cuando aplica)
    */
   private async sendQuestion(
     conversationId: number,
     campo: any,
   ): Promise<void> {
-    let pregunta = `📝 *${campo.label}*`;
+    const label = `📝 *${campo.label}*`;
+    const placeholder = campo.placeholder ? `\n_${campo.placeholder}_` : '';
 
-    if (campo.placeholder) {
-      pregunta += `\n_${campo.placeholder}_`;
+    // Checkbox → Botones Sí / No
+    if (campo.tipo === 'checkbox') {
+      await this.whatsappService.sendInteractiveButtons(
+        conversationId,
+        `${label}${placeholder}`,
+        [
+          { id: 'cb_si', title: 'Sí' },
+          { id: 'cb_no', title: 'No' },
+        ],
+      );
+      return;
     }
+
+    // Number con rango pequeño (max - min <= 10) → Lista interactiva
+    if (
+      campo.tipo === 'number' &&
+      campo.valorMinimo !== null &&
+      campo.valorMaximo !== null &&
+      campo.valorMaximo - campo.valorMinimo <= 10
+    ) {
+      const min = campo.valorMinimo;
+      const max = campo.valorMaximo;
+      const rows: { id: string; title: string; description?: string }[] = [];
+      for (let i = min; i <= max; i++) {
+        rows.push({
+          id: `num_${i}`,
+          title: `${i} ${i === 1 ? 'día' : 'días'}`,
+        });
+      }
+
+      await this.whatsappService.sendInteractiveList(
+        conversationId,
+        `${label}${placeholder}`,
+        'Elegir',
+        [{ title: campo.label, rows }],
+      );
+      return;
+    }
+
+    // Select con hasta 3 opciones → Botones
+    if (campo.tipo === 'select' && campo.opciones) {
+      const opciones = campo.opciones as { value: string; label: string }[];
+
+      if (opciones.length <= 3) {
+        await this.whatsappService.sendInteractiveButtons(
+          conversationId,
+          `${label}${placeholder}`,
+          opciones.map((opt, i) => ({
+            id: `sel_${i}`,
+            title: opt.label,
+          })),
+        );
+        return;
+      }
+
+      // Select con más de 3 opciones → Lista
+      await this.whatsappService.sendInteractiveList(
+        conversationId,
+        `${label}${placeholder}`,
+        'Seleccionar',
+        [{
+          title: campo.label,
+          rows: opciones.map((opt, i) => ({
+            id: `sel_${i}`,
+            title: opt.label,
+          })),
+        }],
+      );
+      return;
+    }
+
+    // Fallback: mensaje de texto para number sin rango definido o text
+    let pregunta = label + placeholder;
 
     if (
       campo.tipo === 'number' &&
@@ -784,19 +856,6 @@ export class AsistenciaHandler {
       const min = campo.valorMinimo ?? 0;
       const max = campo.valorMaximo ?? '∞';
       pregunta += `\n_(Valor entre ${min} y ${max})_`;
-    }
-
-    if (campo.tipo === 'select' && campo.opciones) {
-      const opciones = campo.opciones as { value: string; label: string }[];
-      pregunta += `\n\nOpciones:\n`;
-      opciones.forEach((opt, i) => {
-        pregunta += `${i + 1}. ${opt.label}\n`;
-      });
-      pregunta += `\n_Responde con el número de tu opción_`;
-    }
-
-    if (campo.tipo === 'checkbox') {
-      pregunta += `\n_(Responde "sí" o "no")_`;
     }
 
     await this.whatsappService.sendMessage(conversationId, {
@@ -815,7 +874,9 @@ export class AsistenciaHandler {
 
     switch (campo.tipo) {
       case 'number': {
-        const num = parseFloat(trimmed);
+        // Extraer número del texto (soporta "3 días", "5", etc.)
+        const numMatch = trimmed.match(/^(\d+)/);
+        const num = numMatch ? parseFloat(numMatch[1]) : parseFloat(trimmed);
         if (isNaN(num)) {
           return {
             valid: false,

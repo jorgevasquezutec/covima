@@ -306,6 +306,7 @@ model Asistencia {
   nombreRegistro      String?       @map("nombre_registro") @db.VarChar(100)
   tipoId              Int?          @map("tipo_id")
   fecha               DateTime      @db.Date
+  fechaEvento         DateTime?     @map("fecha_evento") @db.Date
   semanaInicio        DateTime      @map("semana_inicio") @db.Date
   datosFormulario     Json?         @map("datos_formulario")
   metodoRegistro      String        @map("metodo_registro") @db.VarChar(20)  // 'qr_web', 'qr_bot', 'plataforma'

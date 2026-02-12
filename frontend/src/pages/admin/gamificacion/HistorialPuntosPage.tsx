@@ -370,6 +370,14 @@ export default function HistorialPuntosPage() {
                             {entry.categoria}
                           </Badge>
                           <p className="text-xs text-muted-foreground truncate">{entry.accion}</p>
+                          {entry.tipoAsistencia && (
+                            <span
+                              className="inline-flex items-center text-[10px] font-medium text-white px-1.5 py-0.5 rounded"
+                              style={{ backgroundColor: entry.tipoAsistencia.color || '#6b7280' }}
+                            >
+                              {entry.tipoAsistencia.label}
+                            </span>
+                          )}
                         </div>
                         {/* Fecha on mobile */}
                         <p className="text-[10px] text-muted-foreground lg:hidden">
@@ -386,7 +394,15 @@ export default function HistorialPuntosPage() {
                         {entry.categoria}
                       </Badge>
                       <span className="text-sm">{entry.accion}</span>
-                      {entry.descripcion && (
+                      {entry.tipoAsistencia && (
+                        <span
+                          className="inline-flex items-center text-xs font-medium text-white px-2 py-0.5 rounded w-fit"
+                          style={{ backgroundColor: entry.tipoAsistencia.color || '#6b7280' }}
+                        >
+                          {entry.tipoAsistencia.label}
+                        </span>
+                      )}
+                      {entry.descripcion && !entry.tipoAsistencia && (
                         <span className="text-xs text-muted-foreground truncate max-w-[200px]">{entry.descripcion}</span>
                       )}
                     </div>

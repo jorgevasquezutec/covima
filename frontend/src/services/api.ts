@@ -78,6 +78,21 @@ export const authApi = {
   changePassword: async (data: ChangePasswordRequest): Promise<void> => {
     await api.post('/auth/change-password', data);
   },
+
+  forgotPassword: async (data: { codigoPais: string; telefono: string }) => {
+    const response = await api.post<{ message: string }>('/auth/forgot-password', data);
+    return response.data;
+  },
+
+  verifyResetCode: async (data: { codigoPais: string; telefono: string; code: string }) => {
+    const response = await api.post<{ resetToken: string }>('/auth/verify-reset-code', data);
+    return response.data;
+  },
+
+  resetPasswordWithToken: async (data: { resetToken: string; newPassword: string }) => {
+    const response = await api.post<{ message: string }>('/auth/reset-password', data);
+    return response.data;
+  },
 };
 
 export const usuariosApi = {

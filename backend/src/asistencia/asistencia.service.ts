@@ -39,6 +39,23 @@ import {
   toStartOfDayUTC,
 } from '../common/utils';
 
+export interface CrearAsistenciaParams {
+  usuarioId?: number | null;
+  telefonoRegistro?: string | null;
+  nombreRegistro?: string | null;
+  tipoId?: number | null;
+  fecha: Date;
+  fechaEvento: Date;
+  semanaInicio: Date;
+  datosFormulario?: any;
+  metodoRegistro: 'plataforma' | 'manual' | 'manual_historico' | 'qr_bot';
+  estado: 'pendiente_confirmacion' | 'confirmado';
+  qrId?: number | null;
+  confirmadoPor?: number;
+  confirmadoAt?: Date;
+  include?: 'full' | 'full_email' | 'tipo' | 'none';
+}
+
 @Injectable()
 export class AsistenciaService {
   constructor(
@@ -415,6 +432,52 @@ export class AsistenciaService {
 
   // ==================== ASISTENCIA MANAGEMENT ====================
 
+  /**
+   * Método centralizado para crear registros de asistencia.
+   * Todas las variantes (QR web, manual, histórico, masivo, bot) deben usar este método.
+   */
+  async crearAsistencia(params: CrearAsistenciaParams) {
+    const includeMap = {
+      full: {
+        usuario: { select: { id: true, nombre: true } },
+        tipo: { select: { id: true, nombre: true, label: true, color: true } },
+        qr: { select: { id: true, codigo: true } },
+      },
+      full_email: {
+        usuario: { select: { id: true, nombre: true, email: true } },
+        tipo: { select: { id: true, nombre: true, label: true, color: true } },
+        qr: { select: { id: true, codigo: true } },
+      },
+      tipo: {
+        tipo: true,
+      },
+      none: undefined,
+    } as const;
+
+    const include = params.include
+      ? includeMap[params.include]
+      : undefined;
+
+    return this.prisma.asistencia.create({
+      data: {
+        usuarioId: params.usuarioId ?? null,
+        telefonoRegistro: params.telefonoRegistro ?? null,
+        nombreRegistro: params.nombreRegistro ?? null,
+        tipoId: params.tipoId ?? null,
+        fecha: params.fecha,
+        fechaEvento: params.fechaEvento,
+        semanaInicio: params.semanaInicio,
+        datosFormulario: params.datosFormulario ?? {},
+        metodoRegistro: params.metodoRegistro,
+        estado: params.estado,
+        qrId: params.qrId ?? null,
+        confirmadoPor: params.confirmadoPor,
+        confirmadoAt: params.confirmadoAt,
+      },
+      ...(include ? { include } : {}),
+    });
+  }
+
   async registrarAsistencia(usuarioId: number, dto: RegistrarAsistenciaDto) {
     // Validar que usuarioId sea un número válido
     if (!usuarioId || isNaN(usuarioId)) {
@@ -430,6 +493,7 @@ export class AsistenciaService {
     let tipoId: number | null = null;
     let qrId: number | null = null;
     let qrCode: string | null = null;
+    let fechaEvento: Date = hoy;
 
     // Si viene con código QR, verificar que exista y esté activo
     if (dto.codigoQR) {
@@ -504,6 +568,7 @@ export class AsistenciaService {
       tipoId = qr.tipoId;
       qrId = qr.id;
       qrCode = qr.codigo;
+      fechaEvento = qr.semanaInicio;
 
       // Validar datos del formulario según los campos del tipo
       if (
@@ -566,22 +631,17 @@ export class AsistenciaService {
       throw new ConflictException('Ya registraste asistencia para este QR');
     }
 
-    const asistencia = await this.prisma.asistencia.create({
-      data: {
-        usuarioId,
-        tipoId,
-        fecha: hoy,
-        semanaInicio,
-        datosFormulario: dto.datosFormulario || {},
-        metodoRegistro: dto.metodoRegistro || 'plataforma',
-        estado: 'pendiente_confirmacion',
-        qrId,
-      },
-      include: {
-        usuario: { select: { id: true, nombre: true } },
-        tipo: { select: { id: true, nombre: true, label: true, color: true } },
-        qr: { select: { id: true, codigo: true } },
-      },
+    const asistencia = await this.crearAsistencia({
+      usuarioId,
+      tipoId,
+      fecha: hoy,
+      fechaEvento,
+      semanaInicio,
+      datosFormulario: dto.datosFormulario,
+      metodoRegistro: (dto.metodoRegistro as CrearAsistenciaParams['metodoRegistro']) || 'plataforma',
+      estado: 'pendiente_confirmacion',
+      qrId,
+      include: 'full',
     });
 
     const formattedAsistencia = this.formatAsistencia(asistencia);
@@ -752,26 +812,21 @@ export class AsistenciaService {
     }
 
     // Crear asistencia confirmada automáticamente
-    const asistencia = await this.prisma.asistencia.create({
-      data: {
-        usuarioId,
-        telefonoRegistro,
-        nombreRegistro,
-        tipoId,
-        fecha: hoy,
-        semanaInicio,
-        datosFormulario: dto.datosFormulario || {},
-        metodoRegistro: 'manual',
-        estado: 'confirmado',
-        confirmadoPor: registradoPorId,
-        confirmadoAt: new Date(),
-        qrId: qr.id,
-      },
-      include: {
-        usuario: { select: { id: true, nombre: true, email: true } },
-        tipo: { select: { id: true, nombre: true, label: true, color: true } },
-        qr: { select: { id: true, codigo: true } },
-      },
+    const asistencia = await this.crearAsistencia({
+      usuarioId,
+      telefonoRegistro,
+      nombreRegistro,
+      tipoId,
+      fecha: hoy,
+      fechaEvento: qr.semanaInicio,
+      semanaInicio,
+      datosFormulario: dto.datosFormulario,
+      metodoRegistro: 'manual',
+      estado: 'confirmado',
+      confirmadoPor: registradoPorId,
+      confirmadoAt: new Date(),
+      qrId: qr.id,
+      include: 'full_email',
     });
 
     const formattedAsistencia = this.formatAsistencia(asistencia);
@@ -920,26 +975,21 @@ export class AsistenciaService {
     }
 
     // Crear asistencia confirmada
-    const asistencia = await this.prisma.asistencia.create({
-      data: {
-        usuarioId,
-        telefonoRegistro,
-        nombreRegistro,
-        tipoId,
-        fecha: fechaAsistencia,
-        semanaInicio: fechaAsistencia,
-        datosFormulario: dto.datosFormulario || {},
-        metodoRegistro: 'manual_historico',
-        estado: 'confirmado',
-        confirmadoPor: registradoPorId,
-        confirmadoAt: new Date(),
-        qrId: qr.id,
-      },
-      include: {
-        usuario: { select: { id: true, nombre: true, email: true } },
-        tipo: { select: { id: true, nombre: true, label: true, color: true } },
-        qr: { select: { id: true, codigo: true } },
-      },
+    const asistencia = await this.crearAsistencia({
+      usuarioId,
+      telefonoRegistro,
+      nombreRegistro,
+      tipoId,
+      fecha: fechaAsistencia,
+      fechaEvento: qr.semanaInicio,
+      semanaInicio: fechaAsistencia,
+      datosFormulario: dto.datosFormulario,
+      metodoRegistro: 'manual_historico',
+      estado: 'confirmado',
+      confirmadoPor: registradoPorId,
+      confirmadoAt: new Date(),
+      qrId: qr.id,
+      include: 'full_email',
     });
 
     const formattedAsistencia = this.formatAsistencia(asistencia);
@@ -1125,19 +1175,18 @@ export class AsistenciaService {
         }
 
         // Crear asistencia
-        const asistencia = await this.prisma.asistencia.create({
-          data: {
-            usuarioId,
-            tipoId: qr.tipoId,
-            fecha: hoy,
-            semanaInicio,
-            datosFormulario: dto.datosFormulario || {},
-            metodoRegistro: 'manual',
-            estado: 'confirmado',
-            confirmadoPor: registradoPorId,
-            confirmadoAt: new Date(),
-            qrId: qr.id,
-          },
+        const asistencia = await this.crearAsistencia({
+          usuarioId,
+          tipoId: qr.tipoId,
+          fecha: hoy,
+          fechaEvento: qr.semanaInicio,
+          semanaInicio,
+          datosFormulario: dto.datosFormulario,
+          metodoRegistro: 'manual',
+          estado: 'confirmado',
+          confirmadoPor: registradoPorId,
+          confirmadoAt: new Date(),
+          qrId: qr.id,
         });
 
         // Asignar puntos
@@ -1287,19 +1336,18 @@ export class AsistenciaService {
         }
 
         // Crear asistencia
-        const asistencia = await this.prisma.asistencia.create({
-          data: {
-            usuarioId,
-            tipoId: qr.tipoId,
-            fecha: fechaAsistencia,
-            semanaInicio: fechaAsistencia,
-            datosFormulario: dto.datosFormulario || {},
-            metodoRegistro: 'manual_historico',
-            estado: 'confirmado',
-            confirmadoPor: registradoPorId,
-            confirmadoAt: new Date(),
-            qrId: qr.id,
-          },
+        const asistencia = await this.crearAsistencia({
+          usuarioId,
+          tipoId: qr.tipoId,
+          fecha: fechaAsistencia,
+          fechaEvento: qr.semanaInicio,
+          semanaInicio: fechaAsistencia,
+          datosFormulario: dto.datosFormulario,
+          metodoRegistro: 'manual_historico',
+          estado: 'confirmado',
+          confirmadoPor: registradoPorId,
+          confirmadoAt: new Date(),
+          qrId: qr.id,
         });
 
         // Asignar puntos y recalcular racha
@@ -1966,9 +2014,9 @@ export class AsistenciaService {
         estado: 'confirmado',
       },
       orderBy: { semanaInicio: 'desc' },
-      take: 12, // Últimas 12 semanas
+      take: 20, // Últimas 5 semanas (hasta 4 tipos por semana)
       include: {
-        tipo: { select: { id: true, nombre: true, label: true } },
+        tipo: { select: { id: true, nombre: true, label: true, color: true } },
       },
     });
 
@@ -1979,6 +2027,7 @@ export class AsistenciaService {
       historial: asistencias.map((a) => ({
         semanaInicio: a.semanaInicio,
         fecha: a.fecha,
+        fechaEvento: a.fechaEvento ?? a.fecha,
         tipo: a.tipo,
         datosFormulario: a.datosFormulario,
       })),
