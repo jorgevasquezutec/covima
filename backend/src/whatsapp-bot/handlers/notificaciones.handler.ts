@@ -203,7 +203,7 @@ export class NotificacionesHandler {
         // la URL base se configura en la plantilla de Meta Business Suite
         const result = await this.whatsappService.sendTemplateToPhone(
           participante.telefono,
-          'recordatorio_programa',
+          'recordatorio_programa_v2',
           'es_PE',
           [
             participante.nombre, // {{1}} nombre

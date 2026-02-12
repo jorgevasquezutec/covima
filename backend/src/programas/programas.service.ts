@@ -2191,7 +2191,7 @@ Has sido asignado/a para el programa del *${fechaFormateada}*.
         // Botón URL: {{1}}=código (sufijo de la URL dinámica)
         const result = await this.whatsappService.sendTemplateToPhone(
           telefono,
-          'recordatorio_programa',
+          'recordatorio_programa_v2',
           'es_PE',
           [
             notif.usuario.nombre, // {{1}} nombre
