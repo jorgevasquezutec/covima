@@ -2187,7 +2187,8 @@ Has sido asignado/a para el programa del *${fechaFormateada}*.
 ¡Que Dios te bendiga! 🙏`;
 
         // Usar plantilla aprobada de WhatsApp
-        // Parámetros: {{1}}=nombre, {{2}}=fecha, {{3}}=partes, {{4}}=código
+        // Body: {{1}}=nombre, {{2}}=fecha, {{3}}=partes
+        // Botón URL: {{1}}=código (sufijo de la URL dinámica)
         const result = await this.whatsappService.sendTemplateToPhone(
           telefono,
           'recordatorio_programa',
@@ -2196,9 +2197,9 @@ Has sido asignado/a para el programa del *${fechaFormateada}*.
             notif.usuario.nombre, // {{1}} nombre
             fechaFormateada, // {{2}} fecha
             notif.partes.join(', '), // {{3}} partes asignadas
-            preview.programa.codigo, // {{4}} código del programa
           ],
           mensajeParaInbox, // Guardar en inbox
+          [{ index: 0, text: preview.programa.codigo }], // botón URL: /programa/{codigo}
         );
 
         // SIMULACIÓN: Siempre éxito para pruebas
