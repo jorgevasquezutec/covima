@@ -69,6 +69,76 @@ async function seedPlantillas() {
     }
   }
 
+  // ==================== PLANTILLA CULTO DIVINO ====================
+  const plantillaCulto = await prisma.plantillaPrograma.upsert({
+    where: { id: 3 },
+    update: {
+      nombre: 'Culto Divino',
+      descripcion: 'Estructura para el culto divino de la Iglesia Adventista',
+      activo: true,
+      esDefault: false,
+      orden: 2,
+    },
+    create: {
+      nombre: 'Culto Divino',
+      descripcion: 'Estructura para el culto divino de la Iglesia Adventista',
+      activo: true,
+      esDefault: false,
+      orden: 2,
+    },
+  });
+  console.log(`Plantilla "${plantillaCulto.nombre}" creada/actualizada`);
+
+  // Partes en orden para Culto Divino
+  const partesCulto = [
+    'Anuncios',
+    'Espacio de Cantos',
+    'Ingreso de Plataforma',
+    'Bienvenida',
+    'Himno de Inicio',
+    'Lectura Bíblica',
+    'Oración Intercesora',
+    'Adoración Infantil',
+    'Testimonio Provad y Ved',
+    'Recojo de Ofrendas',
+    'Especial',
+    'Tema',
+    'Himno Final',
+    'Oración Final',
+    'Himno de Salida',
+  ];
+
+  // Eliminar partes existentes de esta plantilla
+  await prisma.plantillaParte.deleteMany({
+    where: { plantillaId: plantillaCulto.id },
+  });
+
+  // Buscar IDs de las partes y crear las relaciones
+  let ordenCulto = 1;
+  for (const nombreParte of partesCulto) {
+    const parte = await prisma.parte.findFirst({
+      where: {
+        OR: [
+          { nombre: nombreParte },
+          { nombre: { contains: nombreParte, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (parte) {
+      await prisma.plantillaParte.create({
+        data: {
+          plantillaId: plantillaCulto.id,
+          parteId: parte.id,
+          orden: ordenCulto++,
+        },
+      });
+      console.log(`  - Parte "${parte.nombre}" agregada (orden ${ordenCulto - 1})`);
+    } else {
+      console.warn(`  ⚠️ Parte "${nombreParte}" no encontrada en BD`);
+    }
+  }
+
   // ==================== PLANTILLA VACÍA ====================
   const plantillaVacia = await prisma.plantillaPrograma.upsert({
     where: { id: 2 },

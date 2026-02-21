@@ -56,6 +56,14 @@ async function main() {
     { nombre: 'Recojo de Ofrendas', orden: 11, esFija: true, esObligatoria: true, textoFijo: 'Diáconos', puntos: 0, xp: 0 },
     { nombre: 'Himno Final', orden: 12, esFija: false, esObligatoria: true, textoFijo: null, puntos: 3, xp: 5 },
     { nombre: 'Oración Final', orden: 13, esFija: false, esObligatoria: true, textoFijo: null, puntos: 4, xp: 6 },
+    // Partes adicionales para Culto Divino
+    { nombre: 'Anuncios', orden: 14, esFija: false, esObligatoria: false, textoFijo: null, puntos: 4, xp: 6 },
+    { nombre: 'Ingreso de Plataforma', orden: 15, esFija: false, esObligatoria: false, textoFijo: null, puntos: 4, xp: 6 },
+    { nombre: 'Himno de Inicio', orden: 16, esFija: false, esObligatoria: false, textoFijo: null, puntos: 3, xp: 5 },
+    { nombre: 'Lectura Bíblica', orden: 17, esFija: false, esObligatoria: false, textoFijo: null, puntos: 5, xp: 8 },
+    { nombre: 'Adoración Infantil', orden: 18, esFija: false, esObligatoria: false, textoFijo: null, puntos: 5, xp: 8 },
+    { nombre: 'Testimonio Provad y Ved', orden: 19, esFija: false, esObligatoria: false, textoFijo: null, puntos: 5, xp: 8 },
+    { nombre: 'Himno de Salida', orden: 20, esFija: false, esObligatoria: false, textoFijo: null, puntos: 3, xp: 5 },
   ];
 
   for (const parte of partes) {
