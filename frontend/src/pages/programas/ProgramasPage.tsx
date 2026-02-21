@@ -22,6 +22,7 @@ import {
     CheckSquare,
     Trophy,
     MoreVertical,
+    ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -428,6 +429,15 @@ export default function ProgramasPage() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
+                                                        className="h-8 w-8 hover:bg-indigo-50 hover:text-indigo-600"
+                                                        onClick={() => window.open(`/programa/${programa.codigo}`, '_blank')}
+                                                        title="Ver página pública"
+                                                    >
+                                                        <ExternalLink className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
                                                         className="h-8 w-8 hover:bg-green-50 hover:text-green-600"
                                                         onClick={() => handlePreviewNotificaciones(programa)}
                                                         title="Notificaciones WhatsApp"
@@ -481,6 +491,10 @@ export default function ProgramasPage() {
                                                             <DropdownMenuItem onClick={() => handleGenerarTexto(programa)}>
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 Ver programa
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => window.open(`/programa/${programa.codigo}`, '_blank')}>
+                                                                <ExternalLink className="h-4 w-4 mr-2" />
+                                                                Ver página pública
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handlePreviewNotificaciones(programa)}>
                                                                 <MessageCircle className="h-4 w-4 mr-2" />

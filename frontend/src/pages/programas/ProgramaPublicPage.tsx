@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Calendar, Clock, Users, Link as LinkIcon, Loader2 } from 'lucide-react';
 import type { Programa } from '@/types';
 import api from '@/services/api';
+import { parseLocalDate } from '@/lib/utils';
 
 export default function ProgramaPublicPage() {
   const { codigo } = useParams<{ codigo: string }>();
@@ -41,7 +42,7 @@ export default function ProgramaPublicPage() {
     );
   }
 
-  const fecha = new Date(programa.fecha);
+  const fecha = parseLocalDate(programa.fecha);
   const fechaStr = fecha.toLocaleDateString('es-PE', {
     weekday: 'long',
     day: 'numeric',
