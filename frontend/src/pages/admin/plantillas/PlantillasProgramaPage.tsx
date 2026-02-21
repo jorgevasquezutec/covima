@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toPng } from 'html-to-image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +11,11 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { LayoutTemplate, Plus, Edit2, Trash2, Star, GripVertical } from 'lucide-react';
+import { LayoutTemplate, Plus, Edit2, Trash2, Star, GripVertical, Download, Loader2 } from 'lucide-react';
 import { programasApi } from '@/services/api';
 import type { PlantillaPrograma, PlantillaParte, Parte } from '@/types';
 import { toast } from 'sonner';
+import PlantillaExportable from '@/components/plantillas/PlantillaExportable';
 import {
   DndContext,
   closestCenter,
@@ -81,6 +83,14 @@ export default function PlantillasProgramaPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [plantillaToDelete, setPlantillaToDelete] = useState<PlantillaPrograma | null>(null);
   const [editingPlantilla, setEditingPlantilla] = useState<PlantillaPrograma | null>(null);
+
+  // Export state
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportPlantilla, setExportPlantilla] = useState<PlantillaPrograma | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportVersiculo, setExportVersiculo] = useState('Cantad alegres a Dios, habitantes de toda la tierra.');
+  const [exportCita, setExportCita] = useState('Salmos 100:1');
+  const exportRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -244,6 +254,38 @@ export default function PlantillasProgramaPage() {
     setDeleteDialogOpen(true);
   };
 
+  const handleOpenExport = (plantilla: PlantillaPrograma) => {
+    setExportPlantilla(plantilla);
+    setExportDialogOpen(true);
+  };
+
+  const handleExportPng = async () => {
+    if (!exportRef.current) return;
+    setExporting(true);
+    try {
+      const element = exportRef.current;
+      const dataUrl = await toPng(element, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: '#f4f8f6',
+        width: 1122,
+        height: element.offsetHeight,
+        canvasWidth: 1122 * 2,
+        canvasHeight: element.offsetHeight * 2,
+      });
+      const link = document.createElement('a');
+      link.download = `plantilla-${exportPlantilla?.nombre.toLowerCase().replace(/\s+/g, '-')}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success('Imagen descargada correctamente');
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast.error('Error al exportar la imagen');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const availablePartes = todasPartes?.filter(
     p => p.activo && !selectedPartes.find(sp => sp.id === p.id)
   ) || [];
@@ -299,7 +341,7 @@ export default function PlantillasProgramaPage() {
           {plantillas?.map((plantilla) => (
             <Card
               key={plantilla.id}
-              className={`relative ${plantilla.esDefault ? 'border-blue-300 ring-1 ring-blue-100' : ''}`}
+              className={`relative flex flex-col ${plantilla.esDefault ? 'border-blue-300 ring-1 ring-blue-100' : ''}`}
             >
               {plantilla.esDefault && (
                 <div className="absolute -top-2 -right-2">
@@ -315,7 +357,7 @@ export default function PlantillasProgramaPage() {
                   <CardDescription>{plantilla.descripcion}</CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 flex-1 flex flex-col">
                 <div>
                   <p className="text-sm text-gray-600 mb-2">
                     <span className="font-medium">{plantilla.partes.length}</span> partes
@@ -334,7 +376,16 @@ export default function PlantillasProgramaPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex gap-2 pt-2 border-t mt-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenExport(plantilla)}
+                    className="text-green-700 hover:text-green-800 hover:bg-green-50"
+                    disabled={plantilla.partes.length === 0}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -491,6 +542,86 @@ export default function PlantillasProgramaPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-green-600" />
+              Exportar Plantilla: {exportPlantilla?.nombre}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Versículo (pie de página)</Label>
+              <Input
+                value={exportVersiculo}
+                onChange={(e) => setExportVersiculo(e.target.value)}
+                placeholder="Ej: Cantad alegres a Dios..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cita bíblica</Label>
+              <Input
+                value={exportCita}
+                onChange={(e) => setExportCita(e.target.value)}
+                placeholder="Ej: Salmos 100:1"
+              />
+            </div>
+
+            {/* Preview */}
+            <div className="space-y-2">
+              <Label>Vista previa</Label>
+              <div className="border rounded-lg overflow-auto bg-gray-100 p-2" style={{ maxHeight: '350px' }}>
+                {exportPlantilla && (
+                  <div style={{ width: 'fit-content', margin: '0 auto' }}>
+                    <div style={{ zoom: 0.45 }}>
+                      <PlantillaExportable
+                        plantilla={exportPlantilla}
+                        versiculo={exportVersiculo || undefined}
+                        cita={exportCita || undefined}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Off-screen element for PNG capture */}
+            {exportPlantilla && (
+              <div style={{ position: 'fixed', left: '-9999px', top: 0 }}>
+                <div ref={exportRef}>
+                  <PlantillaExportable
+                    plantilla={exportPlantilla}
+                    versiculo={exportVersiculo || undefined}
+                    cita={exportCita || undefined}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleExportPng}
+              disabled={exporting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Descargar PNG
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
