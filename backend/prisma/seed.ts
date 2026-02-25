@@ -64,6 +64,10 @@ async function main() {
     { nombre: 'Adoración Infantil', orden: 18, esFija: false, esObligatoria: false, textoFijo: null, puntos: 5, xp: 8 },
     { nombre: 'Testimonio Provad y Ved', orden: 19, esFija: false, esObligatoria: false, textoFijo: null, puntos: 5, xp: 8 },
     { nombre: 'Himno de Salida', orden: 20, esFija: false, esObligatoria: false, textoFijo: null, puntos: 3, xp: 5 },
+    // Partes adicionales para Escuela Sabática
+    { nombre: 'Informe Misionero', orden: 21, esFija: false, esObligatoria: false, textoFijo: null, puntos: 5, xp: 8 },
+    { nombre: 'Confraternización', orden: 22, esFija: false, esObligatoria: false, textoFijo: null, puntos: 5, xp: 8 },
+    { nombre: 'Repaso de la Lección', orden: 23, esFija: false, esObligatoria: false, textoFijo: null, puntos: 8, xp: 12 },
   ];
 
   for (const parte of partes) {

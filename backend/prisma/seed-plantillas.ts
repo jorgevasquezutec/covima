@@ -139,6 +139,69 @@ async function seedPlantillas() {
     }
   }
 
+  // ==================== PLANTILLA ESCUELA SABÁTICA ====================
+  const plantillaES = await prisma.plantillaPrograma.upsert({
+    where: { id: 4 },
+    update: {
+      nombre: 'Escuela Sabática',
+      descripcion: 'Estructura para la Escuela Sabática',
+      activo: true,
+      esDefault: false,
+      orden: 3,
+    },
+    create: {
+      nombre: 'Escuela Sabática',
+      descripcion: 'Estructura para la Escuela Sabática',
+      activo: true,
+      esDefault: false,
+      orden: 3,
+    },
+  });
+  console.log(`Plantilla "${plantillaES.nombre}" creada/actualizada`);
+
+  // Partes en orden para Escuela Sabática
+  const partesES = [
+    'Espacio de Cantos',
+    'Himno de Inicio',
+    'Oración Inicial',
+    'Informe Misionero',
+    'Confraternización',
+    'Repaso de la Lección',
+    'Himno Final',
+    'Oración Final',
+  ];
+
+  // Eliminar partes existentes de esta plantilla
+  await prisma.plantillaParte.deleteMany({
+    where: { plantillaId: plantillaES.id },
+  });
+
+  // Buscar IDs de las partes y crear las relaciones
+  let ordenES = 1;
+  for (const nombreParte of partesES) {
+    const parte = await prisma.parte.findFirst({
+      where: {
+        OR: [
+          { nombre: nombreParte },
+          { nombre: { contains: nombreParte, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (parte) {
+      await prisma.plantillaParte.create({
+        data: {
+          plantillaId: plantillaES.id,
+          parteId: parte.id,
+          orden: ordenES++,
+        },
+      });
+      console.log(`  - Parte "${parte.nombre}" agregada (orden ${ordenES - 1})`);
+    } else {
+      console.warn(`  ⚠️ Parte "${nombreParte}" no encontrada en BD`);
+    }
+  }
+
   // ==================== PLANTILLA VACÍA ====================
   const plantillaVacia = await prisma.plantillaPrograma.upsert({
     where: { id: 2 },
