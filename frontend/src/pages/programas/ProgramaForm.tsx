@@ -438,6 +438,7 @@ export default function ProgramaForm() {
      */
     const handleSelectPlantilla = (plantilla: PlantillaPrograma) => {
         loadPlantillaPartes(plantilla);
+        setTitulo(plantilla.nombre);
         setShowTemplateSelector(false);
     };
 
