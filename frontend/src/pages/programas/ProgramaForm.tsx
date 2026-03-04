@@ -737,8 +737,8 @@ export default function ProgramaForm() {
                                 parte,
                                 usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                                 nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
-                                links: links.map(l => ({ nombre: l.nombre, url: l.url })),
-                                fotos: fotos.map(f => ({ url: f.url, nombre: f.nombre })),
+                                links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url })),
+                                fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre })),
                             });
                         }
                     }
