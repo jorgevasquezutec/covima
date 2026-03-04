@@ -27,6 +27,7 @@ import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { ProgramasService } from './programas.service';
+import { MediaService } from '../media/media.service';
 import { CreateProgramaDto, CreateProgramaBatchDto, UpdateProgramaDto, CreateVisitaDto } from './dto';
 
 @ApiTags('Programas')
@@ -34,7 +35,10 @@ import { CreateProgramaDto, CreateProgramaBatchDto, UpdateProgramaDto, CreateVis
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('programas')
 export class ProgramasController {
-  constructor(private readonly programasService: ProgramasService) {}
+  constructor(
+    private readonly programasService: ProgramasService,
+    private readonly mediaService: MediaService,
+  ) {}
 
   @Get()
   @Roles('admin', 'lider')
@@ -249,11 +253,22 @@ export class ProgramasController {
       },
     }),
   )
-  async uploadFotoPrograma(@UploadedFile() file: Express.Multer.File) {
+  async uploadFotoPrograma(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any,
+  ) {
     if (!file) {
       throw new BadRequestException('No se recibió ninguna imagen');
     }
-    return { url: `/uploads/programas/${file.filename}` };
+    const url = `/uploads/programas/${file.filename}`;
+    const mediaItem = await this.mediaService.create({
+      url,
+      nombreOriginal: file.originalname,
+      mimeType: file.mimetype,
+      tamanio: file.size,
+      subidoPor: req.user?.id,
+    });
+    return { url, mediaItemId: mediaItem.id };
   }
 
   // ==================== VISITAS ====================

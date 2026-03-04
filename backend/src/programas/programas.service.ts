@@ -301,6 +301,7 @@ export class ProgramasService {
             parteId: foto.parteId,
             url: foto.url,
             nombre: foto.nombre || null,
+            mediaItemId: foto.mediaItemId || null,
             orden: orden++,
           },
         });
@@ -471,6 +472,7 @@ export class ProgramasService {
             parteId: foto.parteId,
             url: foto.url,
             nombre: foto.nombre || null,
+            mediaItemId: foto.mediaItemId || null,
             orden: orden++,
           },
         });

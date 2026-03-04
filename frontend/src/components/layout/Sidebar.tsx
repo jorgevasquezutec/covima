@@ -29,6 +29,7 @@ import {
   Scale,
   DoorOpen,
   HelpCircle,
+  FileImage,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -67,6 +68,7 @@ const navSections: NavSection[] = [
       { label: 'Registro Puerta', icon: DoorOpen, href: '/puerta' },
       { label: 'Asistencia', icon: ClipboardCheck, href: '/asistencias' },
       { label: 'Programas', icon: Calendar, href: '/programas' },
+      { label: 'Biblioteca', icon: FileImage, href: '/media' },
       { label: 'Calendario', icon: CalendarPlus, href: '/admin/calendario' },
       { label: 'Registrar Evento', icon: Gift, href: '/admin/gamificacion/registrar' },
       { label: 'Eventos', icon: Gift, href: '/admin/gamificacion/eventos' },

@@ -44,6 +44,7 @@ import {
     ChevronsUpDown,
     Search,
     Monitor,
+    Image,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -82,6 +83,7 @@ import { programasApi, asistenciaApi, tiposAsistenciaApi } from '@/services/api'
 import { DatePickerString } from '@/components/ui/date-picker';
 import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, PlantillaPrograma, QRAsistencia, TipoAsistencia } from '@/types';
 import { downloadOBSSceneCollection } from '@/lib/obs-scene-export';
+import MediaPickerDialog from '@/components/MediaPickerDialog';
 import type { OBSExportParte } from '@/lib/obs-scene-export';
 
 // Tipo para identificar a quién se va a reemplazar
@@ -99,7 +101,7 @@ export interface ParteEnPrograma {
     usuarioIds: number[];
     nombresLibres: string[];
     links: { _key: string; nombre: string; url: string }[];
-    fotos: { _key: string; url: string; nombre?: string }[];
+    fotos: { _key: string; url: string; nombre?: string; mediaItemId?: number }[];
 }
 
 // Sortable Part Item Component
@@ -230,6 +232,7 @@ export function SortableParteItem({
     onUpdateFoto,
     onRemoveFoto,
     onReorderFotos,
+    onPickFromLibrary,
     programaId,
 }: {
     item: ParteEnPrograma;
@@ -247,6 +250,7 @@ export function SortableParteItem({
     onUpdateFoto?: (index: number, nombre: string) => void;
     onRemoveFoto?: (index: number) => void;
     onReorderFotos?: (fromIndex: number, toIndex: number) => void;
+    onPickFromLibrary?: (item: { url: string; nombre?: string; mediaItemId: number }) => void;
     programaId?: number;
 }) {
     const {
@@ -261,6 +265,7 @@ export function SortableParteItem({
     const fotosDndId = useId();
     const linksDndId = useId();
     const [fotosOpen, setFotosOpen] = useState(item.fotos.length > 0);
+    const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
     const fotoInputRef = useRef<HTMLInputElement>(null);
     const fotoSensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -604,16 +609,37 @@ export function SortableParteItem({
                                             }
                                         }}
                                     />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => fotoInputRef.current?.click()}
-                                        className="border-gray-300 hover:bg-gray-50 text-gray-700"
-                                    >
-                                        <Camera className="h-4 w-4 mr-2" />
-                                        Agregar Foto/Video
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => fotoInputRef.current?.click()}
+                                            className="border-gray-300 hover:bg-gray-50 text-gray-700"
+                                        >
+                                            <Camera className="h-4 w-4 mr-2" />
+                                            Subir Foto/Video
+                                        </Button>
+                                        {onPickFromLibrary && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setMediaPickerOpen(true)}
+                                                className="border-gray-300 hover:bg-gray-50 text-gray-700"
+                                            >
+                                                <Image className="h-4 w-4 mr-2" />
+                                                Biblioteca
+                                            </Button>
+                                        )}
+                                    </div>
+                                    {onPickFromLibrary && (
+                                        <MediaPickerDialog
+                                            open={mediaPickerOpen}
+                                            onOpenChange={setMediaPickerOpen}
+                                            onSelect={onPickFromLibrary}
+                                        />
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -720,7 +746,7 @@ export default function ProgramaForm() {
                             usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                             nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
                             links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url })),
-                            fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre })),
+                            fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre, mediaItemId: f.mediaItemId })),
                         });
                     }
                 } else {
@@ -738,7 +764,7 @@ export default function ProgramaForm() {
                                 usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                                 nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
                                 links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url })),
-                                fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre })),
+                                fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre, mediaItemId: f.mediaItemId })),
                             });
                         }
                     }
@@ -1004,7 +1030,7 @@ export default function ProgramaForm() {
             setPartesEnPrograma(prev =>
                 prev.map(p => {
                     if (p.parteId === parteId) {
-                        return { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url }] };
+                        return { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url, mediaItemId: result.mediaItemId }] };
                     }
                     return p;
                 })
@@ -1012,6 +1038,17 @@ export default function ProgramaForm() {
         } catch {
             toast.error('Error al subir la foto');
         }
+    };
+
+    const handlePickFromLibrary = (parteId: number, item: { url: string; nombre?: string; mediaItemId: number }) => {
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (p.parteId === parteId) {
+                    return { ...p, fotos: [...p.fotos, { _key: genKey(), url: item.url, nombre: item.nombre, mediaItemId: item.mediaItemId }] };
+                }
+                return p;
+            })
+        );
     };
 
     const handleUpdateFoto = (parteId: number, index: number, nombre: string) => {
@@ -1179,6 +1216,7 @@ export default function ProgramaForm() {
                         parteId: p.parteId,
                         url: f.url,
                         nombre: f.nombre,
+                        mediaItemId: f.mediaItemId,
                     }))
                 );
 
@@ -1682,6 +1720,7 @@ export default function ProgramaForm() {
                                     onUpdateFoto={(index, nombre) => handleUpdateFoto(item.parteId, index, nombre)}
                                     onRemoveFoto={(index) => handleRemoveFoto(item.parteId, index)}
                                     onReorderFotos={(from, to) => handleReorderFotos(item.parteId, from, to)}
+                                    onPickFromLibrary={(mediaItem) => handlePickFromLibrary(item.parteId, mediaItem)}
                                 />
                             ))}
                         </div>

@@ -24,6 +24,7 @@ import type {
   CreateProgramaBatchRequest,
   ProgramaVisita,
   QRAsistencia,
+  MediaItem,
 } from '@/types';
 
 // En desarrollo, usar la misma IP/host del navegador para la API
@@ -396,10 +397,10 @@ export const programasApi = {
 
   // ==================== FOTOS ====================
 
-  uploadFotoPrograma: async (file: File): Promise<{ url: string }> => {
+  uploadFotoPrograma: async (file: File): Promise<{ url: string; mediaItemId: number }> => {
     const formData = new FormData();
     formData.append('foto', file);
-    const response = await api.post<{ url: string }>('/programas/fotos/upload', formData, {
+    const response = await api.post<{ url: string; mediaItemId: number }>('/programas/fotos/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -1375,6 +1376,37 @@ export const calendarioApi = {
       `/calendario/actividades/${id}/serie`
     );
     return response.data;
+  },
+};
+
+// ==================== BIBLIOTECA DE MEDIOS ====================
+
+export const mediaApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<PaginatedResponse<MediaItem>> => {
+    const response = await api.get<PaginatedResponse<MediaItem>>('/media', { params });
+    return response.data;
+  },
+
+  upload: async (file: File): Promise<MediaItem> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<MediaItem>('/media/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  updateNombre: async (id: number, nombre: string): Promise<MediaItem> => {
+    const response = await api.patch<MediaItem>(`/media/${id}`, { nombre });
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/media/${id}`);
   },
 };
 

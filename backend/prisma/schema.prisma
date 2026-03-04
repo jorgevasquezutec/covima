@@ -88,6 +88,7 @@ model Usuario {
   qrsCreados           QRAsistencia[]
   linksAgregados       ProgramaLink[]
   fotosAgregadas       ProgramaFoto[]
+  mediaItems           MediaItem[]
   rolesAsignados       UsuarioRol[]     @relation("AsignadoPor")
 
   // === RELACIONES INBOX/HANDOFF ===
@@ -274,13 +275,33 @@ model ProgramaFoto {
   nombre      String?  @db.VarChar(200)
   orden       Int      @default(1)
   agregadoPor Int?     @map("agregado_por")
+  mediaItemId Int?     @map("media_item_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  programa    Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
-  parte       Parte    @relation(fields: [parteId], references: [id])
-  agregador   Usuario? @relation(fields: [agregadoPor], references: [id])
+  programa    Programa   @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte       Parte      @relation(fields: [parteId], references: [id])
+  agregador   Usuario?   @relation(fields: [agregadoPor], references: [id])
+  mediaItem   MediaItem? @relation(fields: [mediaItemId], references: [id])
 
   @@map("programa_fotos")
+}
+
+// ==================== BIBLIOTECA DE MEDIOS ====================
+
+model MediaItem {
+  id             Int      @id @default(autoincrement())
+  url            String   @db.VarChar(500)
+  nombre         String?  @db.VarChar(200)
+  nombreOriginal String?  @map("nombre_original") @db.VarChar(300)
+  mimeType       String   @map("mime_type") @db.VarChar(100)
+  tamanio        Int      @default(0)
+  subidoPor      Int?     @map("subido_por")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  subidor       Usuario?       @relation(fields: [subidoPor], references: [id])
+  programaFotos ProgramaFoto[]
+
+  @@map("media_items")
 }
 
 // ==================== PLANTILLAS DE PROGRAMA ====================

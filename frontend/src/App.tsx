@@ -27,6 +27,7 @@ import SeguimientoPage from '@/pages/admin/SeguimientoPage';
 import { CalendarioAdminPage } from '@/pages/calendario';
 import RegistroVisitasPage from '@/pages/visitas/RegistroVisitasPage';
 import RegistroPuertaPage from '@/pages/puerta/RegistroPuertaPage';
+import MediaLibraryPage from '@/pages/media/MediaLibraryPage';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -298,6 +299,17 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <RegistroVisitasPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Biblioteca de Medios */}
+        <Route
+          path="/media"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <MediaLibraryPage />
               </MainLayout>
             </ProtectedRoute>
           }

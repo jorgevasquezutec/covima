@@ -261,6 +261,7 @@ export interface ProgramaFoto {
   url: string;
   nombre?: string;
   orden: number;
+  mediaItemId?: number;
 }
 
 export interface ProgramaVisita {
@@ -316,6 +317,20 @@ export interface FotoDto {
   parteId: number;
   url: string;
   nombre?: string;
+  mediaItemId?: number;
+}
+
+// ==================== BIBLIOTECA DE MEDIOS ====================
+
+export interface MediaItem {
+  id: number;
+  url: string;
+  nombre?: string;
+  nombreOriginal?: string;
+  mimeType: string;
+  tamanio: number;
+  createdAt: string;
+  _count?: { programaFotos: number };
 }
 
 export interface CreateProgramaRequest {

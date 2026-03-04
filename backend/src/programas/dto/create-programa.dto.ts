@@ -62,6 +62,11 @@ export class FotoDto {
   @IsOptional()
   @IsString()
   nombre?: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'ID del MediaItem asociado' })
+  @IsOptional()
+  @IsInt()
+  mediaItemId?: number;
 }
 
 export class ParteOrdenDto {

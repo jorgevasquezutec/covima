@@ -15,6 +15,7 @@ import { InboxModule } from './inbox/inbox.module';
 import { GamificacionModule } from './gamificacion/gamificacion.module';
 import { EstudiosBiblicosModule } from './estudios-biblicos/estudios-biblicos.module';
 import { CalendarioModule } from './calendario/calendario.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { CalendarioModule } from './calendario/calendario.module';
     GamificacionModule,
     EstudiosBiblicosModule,
     CalendarioModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

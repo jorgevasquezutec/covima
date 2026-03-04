@@ -451,13 +451,24 @@ export default function ProgramaFormMulti() {
                 ...prog,
                 partes: prog.partes.map(p =>
                     p.parteId === parteId
-                        ? { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url }] }
+                        ? { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url, mediaItemId: result.mediaItemId }] }
                         : p
                 ),
             }));
         } catch {
             toast.error('Error al subir la foto');
         }
+    };
+
+    const handlePickFromLibrary = (programKey: string, parteId: number, item: { url: string; nombre?: string; mediaItemId: number }) => {
+        updateProgram(programKey, (prog) => ({
+            ...prog,
+            partes: prog.partes.map(p =>
+                p.parteId === parteId
+                    ? { ...p, fotos: [...p.fotos, { _key: genKey(), url: item.url, nombre: item.nombre, mediaItemId: item.mediaItemId }] }
+                    : p
+            ),
+        }));
     };
 
     const handleUpdateFoto = (programKey: string, parteId: number, index: number, nombre: string) => {
@@ -607,6 +618,7 @@ export default function ProgramaFormMulti() {
                             parteId: p.parteId,
                             url: f.url,
                             nombre: f.nombre,
+                            mediaItemId: f.mediaItemId,
                         }))
                     );
 
@@ -1211,6 +1223,7 @@ export default function ProgramaFormMulti() {
                                                         onUpdateFoto={(index, nombre) => handleUpdateFoto(prog.key, item.parteId, index, nombre)}
                                                         onRemoveFoto={(index) => handleRemoveFoto(prog.key, item.parteId, index)}
                                                         onReorderFotos={(from, to) => handleReorderFotos(prog.key, item.parteId, from, to)}
+                                                        onPickFromLibrary={(mediaItem) => handlePickFromLibrary(prog.key, item.parteId, mediaItem)}
                                                     />
                                                 ))}
                                             </div>
