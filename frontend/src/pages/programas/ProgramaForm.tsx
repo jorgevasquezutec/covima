@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -89,14 +89,17 @@ export type PersonaReemplazo =
     | { tipo: 'usuario'; id: number; nombre: string }
     | { tipo: 'libre'; nombre: string };
 
+let _keyCounter = 0;
+export const genKey = () => `k${++_keyCounter}`;
+
 export interface ParteEnPrograma {
     id: string; // Unique ID for drag & drop
     parteId: number;
     parte: Parte;
     usuarioIds: number[];
     nombresLibres: string[];
-    links: { nombre: string; url: string }[];
-    fotos: { url: string; nombre?: string }[];
+    links: { _key: string; nombre: string; url: string }[];
+    fotos: { _key: string; url: string; nombre?: string }[];
 }
 
 // Sortable Part Item Component
@@ -197,6 +200,20 @@ function VisitasSection({ programaId }: { programaId: number }) {
     );
 }
 
+function SortableFotoItem({ id, children }: { id: string; children: (listeners: Record<string, unknown>) => React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+    return (
+        <div ref={setNodeRef} style={style} {...attributes}>
+            {children(listeners || {})}
+        </div>
+    );
+}
+
 export function SortableParteItem({
     item,
     usuarios,
@@ -208,9 +225,11 @@ export function SortableParteItem({
     onAddLink,
     onUpdateLink,
     onRemoveLink,
+    onReorderLinks,
     onAddFoto,
     onUpdateFoto,
     onRemoveFoto,
+    onReorderFotos,
     programaId,
 }: {
     item: ParteEnPrograma;
@@ -223,9 +242,11 @@ export function SortableParteItem({
     onAddLink: () => void;
     onUpdateLink: (index: number, field: 'nombre' | 'url', value: string) => void;
     onRemoveLink: (index: number) => void;
+    onReorderLinks?: (fromIndex: number, toIndex: number) => void;
     onAddFoto?: (file: File) => void;
     onUpdateFoto?: (index: number, nombre: string) => void;
     onRemoveFoto?: (index: number) => void;
+    onReorderFotos?: (fromIndex: number, toIndex: number) => void;
     programaId?: number;
 }) {
     const {
@@ -237,8 +258,13 @@ export function SortableParteItem({
         isDragging,
     } = useSortable({ id: item.id });
 
+    const fotosDndId = useId();
+    const linksDndId = useId();
     const [fotosOpen, setFotosOpen] = useState(item.fotos.length > 0);
     const fotoInputRef = useRef<HTMLInputElement>(null);
+    const fotoSensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    );
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -402,8 +428,32 @@ export function SortableParteItem({
                             Links (YouTube, Kahoot, etc.)
                         </Label>
 
+                        <DndContext
+                            id={linksDndId}
+                            sensors={fotoSensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={(event: DragEndEvent) => {
+                                const { active, over } = event;
+                                if (over && active.id !== over.id && onReorderLinks) {
+                                    const oldIndex = item.links.findIndex(l => l._key === active.id);
+                                    const newIndex = item.links.findIndex(l => l._key === over.id);
+                                    if (oldIndex !== -1 && newIndex !== -1) {
+                                        onReorderLinks(oldIndex, newIndex);
+                                    }
+                                }
+                            }}
+                        >
+                            <SortableContext
+                                items={item.links.map(l => l._key)}
+                                strategy={verticalListSortingStrategy}
+                            >
                         {item.links.map((link, index) => (
-                            <div key={index} className="flex flex-col sm:flex-row gap-2">
+                            <SortableFotoItem key={link._key} id={link._key}>
+                                {(dragListeners) => (
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <button type="button" {...dragListeners} className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 shrink-0 touch-none hidden sm:flex items-center">
+                                    <GripVertical className="h-4 w-4" />
+                                </button>
                                 <Input
                                     value={link.nombre}
                                     onChange={(e) => onUpdateLink(index, 'nombre', e.target.value)}
@@ -439,7 +489,11 @@ export function SortableParteItem({
                                     </Button>
                                 </div>
                             </div>
+                                )}
+                            </SortableFotoItem>
                         ))}
+                            </SortableContext>
+                        </DndContext>
 
                         <Button
                             type="button"
@@ -473,41 +527,69 @@ export function SortableParteItem({
 
                             {fotosOpen && (
                                 <div className="space-y-3">
+                                    <DndContext
+                                        id={fotosDndId}
+                                        sensors={fotoSensors}
+                                        collisionDetection={closestCenter}
+                                        onDragEnd={(event: DragEndEvent) => {
+                                            const { active, over } = event;
+                                            if (over && active.id !== over.id && onReorderFotos) {
+                                                const oldIndex = item.fotos.findIndex(f => f._key === active.id);
+                                                const newIndex = item.fotos.findIndex(f => f._key === over.id);
+                                                if (oldIndex !== -1 && newIndex !== -1) {
+                                                    onReorderFotos(oldIndex, newIndex);
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <SortableContext
+                                            items={item.fotos.map(f => f._key)}
+                                            strategy={verticalListSortingStrategy}
+                                        >
                                     {item.fotos.map((foto, index) => {
                                         const isVideo = /\.(mp4|webm|mov)$/i.test(foto.url);
                                         return (
-                                        <div key={index} className="flex items-center gap-3">
-                                            {isVideo ? (
-                                                <video
-                                                    src={`${getBaseUrl()}${foto.url}`}
-                                                    className="w-16 h-16 object-cover rounded-lg border border-gray-200 shrink-0"
-                                                    muted
+                                        <SortableFotoItem key={foto._key} id={foto._key}>
+                                            {(dragListeners) => (
+                                            <div className="flex items-center gap-2">
+                                                <button type="button" {...dragListeners} className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 shrink-0 touch-none">
+                                                    <GripVertical className="h-4 w-4" />
+                                                </button>
+                                                {isVideo ? (
+                                                    <video
+                                                        src={`${getBaseUrl()}${foto.url}`}
+                                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 shrink-0"
+                                                        muted
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={`${getBaseUrl()}${foto.url}`}
+                                                        alt={foto.nombre || `Foto ${index + 1}`}
+                                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 shrink-0"
+                                                    />
+                                                )}
+                                                <Input
+                                                    value={foto.nombre || ''}
+                                                    onChange={(e) => onUpdateFoto!(index, e.target.value)}
+                                                    placeholder="Título del archivo"
+                                                    className="bg-white border-gray-300 text-gray-900 flex-1"
                                                 />
-                                            ) : (
-                                                <img
-                                                    src={`${getBaseUrl()}${foto.url}`}
-                                                    alt={foto.nombre || `Foto ${index + 1}`}
-                                                    className="w-16 h-16 object-cover rounded-lg border border-gray-200 shrink-0"
-                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => onRemoveFoto(index)}
+                                                    className="hover:bg-red-50 hover:text-red-600 shrink-0"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                             )}
-                                            <Input
-                                                value={foto.nombre || ''}
-                                                onChange={(e) => onUpdateFoto!(index, e.target.value)}
-                                                placeholder="Título del archivo"
-                                                className="bg-white border-gray-300 text-gray-900 flex-1"
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => onRemoveFoto(index)}
-                                                className="hover:bg-red-50 hover:text-red-600 shrink-0"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                        </SortableFotoItem>
                                         );
                                     })}
+                                        </SortableContext>
+                                    </DndContext>
 
                                     <input
                                         ref={fotoInputRef}
@@ -637,8 +719,8 @@ export default function ProgramaForm() {
                             parte: pp.parte,
                             usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                             nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
-                            links: links.map(l => ({ nombre: l.nombre, url: l.url })),
-                            fotos: fotos.map(f => ({ url: f.url, nombre: f.nombre })),
+                            links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url })),
+                            fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre })),
                         });
                     }
                 } else {
@@ -874,7 +956,7 @@ export default function ProgramaForm() {
         setPartesEnPrograma(prev =>
             prev.map(p => {
                 if (p.parteId === parteId) {
-                    return { ...p, links: [...p.links, { nombre: '', url: '' }] };
+                    return { ...p, links: [...p.links, { _key: genKey(), nombre: '', url: '' }] };
                 }
                 return p;
             })
@@ -888,6 +970,17 @@ export default function ProgramaForm() {
                     const newLinks = [...p.links];
                     newLinks[index] = { ...newLinks[index], [field]: value };
                     return { ...p, links: newLinks };
+                }
+                return p;
+            })
+        );
+    };
+
+    const handleReorderLinks = (parteId: number, fromIndex: number, toIndex: number) => {
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (p.parteId === parteId) {
+                    return { ...p, links: arrayMove(p.links, fromIndex, toIndex) };
                 }
                 return p;
             })
@@ -911,7 +1004,7 @@ export default function ProgramaForm() {
             setPartesEnPrograma(prev =>
                 prev.map(p => {
                     if (p.parteId === parteId) {
-                        return { ...p, fotos: [...p.fotos, { url: result.url }] };
+                        return { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url }] };
                     }
                     return p;
                 })
@@ -939,6 +1032,17 @@ export default function ProgramaForm() {
             prev.map(p => {
                 if (p.parteId === parteId) {
                     return { ...p, fotos: p.fotos.filter((_, i) => i !== index) };
+                }
+                return p;
+            })
+        );
+    };
+
+    const handleReorderFotos = (parteId: number, fromIndex: number, toIndex: number) => {
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (p.parteId === parteId) {
+                    return { ...p, fotos: arrayMove(p.fotos, fromIndex, toIndex) };
                 }
                 return p;
             })
@@ -1573,9 +1677,11 @@ export default function ProgramaForm() {
                                     onAddLink={() => handleAddLink(item.parteId)}
                                     onUpdateLink={(index, field, value) => handleUpdateLink(item.parteId, index, field, value)}
                                     onRemoveLink={(index) => handleRemoveLink(item.parteId, index)}
+                                    onReorderLinks={(from, to) => handleReorderLinks(item.parteId, from, to)}
                                     onAddFoto={(file) => handleAddFoto(item.parteId, file)}
                                     onUpdateFoto={(index, nombre) => handleUpdateFoto(item.parteId, index, nombre)}
                                     onRemoveFoto={(index) => handleRemoveFoto(item.parteId, index)}
+                                    onReorderFotos={(from, to) => handleReorderFotos(item.parteId, from, to)}
                                 />
                             ))}
                         </div>

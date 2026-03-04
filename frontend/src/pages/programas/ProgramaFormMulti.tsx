@@ -76,6 +76,7 @@ import UserAutocomplete from '@/components/UserAutocomplete';
 import { programasApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
 import { SortableParteItem } from './ProgramaForm';
+import { genKey } from './ProgramaForm';
 import type { ParteEnPrograma, PersonaReemplazo } from './ProgramaForm';
 import type { Parte, UsuarioSimple, PlantillaPrograma, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, QRAsistencia, TipoAsistencia } from '@/types';
 import { asistenciaApi, tiposAsistenciaApi } from '@/services/api';
@@ -379,7 +380,7 @@ export default function ProgramaFormMulti() {
             ...prog,
             partes: prog.partes.map(p =>
                 p.parteId === parteId
-                    ? { ...p, links: [...p.links, { nombre: '', url: '' }] }
+                    ? { ...p, links: [...p.links, { _key: genKey(), nombre: '', url: '' }] }
                     : p
             ),
         }));
@@ -405,6 +406,17 @@ export default function ProgramaFormMulti() {
             partes: prog.partes.map(p =>
                 p.parteId === parteId
                     ? { ...p, links: p.links.filter((_, i) => i !== index) }
+                    : p
+            ),
+        }));
+    };
+
+    const handleReorderLinks = (programKey: string, parteId: number, fromIndex: number, toIndex: number) => {
+        updateProgram(programKey, (prog) => ({
+            ...prog,
+            partes: prog.partes.map(p =>
+                p.parteId === parteId
+                    ? { ...p, links: arrayMove(p.links, fromIndex, toIndex) }
                     : p
             ),
         }));
@@ -439,7 +451,7 @@ export default function ProgramaFormMulti() {
                 ...prog,
                 partes: prog.partes.map(p =>
                     p.parteId === parteId
-                        ? { ...p, fotos: [...p.fotos, { url: result.url }] }
+                        ? { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url }] }
                         : p
                 ),
             }));
@@ -468,6 +480,17 @@ export default function ProgramaFormMulti() {
             partes: prog.partes.map(p =>
                 p.parteId === parteId
                     ? { ...p, fotos: p.fotos.filter((_, i) => i !== index) }
+                    : p
+            ),
+        }));
+    };
+
+    const handleReorderFotos = (programKey: string, parteId: number, fromIndex: number, toIndex: number) => {
+        updateProgram(programKey, (prog) => ({
+            ...prog,
+            partes: prog.partes.map(p =>
+                p.parteId === parteId
+                    ? { ...p, fotos: arrayMove(p.fotos, fromIndex, toIndex) }
                     : p
             ),
         }));
@@ -1183,9 +1206,11 @@ export default function ProgramaFormMulti() {
                                                         onAddLink={() => handleAddLink(prog.key, item.parteId)}
                                                         onUpdateLink={(index, field, value) => handleUpdateLink(prog.key, item.parteId, index, field, value)}
                                                         onRemoveLink={(index) => handleRemoveLink(prog.key, item.parteId, index)}
+                                                        onReorderLinks={(from, to) => handleReorderLinks(prog.key, item.parteId, from, to)}
                                                         onAddFoto={(file) => handleAddFoto(prog.key, item.parteId, file)}
                                                         onUpdateFoto={(index, nombre) => handleUpdateFoto(prog.key, item.parteId, index, nombre)}
                                                         onRemoveFoto={(index) => handleRemoveFoto(prog.key, item.parteId, index)}
+                                                        onReorderFotos={(from, to) => handleReorderFotos(prog.key, item.parteId, from, to)}
                                                     />
                                                 ))}
                                             </div>
