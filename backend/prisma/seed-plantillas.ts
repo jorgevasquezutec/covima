@@ -202,6 +202,68 @@ async function seedPlantillas() {
     }
   }
 
+  // ==================== PLANTILLA GRUPO PEQUEÑO ====================
+  const plantillaGP = await prisma.plantillaPrograma.upsert({
+    where: { id: 5 },
+    update: {
+      nombre: 'Grupo Pequeño',
+      descripcion: 'Estructura para reuniones de Grupo Pequeño',
+      activo: true,
+      esDefault: false,
+      orden: 4,
+    },
+    create: {
+      nombre: 'Grupo Pequeño',
+      descripcion: 'Estructura para reuniones de Grupo Pequeño',
+      activo: true,
+      esDefault: false,
+      orden: 4,
+    },
+  });
+  console.log(`Plantilla "${plantillaGP.nombre}" creada/actualizada`);
+
+  // Partes en orden para Grupo Pequeño
+  const partesGP = [
+    'Espacio de Cantos',
+    'Bienvenida',
+    'Confraternización',
+    'Oración Intercesora',
+    'Tema',
+    'Himno Final',
+    'Oración Final',
+  ];
+
+  // Eliminar partes existentes de esta plantilla
+  await prisma.plantillaParte.deleteMany({
+    where: { plantillaId: plantillaGP.id },
+  });
+
+  // Buscar IDs de las partes y crear las relaciones
+  let ordenGP = 1;
+  for (const nombreParte of partesGP) {
+    const parte = await prisma.parte.findFirst({
+      where: {
+        OR: [
+          { nombre: nombreParte },
+          { nombre: { contains: nombreParte, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (parte) {
+      await prisma.plantillaParte.create({
+        data: {
+          plantillaId: plantillaGP.id,
+          parteId: parte.id,
+          orden: ordenGP++,
+        },
+      });
+      console.log(`  - Parte "${parte.nombre}" agregada (orden ${ordenGP - 1})`);
+    } else {
+      console.warn(`  ⚠️ Parte "${nombreParte}" no encontrada en BD`);
+    }
+  }
+
   // ==================== PLANTILLA VACÍA ====================
   const plantillaVacia = await prisma.plantillaPrograma.upsert({
     where: { id: 2 },

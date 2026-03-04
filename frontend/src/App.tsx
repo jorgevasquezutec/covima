@@ -11,6 +11,7 @@ import Dashboard from '@/pages/Dashboard';
 import UsuariosPage from '@/pages/usuarios/UsuariosPage';
 import ProgramasPage from '@/pages/programas/ProgramasPage';
 import ProgramaForm from '@/pages/programas/ProgramaForm';
+import ProgramaFormMulti from '@/pages/programas/ProgramaFormMulti';
 import AsistenciaPage from '@/pages/asistencia/AsistenciaPage';
 import AsistenciaRoom from '@/pages/asistencia/AsistenciaRoom';
 import RegistrarAsistencia from '@/pages/asistencia/RegistrarAsistencia';
@@ -24,6 +25,8 @@ import { PlantillasProgramaPage } from '@/pages/admin/plantillas';
 import { MisEstudiantesPage, EstudianteDetallePage } from '@/pages/estudios-biblicos';
 import SeguimientoPage from '@/pages/admin/SeguimientoPage';
 import { CalendarioAdminPage } from '@/pages/calendario';
+import RegistroVisitasPage from '@/pages/visitas/RegistroVisitasPage';
+import RegistroPuertaPage from '@/pages/puerta/RegistroPuertaPage';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -67,7 +70,7 @@ function App() {
           element={
             <ProtectedRoute>
               <MainLayout>
-                <ProgramaForm />
+                <ProgramaFormMulti />
               </MainLayout>
             </ProtectedRoute>
           }
@@ -273,6 +276,28 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <SeguimientoPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Registro Puerta */}
+        <Route
+          path="/puerta"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RegistroPuertaPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Visitas */}
+        <Route
+          path="/visitas"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RegistroVisitasPage />
               </MainLayout>
             </ProtectedRoute>
           }

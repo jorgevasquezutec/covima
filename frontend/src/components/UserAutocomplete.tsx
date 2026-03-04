@@ -46,7 +46,7 @@ export default function UserAutocomplete({
         )
         : availableUsuarios;
 
-    const canAddFreeText = allowFreeText && searchValue.trim().length > 0 && filteredUsuarios.length === 0;
+    const canAddFreeText = allowFreeText && searchValue.trim().length > 0;
 
     const handleAddFreeText = () => {
         if (onAddFreeText && searchValue.trim()) {
@@ -57,9 +57,15 @@ export default function UserAutocomplete({
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && canAddFreeText) {
+        if (e.key === 'Enter') {
             e.preventDefault();
-            handleAddFreeText();
+            if (filteredUsuarios.length > 0) {
+                onSelect(filteredUsuarios[0].id);
+                setSearchValue('');
+                setOpen(false);
+            } else if (canAddFreeText) {
+                handleAddFreeText();
+            }
         }
     };
 
@@ -93,18 +99,6 @@ export default function UserAutocomplete({
                         {filteredUsuarios.length === 0 && !canAddFreeText && (
                             <CommandEmpty>No se encontraron participantes.</CommandEmpty>
                         )}
-                        {canAddFreeText && (
-                            <CommandGroup heading="Agregar como nombre libre">
-                                <CommandItem
-                                    value={`add-free-${searchValue}`}
-                                    onSelect={handleAddFreeText}
-                                    className="cursor-pointer text-blue-600"
-                                >
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    Agregar "{searchValue}" (no registrado)
-                                </CommandItem>
-                            </CommandGroup>
-                        )}
                         {filteredUsuarios.length > 0 && (
                             <CommandGroup heading="Usuarios registrados" className="max-h-60 overflow-y-auto">
                                 {filteredUsuarios.map((usuario) => (
@@ -127,6 +121,18 @@ export default function UserAutocomplete({
                                         {usuario.nombre}
                                     </CommandItem>
                                 ))}
+                            </CommandGroup>
+                        )}
+                        {canAddFreeText && (
+                            <CommandGroup heading="Agregar como nombre libre">
+                                <CommandItem
+                                    value={`add-free-${searchValue}`}
+                                    onSelect={handleAddFreeText}
+                                    className="cursor-pointer text-blue-600"
+                                >
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Agregar "{searchValue}" (no registrado)
+                                </CommandItem>
                             </CommandGroup>
                         )}
                     </CommandList>

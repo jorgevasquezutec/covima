@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateProgramaDto, UpdateProgramaDto } from './dto';
+import { CreateProgramaDto, CreateProgramaBatchDto, UpdateProgramaDto, CreateVisitaDto } from './dto';
 import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
 import { OpenAIService } from '../whatsapp-bot/openai.service';
 import { GamificacionService } from '../gamificacion/gamificacion.service';
@@ -95,6 +95,15 @@ export class ProgramasService {
             include: { parte: true },
             orderBy: { orden: 'asc' },
           },
+          fotos: {
+            include: { parte: true },
+            orderBy: { orden: 'asc' },
+          },
+          qrAsistencia: {
+            include: {
+              tipoAsistencia: true,
+            },
+          },
         },
       }),
       this.prisma.programa.count({ where }),
@@ -138,6 +147,18 @@ export class ProgramasService {
           include: { parte: true },
           orderBy: { orden: 'asc' },
         },
+        fotos: {
+          include: { parte: true },
+          orderBy: { orden: 'asc' },
+        },
+        visitas: {
+          orderBy: { createdAt: 'asc' },
+        },
+        qrAsistencia: {
+          include: {
+            tipoAsistencia: true,
+          },
+        },
       },
     });
 
@@ -149,6 +170,32 @@ export class ProgramasService {
   }
 
   async create(dto: CreateProgramaDto, createdBy: number) {
+    const id = await this._createSingle(this.prisma, dto, createdBy);
+    return this.findOne(id);
+  }
+
+  async createBatch(dto: CreateProgramaBatchDto, createdBy: number) {
+    const programaIds = await this.prisma.$transaction(async (tx) => {
+      const ids: number[] = [];
+      for (const programaDto of dto.programas) {
+        const id = await this._createSingle(tx, programaDto, createdBy);
+        ids.push(id);
+      }
+      return ids;
+    });
+
+    // Return all created programs
+    const programas = await Promise.all(
+      programaIds.map((id) => this.findOne(id)),
+    );
+    return programas;
+  }
+
+  private async _createSingle(
+    prismaClient: any,
+    dto: CreateProgramaDto,
+    createdBy: number,
+  ): Promise<number> {
     const titulo = dto.titulo || 'Programa Maranatha Adoración';
 
     // Generar código único
@@ -159,7 +206,7 @@ export class ProgramasService {
     const horaFin = dto.horaFin ? this.parseTime(dto.horaFin) : null;
 
     // Crear programa (ya no hay restricción de fecha única)
-    const programa = await this.prisma.programa.create({
+    const programa = await prismaClient.programa.create({
       data: {
         codigo,
         fecha: new Date(dto.fecha),
@@ -173,7 +220,7 @@ export class ProgramasService {
     // Agregar partes del programa con su orden
     if (dto.partes && dto.partes.length > 0) {
       for (const parte of dto.partes) {
-        await this.prisma.programaParte.create({
+        await prismaClient.programaParte.create({
           data: {
             programaId: programa.id,
             parteId: parte.parteId,
@@ -190,7 +237,7 @@ export class ProgramasService {
         // Procesar usuarios registrados
         if (asig.usuarioIds && asig.usuarioIds.length > 0) {
           for (const usuarioId of asig.usuarioIds) {
-            await this.prisma.programaAsignacion.create({
+            await prismaClient.programaAsignacion.create({
               data: {
                 programaId: programa.id,
                 parteId: asig.parteId,
@@ -203,7 +250,7 @@ export class ProgramasService {
         // Procesar nombres libres (usuarios no registrados)
         if (asig.nombresLibres && asig.nombresLibres.length > 0) {
           for (const nombreLibre of asig.nombresLibres) {
-            await this.prisma.programaAsignacion.create({
+            await prismaClient.programaAsignacion.create({
               data: {
                 programaId: programa.id,
                 parteId: asig.parteId,
@@ -226,7 +273,7 @@ export class ProgramasService {
           orden = 1;
           currentParteId = link.parteId;
         }
-        await this.prisma.programaLink.create({
+        await prismaClient.programaLink.create({
           data: {
             programaId: programa.id,
             parteId: link.parteId,
@@ -238,7 +285,67 @@ export class ProgramasService {
       }
     }
 
-    return this.findOne(programa.id);
+    // Agregar fotos si se proporcionan
+    if (dto.fotos && dto.fotos.length > 0) {
+      let orden = 1;
+      let currentParteId = dto.fotos[0]?.parteId;
+
+      for (const foto of dto.fotos) {
+        if (foto.parteId !== currentParteId) {
+          orden = 1;
+          currentParteId = foto.parteId;
+        }
+        await prismaClient.programaFoto.create({
+          data: {
+            programaId: programa.id,
+            parteId: foto.parteId,
+            url: foto.url,
+            nombre: foto.nombre || null,
+            orden: orden++,
+          },
+        });
+      }
+    }
+
+    // Vincular QR existente o crear uno nuevo
+    if (dto.qrAsistenciaId) {
+      const qr = await prismaClient.qRAsistencia.findUnique({
+        where: { id: dto.qrAsistenciaId },
+      });
+      if (!qr) {
+        throw new NotFoundException('QR de asistencia no encontrado');
+      }
+      if (qr.programaId && qr.programaId !== programa.id) {
+        throw new BadRequestException('Este QR ya está vinculado a otro programa');
+      }
+      await prismaClient.qRAsistencia.update({
+        where: { id: dto.qrAsistenciaId },
+        data: { programaId: programa.id },
+      });
+    } else if (dto.tipoAsistenciaId) {
+      const codigoQR = `JA${generarCodigoUnico()}`;
+      const horaInicioQR = dto.horaInicio
+        ? this.parseTime(dto.horaInicio)
+        : new Date('1970-01-01T09:00:00');
+      const horaFinQR = dto.horaFin
+        ? this.parseTime(dto.horaFin)
+        : new Date('1970-01-01T12:00:00');
+      await prismaClient.qRAsistencia.create({
+        data: {
+          semanaInicio: new Date(dto.fecha),
+          codigo: codigoQR,
+          tipoId: dto.tipoAsistenciaId,
+          programaId: programa.id,
+          descripcion: `QR para ${titulo}`,
+          urlGenerada: `/asistencia/${codigoQR}`,
+          horaInicio: horaInicioQR,
+          horaFin: horaFinQR,
+          createdBy: createdBy,
+        },
+      });
+    }
+
+    return programa.id;
   }
 
   async update(id: number, dto: UpdateProgramaDto) {
@@ -340,6 +447,93 @@ export class ProgramasService {
             url: link.url,
             orden: orden++,
           },
+        });
+      }
+    }
+
+    // Si se proporcionan fotos, reemplazar las existentes
+    if (dto.fotos) {
+      await this.prisma.programaFoto.deleteMany({
+        where: { programaId: id },
+      });
+
+      let orden = 1;
+      let currentParteId = dto.fotos[0]?.parteId;
+
+      for (const foto of dto.fotos) {
+        if (foto.parteId !== currentParteId) {
+          orden = 1;
+          currentParteId = foto.parteId;
+        }
+        await this.prisma.programaFoto.create({
+          data: {
+            programaId: id,
+            parteId: foto.parteId,
+            url: foto.url,
+            nombre: foto.nombre || null,
+            orden: orden++,
+          },
+        });
+      }
+    }
+
+    // Manejar QR: vincular existente, crear nuevo, o desvincular
+    if (dto.qrAsistenciaId !== undefined || dto.tipoAsistenciaId) {
+      const existingQR = await this.prisma.qRAsistencia.findUnique({
+        where: { programaId: id },
+      });
+
+      if (dto.qrAsistenciaId) {
+        // Desvincular QR anterior si es diferente
+        if (existingQR && existingQR.id !== dto.qrAsistenciaId) {
+          await this.prisma.qRAsistencia.update({
+            where: { id: existingQR.id },
+            data: { programaId: null },
+          });
+        }
+        // Vincular el nuevo QR
+        const newQR = await this.prisma.qRAsistencia.findUnique({
+          where: { id: dto.qrAsistenciaId },
+        });
+        if (!newQR) {
+          throw new NotFoundException('QR de asistencia no encontrado');
+        }
+        if (newQR.programaId && newQR.programaId !== id) {
+          throw new BadRequestException('Este QR ya está vinculado a otro programa');
+        }
+        await this.prisma.qRAsistencia.update({
+          where: { id: dto.qrAsistenciaId },
+          data: { programaId: id },
+        });
+      } else if (dto.tipoAsistenciaId) {
+        // Crear nuevo QR con el tipo indicado
+        if (existingQR) {
+          await this.prisma.qRAsistencia.update({
+            where: { id: existingQR.id },
+            data: { programaId: null },
+          });
+        }
+        const updatedPrograma = await this.prisma.programa.findUnique({ where: { id } });
+        const horaInicioQR = updatedPrograma?.horaInicio || new Date('1970-01-01T09:00:00');
+        const horaFinQR = updatedPrograma?.horaFin || new Date('1970-01-01T12:00:00');
+        const codigoQR = `JA${generarCodigoUnico()}`;
+        await this.prisma.qRAsistencia.create({
+          data: {
+            semanaInicio: dto.fecha ? new Date(dto.fecha) : programa.fecha,
+            codigo: codigoQR,
+            tipoId: dto.tipoAsistenciaId,
+            programaId: id,
+            descripcion: `QR para ${dto.titulo || programa.titulo}`,
+            urlGenerada: `/asistencia/${codigoQR}`,
+            horaInicio: horaInicioQR,
+            horaFin: horaFinQR,
+          },
+        });
+      } else if (existingQR) {
+        // qrAsistenciaId es null → desvincular
+        await this.prisma.qRAsistencia.update({
+          where: { id: existingQR.id },
+          data: { programaId: null },
         });
       }
     }
@@ -1329,11 +1523,12 @@ export class ProgramasService {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    return this.prisma.programa.findFirst({
+    return this.prisma.programa.findMany({
       where: {
         fecha: { gte: hoy },
       },
       orderBy: { fecha: 'asc' },
+      take: 10,
       include: {
         creador: { select: { id: true, nombre: true } },
         partes: {
@@ -1358,9 +1553,144 @@ export class ProgramasService {
           include: { parte: true },
           orderBy: { orden: 'asc' },
         },
+        fotos: {
+          include: { parte: true },
+          orderBy: { orden: 'asc' },
+        },
+        visitas: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
   }
+
+  // ==================== VISITAS ====================
+
+  async getProgramasHoyParaVisitas() {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const manana = new Date(hoy);
+    manana.setDate(manana.getDate() + 1);
+
+    const programas = await this.prisma.programa.findMany({
+      where: {
+        fecha: { gte: hoy, lt: manana },
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        visitas: {
+          orderBy: { createdAt: 'asc' },
+        },
+        qrAsistencia: {
+          include: {
+            tipoAsistencia: {
+              include: {
+                campos: {
+                  where: { activo: true },
+                  orderBy: { orden: 'asc' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return programas.map((p) => ({
+      id: p.id,
+      titulo: p.titulo,
+      fecha: p.fecha,
+      visitas: p.visitas.map((v) => ({
+        id: v.id,
+        nombre: v.nombre,
+        procedencia: v.procedencia,
+        telefono: v.telefono,
+        direccion: v.direccion,
+        createdAt: v.createdAt,
+      })),
+      qrAsistencia: p.qrAsistencia
+        ? {
+            id: p.qrAsistencia.id,
+            codigo: p.qrAsistencia.codigo,
+            activo: p.qrAsistencia.activo,
+            horaInicio: p.qrAsistencia.horaInicio,
+            horaFin: p.qrAsistencia.horaFin,
+            margenTemprana: p.qrAsistencia.margenTemprana,
+            margenTardia: p.qrAsistencia.margenTardia,
+            semanaInicio: p.qrAsistencia.semanaInicio,
+            tipoAsistencia: p.qrAsistencia.tipoAsistencia
+              ? {
+                  id: p.qrAsistencia.tipoAsistencia.id,
+                  nombre: p.qrAsistencia.tipoAsistencia.nombre,
+                  label: p.qrAsistencia.tipoAsistencia.label,
+                  color: p.qrAsistencia.tipoAsistencia.color,
+                  soloPresencia: p.qrAsistencia.tipoAsistencia.soloPresencia,
+                  campos: p.qrAsistencia.tipoAsistencia.campos?.map((c) => ({
+                    id: c.id,
+                    nombre: c.nombre,
+                    label: c.label,
+                    tipo: c.tipo,
+                    requerido: c.requerido,
+                    orden: c.orden,
+                    placeholder: c.placeholder,
+                    valorMinimo: c.valorMinimo,
+                    valorMaximo: c.valorMaximo,
+                    opciones: c.opciones,
+                  })) || [],
+                }
+              : null,
+          }
+        : null,
+    }));
+  }
+
+  async getVisitasByPrograma(programaId: number) {
+    const programa = await this.prisma.programa.findUnique({
+      where: { id: programaId },
+    });
+    if (!programa) {
+      throw new NotFoundException('Programa no encontrado');
+    }
+
+    return this.prisma.programaVisita.findMany({
+      where: { programaId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createVisita(programaId: number, dto: CreateVisitaDto) {
+    const programa = await this.prisma.programa.findUnique({
+      where: { id: programaId },
+    });
+    if (!programa) {
+      throw new NotFoundException('Programa no encontrado');
+    }
+
+    return this.prisma.programaVisita.create({
+      data: {
+        programaId,
+        nombre: dto.nombre,
+        procedencia: dto.procedencia,
+        telefono: dto.telefono || null,
+        direccion: dto.direccion || null,
+      },
+    });
+  }
+
+  async deleteVisita(id: number) {
+    const visita = await this.prisma.programaVisita.findUnique({
+      where: { id },
+    });
+    if (!visita) {
+      throw new NotFoundException('Visita no encontrada');
+    }
+
+    return this.prisma.programaVisita.delete({
+      where: { id },
+    });
+  }
+
+  // ==================== PARTES ====================
 
   async getPartes() {
     return this.prisma.parte.findMany({
@@ -1505,6 +1835,9 @@ export class ProgramasService {
     // Obtener partes del programa en orden
     const partesDelPrograma = programa.partes || [];
 
+    // Visitas del programa
+    const visitas = programa.visitas || [];
+
     // Si no hay partes guardadas, usar las partes basadas en asignaciones/links
     if (partesDelPrograma.length === 0) {
       const todasPartes = await this.getPartes();
@@ -1516,7 +1849,8 @@ export class ProgramasService {
           continue;
         }
 
-        texto += this.formatearParteParaWhatsapp(parte, asignaciones, links);
+        const parteVisitas = parte.nombre.toLowerCase().includes('bienvenida') ? visitas : [];
+        texto += this.formatearParteParaWhatsapp(parte, asignaciones, links, parteVisitas);
       }
     } else {
       // Usar el orden guardado en programa_partes
@@ -1525,7 +1859,8 @@ export class ProgramasService {
         const asignaciones = asignacionesPorParte.get(parte.id) || [];
         const links = linksPorParte.get(parte.id) || [];
 
-        texto += this.formatearParteParaWhatsapp(parte, asignaciones, links);
+        const parteVisitas = parte.nombre.toLowerCase().includes('bienvenida') ? visitas : [];
+        texto += this.formatearParteParaWhatsapp(parte, asignaciones, links, parteVisitas);
       }
     }
 
@@ -1546,6 +1881,7 @@ export class ProgramasService {
     parte: any,
     asignaciones: any[],
     links: any[],
+    visitas: any[] = [],
   ): string {
     let resultado = '';
 
@@ -1563,6 +1899,14 @@ export class ProgramasService {
     // Los links se muestran con el nombre y la URL directa (WhatsApp auto-detecta URLs)
     for (const link of links) {
       resultado += `• ${link.nombre}: ${link.url}\n`;
+    }
+
+    // Visitas (se muestran debajo de Bienvenida)
+    if (visitas.length > 0) {
+      resultado += `👥 *Visitas (${visitas.length}):*\n`;
+      for (const v of visitas) {
+        resultado += `  • ${v.nombre} — ${v.procedencia}\n`;
+      }
     }
 
     return resultado;
@@ -1936,6 +2280,10 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
           include: { parte: true },
           orderBy: { orden: 'asc' },
         },
+        fotos: {
+          include: { parte: true },
+          orderBy: { orden: 'asc' },
+        },
       },
     });
 
@@ -1973,6 +2321,13 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         links: {
           include: { parte: true },
           orderBy: { orden: 'asc' },
+        },
+        fotos: {
+          include: { parte: true },
+          orderBy: { orden: 'asc' },
+        },
+        visitas: {
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
@@ -2066,6 +2421,43 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
           url: l.url,
           orden: l.orden,
         })) || [],
+      fotos:
+        programa.fotos?.map((f: any) => ({
+          id: f.id,
+          parteId: f.parteId,
+          parte: f.parte,
+          url: f.url,
+          nombre: f.nombre,
+          orden: f.orden,
+        })) || [],
+      visitas:
+        programa.visitas?.map((v: any) => ({
+          id: v.id,
+          nombre: v.nombre,
+          procedencia: v.procedencia,
+          createdAt: v.createdAt,
+        })) || [],
+      qrAsistencia: programa.qrAsistencia
+        ? {
+            id: programa.qrAsistencia.id,
+            codigo: programa.qrAsistencia.codigo,
+            activo: programa.qrAsistencia.activo,
+            horaInicio: programa.qrAsistencia.horaInicio,
+            horaFin: programa.qrAsistencia.horaFin,
+            margenTemprana: programa.qrAsistencia.margenTemprana,
+            margenTardia: programa.qrAsistencia.margenTardia,
+            semanaInicio: programa.qrAsistencia.semanaInicio,
+            tipoAsistencia: programa.qrAsistencia.tipoAsistencia
+              ? {
+                  id: programa.qrAsistencia.tipoAsistencia.id,
+                  nombre: programa.qrAsistencia.tipoAsistencia.nombre,
+                  label: programa.qrAsistencia.tipoAsistencia.label,
+                  color: programa.qrAsistencia.tipoAsistencia.color,
+                  soloPresencia: programa.qrAsistencia.tipoAsistencia.soloPresencia,
+                }
+              : null,
+          }
+        : null,
     };
   }
 

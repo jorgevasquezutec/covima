@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,8 @@ interface DynamicFormProps {
   onSubmit: (data: Record<string, unknown>) => void;
   isSubmitting?: boolean;
   submitLabel?: string;
+  /** Use "lg" for puerta/mobile contexts with larger touch targets */
+  size?: 'default' | 'lg';
 }
 
 export function DynamicForm({
@@ -27,7 +30,10 @@ export function DynamicForm({
   onSubmit,
   isSubmitting = false,
   submitLabel = 'Registrar Asistencia',
+  size = 'default',
 }: DynamicFormProps) {
+  const lg = size === 'lg';
+
   // Generar schema Zod dinámicamente basado en los campos
   const schema = useMemo(() => {
     const shape: Record<string, z.ZodTypeAny> = {};
@@ -104,14 +110,23 @@ export function DynamicForm({
     onSubmit(data);
   };
 
+  const btnClass = lg
+    ? 'w-full h-14 text-base bg-green-600 hover:bg-green-700'
+    : 'w-full';
+
   if (campos.length === 0) {
     return (
       <Button
         type="button"
         onClick={() => onSubmit({})}
         disabled={isSubmitting}
-        className="w-full"
+        className={btnClass}
       >
+        {isSubmitting ? (
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        ) : lg ? (
+          <Check className="w-5 h-5 mr-2" />
+        ) : null}
         {isSubmitting ? 'Enviando...' : submitLabel}
       </Button>
     );
@@ -125,10 +140,16 @@ export function DynamicForm({
           campo={campo}
           control={control}
           error={errors[campo.nombre]?.message as string | undefined}
+          lg={lg}
         />
       ))}
 
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+      <Button type="submit" disabled={isSubmitting} className={btnClass}>
+        {isSubmitting ? (
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        ) : lg ? (
+          <Check className="w-5 h-5 mr-2" />
+        ) : null}
         {isSubmitting ? 'Enviando...' : submitLabel}
       </Button>
     </form>
@@ -139,14 +160,19 @@ interface DynamicFieldProps {
   campo: FormularioCampo;
   control: ReturnType<typeof useForm>['control'];
   error?: string;
+  lg?: boolean;
 }
 
-function DynamicField({ campo, control, error }: DynamicFieldProps) {
+function DynamicField({ campo, control, error, lg }: DynamicFieldProps) {
+  const inputClass = lg ? 'h-14 text-lg' : '';
+  const selectClass = lg ? 'h-14 text-lg' : '';
+  const labelClass = lg ? 'text-base' : '';
+
   switch (campo.tipo) {
     case 'number':
       return (
         <div className="space-y-2">
-          <Label htmlFor={campo.nombre}>
+          <Label htmlFor={campo.nombre} className={labelClass}>
             {campo.label}
             {campo.requerido && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -157,9 +183,11 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
               <Input
                 id={campo.nombre}
                 type="number"
+                inputMode="numeric"
                 min={campo.valorMinimo ?? undefined}
                 max={campo.valorMaximo ?? undefined}
                 placeholder={campo.placeholder}
+                className={inputClass}
                 {...field}
                 onChange={(e) => field.onChange(e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -176,6 +204,30 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
       );
 
     case 'checkbox':
+      if (lg) {
+        return (
+          <Controller
+            name={campo.nombre}
+            control={control}
+            render={({ field }) => (
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => field.onChange(!field.value)}
+                  className={`px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
+                    field.value
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {campo.label}
+                </button>
+                {error && <p className="text-xs text-red-500">{error}</p>}
+              </div>
+            )}
+          />
+        );
+      }
       return (
         <div className="space-y-2">
           <Controller
@@ -202,7 +254,7 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
     case 'select':
       return (
         <div className="space-y-2">
-          <Label htmlFor={campo.nombre}>
+          <Label htmlFor={campo.nombre} className={labelClass}>
             {campo.label}
             {campo.requerido && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -211,7 +263,7 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
             control={control}
             render={({ field }) => (
               <Select onValueChange={field.onChange} value={field.value as string}>
-                <SelectTrigger id={campo.nombre}>
+                <SelectTrigger id={campo.nombre} className={selectClass}>
                   <SelectValue placeholder={campo.placeholder || 'Selecciona una opción'} />
                 </SelectTrigger>
                 <SelectContent>
@@ -231,7 +283,7 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
     case 'rating':
       return (
         <div className="space-y-2">
-          <Label htmlFor={campo.nombre}>
+          <Label htmlFor={campo.nombre} className={labelClass}>
             {campo.label}
             {campo.requerido && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -245,7 +297,7 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
                     key={star}
                     type="button"
                     onClick={() => field.onChange(star)}
-                    className={`text-2xl transition-colors ${
+                    className={`${lg ? 'text-4xl p-1' : 'text-2xl'} transition-colors ${
                       (field.value as number) >= star
                         ? 'text-yellow-400'
                         : 'text-gray-300 hover:text-yellow-200'
@@ -264,7 +316,7 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
     default:
       return (
         <div className="space-y-2">
-          <Label htmlFor={campo.nombre}>
+          <Label htmlFor={campo.nombre} className={labelClass}>
             {campo.label}
             {campo.requerido && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -276,6 +328,7 @@ function DynamicField({ campo, control, error }: DynamicFieldProps) {
                 id={campo.nombre}
                 type="text"
                 placeholder={campo.placeholder}
+                className={inputClass}
                 {...field}
                 value={field.value as string}
               />

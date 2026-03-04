@@ -119,6 +119,7 @@ export interface Parte {
   esObligatoria: boolean;
   textoFijo?: string;
   activo: boolean;
+  permiteFotos?: boolean;
   icono?: string;
   categoria?: string;
   // Gamificación
@@ -133,6 +134,7 @@ export interface CreateParteRequest {
   esFija?: boolean;
   esObligatoria?: boolean;
   textoFijo?: string;
+  permiteFotos?: boolean;
   puntos?: number;
   xp?: number;
 }
@@ -145,6 +147,7 @@ export interface UpdateParteRequest {
   esObligatoria?: boolean;
   textoFijo?: string;
   activo?: boolean;
+  permiteFotos?: boolean;
   puntos?: number;
   xp?: number;
 }
@@ -252,6 +255,23 @@ export interface ProgramaLink {
   orden: number;
 }
 
+export interface ProgramaFoto {
+  id: number;
+  parte: Parte;
+  url: string;
+  nombre?: string;
+  orden: number;
+}
+
+export interface ProgramaVisita {
+  id: number;
+  nombre: string;
+  procedencia: string;
+  telefono?: string | null;
+  direccion?: string | null;
+  createdAt: string;
+}
+
 export interface Programa {
   id: number;
   codigo: string;
@@ -270,6 +290,9 @@ export interface Programa {
   partes: ProgramaParte[];
   asignaciones: ProgramaAsignacion[];
   links: ProgramaLink[];
+  fotos: ProgramaFoto[];
+  visitas: ProgramaVisita[];
+  qrAsistencia?: QRAsistencia | null;
 }
 
 export interface ParteOrdenDto {
@@ -289,6 +312,12 @@ export interface LinkDto {
   url: string;
 }
 
+export interface FotoDto {
+  parteId: number;
+  url: string;
+  nombre?: string;
+}
+
 export interface CreateProgramaRequest {
   fecha: string;
   titulo?: string;
@@ -297,6 +326,13 @@ export interface CreateProgramaRequest {
   partes?: ParteOrdenDto[];
   asignaciones?: AsignacionDto[];
   links?: LinkDto[];
+  fotos?: FotoDto[];
+  qrAsistenciaId?: number;
+  tipoAsistenciaId?: number;
+}
+
+export interface CreateProgramaBatchRequest {
+  programas: CreateProgramaRequest[];
 }
 
 export interface UpdateProgramaRequest {
@@ -308,6 +344,9 @@ export interface UpdateProgramaRequest {
   partes?: ParteOrdenDto[];
   asignaciones?: AsignacionDto[];
   links?: LinkDto[];
+  fotos?: FotoDto[];
+  qrAsistenciaId?: number | null;
+  tipoAsistenciaId?: number;
 }
 
 export interface UsuarioSimple {
@@ -384,6 +423,7 @@ export interface QRAsistencia {
   margenTemprana: number; // Minutos antes de horaInicio = temprana
   margenTardia: number; // Minutos después de horaInicio = tardía
   creador?: UsuarioSimple;
+  programaId?: number | null;
   totalAsistencias: number;
   createdAt: string;
 }
@@ -397,7 +437,7 @@ export interface Asistencia {
   semanaInicio: string;
   datosFormulario?: Record<string, unknown>;
   metodoRegistro: 'qr_web' | 'qr_bot' | 'plataforma' | 'manual';
-  estado: 'pendiente_confirmacion' | 'confirmado' | 'rechazado';
+  estado: 'pendiente_confirmacion' | 'confirmado' | 'rechazado' | 'fuera_horario';
   confirmador?: UsuarioSimple;
   confirmadoAt?: string;
   notasConfirmacion?: string;
@@ -422,6 +462,7 @@ export interface CreateQRRequest {
   margenTemprana?: number;
   margenTardia?: number;
   descripcion?: string;
+  programaId?: number;
 }
 
 export interface RegistrarAsistenciaRequest {

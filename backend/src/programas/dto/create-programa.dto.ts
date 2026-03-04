@@ -6,6 +6,7 @@ import {
   ValidateNested,
   IsInt,
   IsUrl,
+  ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -46,6 +47,21 @@ export class LinkDto {
   @ApiProperty({ example: 'https://www.youtube.com/watch?v=xxx' })
   @IsUrl()
   url: string;
+}
+
+export class FotoDto {
+  @ApiProperty({ example: 1, description: 'ID de la parte' })
+  @IsInt()
+  parteId: number;
+
+  @ApiProperty({ example: '/uploads/programas/programa-1234.jpg' })
+  @IsString()
+  url: string;
+
+  @ApiPropertyOptional({ example: 'Foto del grupo' })
+  @IsOptional()
+  @IsString()
+  nombre?: string;
 }
 
 export class ParteOrdenDto {
@@ -107,4 +123,36 @@ export class CreateProgramaDto {
   @ValidateNested({ each: true })
   @Type(() => LinkDto)
   links?: LinkDto[];
+
+  @ApiPropertyOptional({ type: [FotoDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FotoDto)
+  fotos?: FotoDto[];
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de un QR de asistencia existente para vincular al programa',
+  })
+  @IsOptional()
+  @IsInt()
+  qrAsistenciaId?: number;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del tipo de asistencia para crear un nuevo QR vinculado',
+  })
+  @IsOptional()
+  @IsInt()
+  tipoAsistenciaId?: number;
+}
+
+export class CreateProgramaBatchDto {
+  @ApiProperty({ type: [CreateProgramaDto], description: 'Lista de programas a crear' })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateProgramaDto)
+  programas: CreateProgramaDto[];
 }

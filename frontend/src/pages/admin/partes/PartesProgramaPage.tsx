@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { LayoutList, Plus, Edit2, Trash2, Star, Lock, MoreVertical } from 'lucide-react';
+import { LayoutList, Plus, Edit2, Trash2, Star, Lock, MoreVertical, Camera } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +35,7 @@ export default function PartesProgramaPage() {
     esFija: false,
     esObligatoria: false,
     textoFijo: '',
+    permiteFotos: false,
     puntos: 0,
     xp: 0,
   });
@@ -92,6 +93,7 @@ export default function PartesProgramaPage() {
       esFija: false,
       esObligatoria: false,
       textoFijo: '',
+      permiteFotos: false,
       puntos: 0,
       xp: 0,
     });
@@ -107,6 +109,7 @@ export default function PartesProgramaPage() {
       esFija: parte.esFija,
       esObligatoria: parte.esObligatoria,
       textoFijo: parte.textoFijo || '',
+      permiteFotos: parte.permiteFotos || false,
       puntos: parte.puntos,
       xp: parte.xp,
     });
@@ -209,6 +212,9 @@ export default function PartesProgramaPage() {
                           )}
                           {parte.esFija && (
                             <Lock className="w-3 h-3 text-gray-400 shrink-0" />
+                          )}
+                          {parte.permiteFotos && (
+                            <Camera className="w-3 h-3 text-blue-500 shrink-0" />
                           )}
                         </div>
                         {parte.esFija && parte.textoFijo && (
@@ -374,6 +380,17 @@ export default function PartesProgramaPage() {
                 <Switch
                   checked={formData.esFija}
                   onCheckedChange={(checked) => setFormData({ ...formData, esFija: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Permite fotos/videos</Label>
+                  <p className="text-xs text-muted-foreground">Se pueden subir fotos y videos en esta parte</p>
+                </div>
+                <Switch
+                  checked={formData.permiteFotos}
+                  onCheckedChange={(checked) => setFormData({ ...formData, permiteFotos: checked })}
                 />
               </div>
             </div>

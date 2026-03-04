@@ -58,6 +58,14 @@ export class CreateQRAsistenciaDto {
   @IsOptional()
   @IsString()
   descripcion?: string;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del programa a vincular',
+  })
+  @IsOptional()
+  @IsInt()
+  programaId?: number;
 }
 
 export class RegistrarAsistenciaDto {
@@ -303,6 +311,14 @@ export class UpdateQRAsistenciaDto {
   @IsOptional()
   @IsString()
   descripcion?: string;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del programa a vincular (null para desvincular)',
+  })
+  @IsOptional()
+  @IsInt()
+  programaId?: number | null;
 }
 
 export class FilterAsistenciasDto {

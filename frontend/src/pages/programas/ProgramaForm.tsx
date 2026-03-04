@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
     DndContext,
@@ -35,6 +36,14 @@ import {
     LayoutTemplate,
     FileText,
     Check,
+    ArrowLeftRight,
+    Camera,
+    UserPlus,
+    MapPin,
+    QrCode,
+    ChevronsUpDown,
+    Search,
+    Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -47,31 +56,162 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+    CommandSeparator,
+} from '@/components/ui/command';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import UserAutocomplete from '@/components/UserAutocomplete';
-import { programasApi } from '@/services/api';
+import { programasApi, asistenciaApi, tiposAsistenciaApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
-import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, PlantillaPrograma } from '@/types';
+import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, PlantillaPrograma, QRAsistencia, TipoAsistencia } from '@/types';
+import { downloadOBSSceneCollection } from '@/lib/obs-scene-export';
+import type { OBSExportParte } from '@/lib/obs-scene-export';
 
-interface ParteEnPrograma {
+// Tipo para identificar a quién se va a reemplazar
+export type PersonaReemplazo =
+    | { tipo: 'usuario'; id: number; nombre: string }
+    | { tipo: 'libre'; nombre: string };
+
+export interface ParteEnPrograma {
     id: string; // Unique ID for drag & drop
     parteId: number;
     parte: Parte;
     usuarioIds: number[];
     nombresLibres: string[];
     links: { nombre: string; url: string }[];
+    fotos: { url: string; nombre?: string }[];
 }
 
 // Sortable Part Item Component
-function SortableParteItem({
+function VisitasSection({ programaId }: { programaId: number }) {
+    const queryClient = useQueryClient();
+    const [nombre, setNombre] = useState('');
+    const [procedencia, setProcedencia] = useState('');
+    const nombreInputRef = useRef<HTMLInputElement>(null);
+
+    const { data: visitas = [] } = useQuery({
+        queryKey: ['visitas', programaId],
+        queryFn: () => programasApi.getVisitas(programaId),
+    });
+
+    const createMutation = useMutation({
+        mutationFn: () => programasApi.createVisita(programaId, { nombre, procedencia }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['visitas', programaId] });
+            setNombre('');
+            setProcedencia('');
+            toast.success('Visita registrada');
+            setTimeout(() => nombreInputRef.current?.focus(), 100);
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (visitaId: number) => programasApi.deleteVisita(visitaId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['visitas', programaId] });
+        },
+    });
+
+    const handleAdd = (e?: React.SyntheticEvent) => {
+        e?.preventDefault();
+        if (!nombre.trim() || !procedencia.trim()) return;
+        createMutation.mutate();
+    };
+
+    return (
+        <div className="space-y-3">
+            <Label className="text-gray-700 text-sm flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Visitas ({visitas.length})
+            </Label>
+
+            {visitas.length > 0 && (
+                <div className="space-y-1.5">
+                    {visitas.map((v) => (
+                        <div key={v.id} className="flex items-center justify-between gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="min-w-0 flex-1">
+                                <span className="text-sm font-medium text-gray-900">{v.nombre}</span>
+                                <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                    <MapPin className="w-3 h-3 shrink-0" />
+                                    {v.procedencia}
+                                </span>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0 h-7 w-7 p-0"
+                                onClick={() => deleteMutation.mutate(v.id)}
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(e); } }}>
+                <Input
+                    ref={nombreInputRef}
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    placeholder="Nombre del visitante"
+                    className="bg-white border-gray-300 text-gray-900 flex-1"
+                />
+                <Input
+                    value={procedencia}
+                    onChange={(e) => setProcedencia(e.target.value)}
+                    placeholder="Procedencia"
+                    className="bg-white border-gray-300 text-gray-900 flex-1"
+                />
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!nombre.trim() || !procedencia.trim() || createMutation.isPending}
+                    onClick={handleAdd}
+                    className="border-gray-300 hover:bg-gray-50 text-gray-700 shrink-0"
+                >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Agregar
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+export function SortableParteItem({
     item,
     usuarios,
     onRemove,
     onUpdateUsuarios,
     onAddFreeText,
     onRemoveFreeText,
+    onReplacePersona,
     onAddLink,
     onUpdateLink,
     onRemoveLink,
+    onAddFoto,
+    onUpdateFoto,
+    onRemoveFoto,
+    programaId,
 }: {
     item: ParteEnPrograma;
     usuarios: UsuarioSimple[];
@@ -79,9 +219,14 @@ function SortableParteItem({
     onUpdateUsuarios: (usuarioId: number, action: 'add' | 'remove') => void;
     onAddFreeText: (nombre: string) => void;
     onRemoveFreeText: (nombre: string) => void;
+    onReplacePersona: (persona: PersonaReemplazo) => void;
     onAddLink: () => void;
     onUpdateLink: (index: number, field: 'nombre' | 'url', value: string) => void;
     onRemoveLink: (index: number) => void;
+    onAddFoto?: (file: File) => void;
+    onUpdateFoto?: (index: number, nombre: string) => void;
+    onRemoveFoto?: (index: number) => void;
+    programaId?: number;
 }) {
     const {
         attributes,
@@ -92,10 +237,23 @@ function SortableParteItem({
         isDragging,
     } = useSortable({ id: item.id });
 
+    const [fotosOpen, setFotosOpen] = useState(item.fotos.length > 0);
+    const fotoInputRef = useRef<HTMLInputElement>(null);
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
+    };
+
+    const getBaseUrl = () => {
+        if (import.meta.env.VITE_API_URL) {
+            return import.meta.env.VITE_API_URL.replace(/\/api$/, '');
+        }
+        if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+            return `http://${window.location.hostname}:3000`;
+        }
+        return 'http://localhost:3000';
     };
 
     const getParteIcon = (nombre: string) => {
@@ -183,8 +341,16 @@ function SortableParteItem({
                                             {usuario?.nombre || 'Usuario'}
                                             <button
                                                 type="button"
-                                                onClick={() => onUpdateUsuarios(uid, 'remove')}
+                                                onClick={() => onReplacePersona({ tipo: 'usuario', id: uid, nombre: usuario?.nombre || 'Usuario' })}
                                                 className="ml-1 p-0.5 hover:bg-green-200 rounded"
+                                                title="Reemplazar en todo el programa"
+                                            >
+                                                <ArrowLeftRight className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => onUpdateUsuarios(uid, 'remove')}
+                                                className="p-0.5 hover:bg-green-200 rounded"
                                             >
                                                 <Trash2 className="h-3 w-3" />
                                             </button>
@@ -201,8 +367,16 @@ function SortableParteItem({
                                         <span className="text-xs opacity-60 ml-1">(externo)</span>
                                         <button
                                             type="button"
-                                            onClick={() => onRemoveFreeText(nombre)}
+                                            onClick={() => onReplacePersona({ tipo: 'libre', nombre })}
                                             className="ml-1 p-0.5 hover:bg-amber-200 rounded"
+                                            title="Reemplazar en todo el programa"
+                                        >
+                                            <ArrowLeftRight className="h-3 w-3" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => onRemoveFreeText(nombre)}
+                                            className="p-0.5 hover:bg-amber-200 rounded"
                                         >
                                             <Trash2 className="h-3 w-3" />
                                         </button>
@@ -278,6 +452,90 @@ function SortableParteItem({
                             Agregar Link
                         </Button>
                     </div>
+
+                    {/* Visitas - only for Bienvenida parts when editing */}
+                    {programaId && item.parte.nombre.toLowerCase().includes('bienvenida') && (
+                        <VisitasSection programaId={programaId} />
+                    )}
+
+                    {/* Fotos - collapsible, only if part allows it */}
+                    {item.parte.permiteFotos && onAddFoto && onRemoveFoto && (
+                        <div className="space-y-3">
+                            <button
+                                type="button"
+                                onClick={() => setFotosOpen(!fotosOpen)}
+                                className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+                            >
+                                <Camera className="h-4 w-4" />
+                                Fotos/Videos {item.fotos.length > 0 && `(${item.fotos.length})`}
+                                <ChevronDown className={`h-4 w-4 transition-transform ${fotosOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {fotosOpen && (
+                                <div className="space-y-3">
+                                    {item.fotos.map((foto, index) => {
+                                        const isVideo = /\.(mp4|webm|mov)$/i.test(foto.url);
+                                        return (
+                                        <div key={index} className="flex items-center gap-3">
+                                            {isVideo ? (
+                                                <video
+                                                    src={`${getBaseUrl()}${foto.url}`}
+                                                    className="w-16 h-16 object-cover rounded-lg border border-gray-200 shrink-0"
+                                                    muted
+                                                />
+                                            ) : (
+                                                <img
+                                                    src={`${getBaseUrl()}${foto.url}`}
+                                                    alt={foto.nombre || `Foto ${index + 1}`}
+                                                    className="w-16 h-16 object-cover rounded-lg border border-gray-200 shrink-0"
+                                                />
+                                            )}
+                                            <Input
+                                                value={foto.nombre || ''}
+                                                onChange={(e) => onUpdateFoto!(index, e.target.value)}
+                                                placeholder="Título del archivo"
+                                                className="bg-white border-gray-300 text-gray-900 flex-1"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => onRemoveFoto(index)}
+                                                className="hover:bg-red-50 hover:text-red-600 shrink-0"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                        );
+                                    })}
+
+                                    <input
+                                        ref={fotoInputRef}
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                onAddFoto(file);
+                                                e.target.value = '';
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => fotoInputRef.current?.click()}
+                                        className="border-gray-300 hover:bg-gray-50 text-gray-700"
+                                    >
+                                        <Camera className="h-4 w-4 mr-2" />
+                                        Agregar Foto/Video
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </CardContent>
             )}
         </Card>
@@ -305,6 +563,15 @@ export default function ProgramaForm() {
     const [horaFin, setHoraFin] = useState('');
     const [codigo, setCodigo] = useState('');
     const [partesEnPrograma, setPartesEnPrograma] = useState<ParteEnPrograma[]>([]);
+    const [qrsDisponibles, setQrsDisponibles] = useState<QRAsistencia[]>([]);
+    const [tiposAsistencia, setTiposAsistencia] = useState<TipoAsistencia[]>([]);
+    const [selectedQrId, setSelectedQrId] = useState<number | null>(null);
+    const [selectedTipoId, setSelectedTipoId] = useState<number | null>(null);
+    const [qrAsistenciaData, setQrAsistenciaData] = useState<QRAsistencia | null>(null);
+    const [qrComboOpen, setQrComboOpen] = useState(false);
+
+    // Replace persona state
+    const [personaAReemplazar, setPersonaAReemplazar] = useState<PersonaReemplazo | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -320,11 +587,13 @@ export default function ProgramaForm() {
     const loadInitialData = async () => {
         try {
             setLoading(true);
-            const [obligatorias, opcionales, usuariosData, plantillasData] = await Promise.all([
+            const [obligatorias, opcionales, usuariosData, plantillasData, qrsData, tiposData] = await Promise.all([
                 programasApi.getPartesObligatorias(),
                 programasApi.getPartesOpcionales(),
                 programasApi.getUsuarios(),
                 !isEditing ? programasApi.getPlantillas() : Promise.resolve([]),
+                asistenciaApi.getAllQRs({ limit: 100, activo: true }),
+                tiposAsistenciaApi.getAll({ activo: true }),
             ]);
 
             // Combinar todas las partes
@@ -332,6 +601,7 @@ export default function ProgramaForm() {
             setTodasLasPartes(todas);
             setUsuarios(usuariosData);
             setPlantillas(plantillasData);
+            setTiposAsistencia(tiposData);
 
             if (isEditing) {
                 const programaData = await programasApi.getOne(parseInt(id!));
@@ -340,6 +610,16 @@ export default function ProgramaForm() {
                 setCodigo(programaData.codigo);
                 setHoraInicio(programaData.horaInicio || '');
                 setHoraFin(programaData.horaFin || '');
+                if (programaData.qrAsistencia) {
+                    setQrAsistenciaData(programaData.qrAsistencia);
+                    setSelectedQrId(programaData.qrAsistencia.id);
+                }
+
+                // QRs disponibles: activos sin programa vinculado, o el QR del programa actual
+                const programaQrId = programaData.qrAsistencia?.id;
+                setQrsDisponibles(
+                    qrsData.data.filter(qr => qr.activo && (!qr.programaId || qr.id === programaQrId))
+                );
 
                 // Rebuild partes from programa data
                 const programaPartes: ParteEnPrograma[] = [];
@@ -350,6 +630,7 @@ export default function ProgramaForm() {
                         const asigs = programaData.asignaciones.filter(a => a.parte.id === pp.parteId);
                         const links = programaData.links.filter(l => l.parte.id === pp.parteId);
 
+                        const fotos = programaData.fotos.filter(f => f.parte.id === pp.parteId);
                         programaPartes.push({
                             id: `parte-${pp.parteId}`,
                             parteId: pp.parteId,
@@ -357,6 +638,7 @@ export default function ProgramaForm() {
                             usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                             nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
                             links: links.map(l => ({ nombre: l.nombre, url: l.url })),
+                            fotos: fotos.map(f => ({ url: f.url, nombre: f.nombre })),
                         });
                     }
                 } else {
@@ -364,8 +646,9 @@ export default function ProgramaForm() {
                     for (const parte of todas) {
                         const asigs = programaData.asignaciones.filter(a => a.parte.id === parte.id);
                         const links = programaData.links.filter(l => l.parte.id === parte.id);
+                        const fotos = programaData.fotos.filter(f => f.parte.id === parte.id);
 
-                        if (asigs.length > 0 || links.length > 0) {
+                        if (asigs.length > 0 || links.length > 0 || fotos.length > 0) {
                             programaPartes.push({
                                 id: `parte-${parte.id}`,
                                 parteId: parte.id,
@@ -373,6 +656,7 @@ export default function ProgramaForm() {
                                 usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                                 nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
                                 links: links.map(l => ({ nombre: l.nombre, url: l.url })),
+                                fotos: fotos.map(f => ({ url: f.url, nombre: f.nombre })),
                             });
                         }
                     }
@@ -380,7 +664,12 @@ export default function ProgramaForm() {
 
                 setPartesEnPrograma(programaPartes);
             } else {
-                // New program: show template selector
+                // New program: QRs disponibles (activos sin programa)
+                setQrsDisponibles(
+                    qrsData.data.filter(qr => qr.activo && !qr.programaId)
+                );
+
+                // Show template selector
                 setFecha(getFechaActual());
 
                 // If there are plantillas available, show selector
@@ -427,6 +716,7 @@ export default function ProgramaForm() {
                     usuarioIds: [],
                     nombresLibres: [],
                     links: [],
+                    fotos: [],
                 };
             });
 
@@ -440,6 +730,34 @@ export default function ProgramaForm() {
         loadPlantillaPartes(plantilla);
         setTitulo(plantilla.nombre);
         setShowTemplateSelector(false);
+    };
+
+    const handleExportOBS = async () => {
+        const partes: OBSExportParte[] = partesEnPrograma.map((p) => ({
+            nombre: p.parte.nombre,
+            participantes: [],
+            links: p.links,
+            fotos: p.fotos,
+        }));
+
+        // Fetch visitas if editing
+        let visitas: { nombre: string; procedencia: string }[] = [];
+        if (isEditing) {
+            try {
+                const visitasData = await programasApi.getVisitas(parseInt(id!));
+                visitas = visitasData.map((v) => ({ nombre: v.nombre, procedencia: v.procedencia }));
+            } catch {
+                // continue without visitas
+            }
+        }
+
+        downloadOBSSceneCollection({
+            titulo: titulo || 'Programa JA',
+            fecha: fecha || new Date().toISOString().split('T')[0],
+            partes,
+            visitas,
+        });
+        toast.success('Archivo OBS exportado');
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -473,6 +791,7 @@ export default function ProgramaForm() {
                 usuarioIds: [],
                 nombresLibres: [],
                 links: [],
+                fotos: [],
             },
         ]);
     };
@@ -586,6 +905,46 @@ export default function ProgramaForm() {
         );
     };
 
+    const handleAddFoto = async (parteId: number, file: File) => {
+        try {
+            const result = await programasApi.uploadFotoPrograma(file);
+            setPartesEnPrograma(prev =>
+                prev.map(p => {
+                    if (p.parteId === parteId) {
+                        return { ...p, fotos: [...p.fotos, { url: result.url }] };
+                    }
+                    return p;
+                })
+            );
+        } catch {
+            toast.error('Error al subir la foto');
+        }
+    };
+
+    const handleUpdateFoto = (parteId: number, index: number, nombre: string) => {
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (p.parteId === parteId) {
+                    const newFotos = [...p.fotos];
+                    newFotos[index] = { ...newFotos[index], nombre };
+                    return { ...p, fotos: newFotos };
+                }
+                return p;
+            })
+        );
+    };
+
+    const handleRemoveFoto = (parteId: number, index: number) => {
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (p.parteId === parteId) {
+                    return { ...p, fotos: p.fotos.filter((_, i) => i !== index) };
+                }
+                return p;
+            })
+        );
+    };
+
     const handleAddFreeText = (parteId: number, nombre: string) => {
         setPartesEnPrograma(prev =>
             prev.map(p => {
@@ -606,6 +965,67 @@ export default function ProgramaForm() {
                 return p;
             })
         );
+    };
+
+    // Count how many parts a person appears in
+    const contarApariciones = (persona: PersonaReemplazo): number => {
+        return partesEnPrograma.filter(p => {
+            if (persona.tipo === 'usuario') return p.usuarioIds.includes(persona.id);
+            return p.nombresLibres.includes(persona.nombre);
+        }).length;
+    };
+
+    // Replace a person across all parts with a registered user
+    const handleReemplazarConUsuario = (usuarioId: number) => {
+        if (!personaAReemplazar) return;
+
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (personaAReemplazar.tipo === 'usuario') {
+                    if (!p.usuarioIds.includes(personaAReemplazar.id)) return p;
+                    // Remove old user, add new (avoid duplicates)
+                    const sinAnterior = p.usuarioIds.filter(id => id !== personaAReemplazar.id);
+                    const nuevos = sinAnterior.includes(usuarioId) ? sinAnterior : [...sinAnterior, usuarioId];
+                    return { ...p, usuarioIds: nuevos };
+                } else {
+                    if (!p.nombresLibres.includes(personaAReemplazar.nombre)) return p;
+                    // Remove free text, add user (avoid duplicates)
+                    const sinAnterior = p.nombresLibres.filter(n => n !== personaAReemplazar.nombre);
+                    const nuevosUsuarios = p.usuarioIds.includes(usuarioId) ? p.usuarioIds : [...p.usuarioIds, usuarioId];
+                    return { ...p, nombresLibres: sinAnterior, usuarioIds: nuevosUsuarios };
+                }
+            })
+        );
+
+        const usuario = usuarios.find(u => u.id === usuarioId);
+        toast.success(`Reemplazado con ${usuario?.nombre || 'usuario'} en todas las partes`);
+        setPersonaAReemplazar(null);
+    };
+
+    // Replace a person across all parts with free text
+    const handleReemplazarConTexto = (nuevoNombre: string) => {
+        if (!personaAReemplazar) return;
+
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (personaAReemplazar.tipo === 'usuario') {
+                    if (!p.usuarioIds.includes(personaAReemplazar.id)) return p;
+                    // Remove user, add free text (avoid duplicates)
+                    const sinAnterior = p.usuarioIds.filter(id => id !== personaAReemplazar.id);
+                    const nuevosLibres = p.nombresLibres.includes(nuevoNombre) ? p.nombresLibres : [...p.nombresLibres, nuevoNombre];
+                    return { ...p, usuarioIds: sinAnterior, nombresLibres: nuevosLibres };
+                } else {
+                    if (!p.nombresLibres.includes(personaAReemplazar.nombre)) return p;
+                    // Replace free text name (avoid duplicates)
+                    const sinAnterior = p.nombresLibres.filter(n => n !== personaAReemplazar.nombre);
+                    const nuevos = sinAnterior.includes(nuevoNombre) ? sinAnterior : [...sinAnterior, nuevoNombre];
+                    return { ...p, nombresLibres: nuevos };
+                }
+            })
+        );
+
+        toast.success(`Reemplazado con "${nuevoNombre}" en todas las partes`);
+        setPersonaAReemplazar(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -647,6 +1067,17 @@ export default function ProgramaForm() {
                         }))
                 );
 
+            // Build fotos
+            const fotos: FotoDto[] = partesEnPrograma
+                .filter(p => p.fotos.length > 0)
+                .flatMap(p =>
+                    p.fotos.map(f => ({
+                        parteId: p.parteId,
+                        url: f.url,
+                        nombre: f.nombre,
+                    }))
+                );
+
             if (isEditing) {
                 await programasApi.update(parseInt(id!), {
                     fecha,
@@ -656,6 +1087,9 @@ export default function ProgramaForm() {
                     partes,
                     asignaciones,
                     links,
+                    fotos,
+                    qrAsistenciaId: selectedQrId || null,
+                    tipoAsistenciaId: !selectedQrId && selectedTipoId ? selectedTipoId : undefined,
                 });
                 toast.success('Programa actualizado');
             } else {
@@ -667,6 +1101,9 @@ export default function ProgramaForm() {
                     partes,
                     asignaciones,
                     links,
+                    fotos,
+                    qrAsistenciaId: selectedQrId || undefined,
+                    tipoAsistenciaId: !selectedQrId && selectedTipoId ? selectedTipoId : undefined,
                 });
                 toast.success('Programa creado');
             }
@@ -810,6 +1247,17 @@ export default function ProgramaForm() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    {isEditing && partesEnPrograma.length > 0 && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleExportOBS}
+                            className="border-gray-300"
+                        >
+                            <Monitor className="h-4 w-4 mr-2" />
+                            Exportar OBS
+                        </Button>
+                    )}
                     {!isEditing && plantillas.length > 1 && (
                         <Button
                             type="button"
@@ -885,6 +1333,174 @@ export default function ProgramaForm() {
                             className="bg-white border-gray-300 text-gray-900"
                         />
                     </div>
+                    {(qrsDisponibles.length > 0 || tiposAsistencia.length > 0) && (
+                        <div className="md:col-span-2 lg:col-span-4">
+                            <Label className="text-gray-700 mb-2 block">QR de Asistencia</Label>
+                            {selectedQrId ? (() => {
+                                const qr = qrAsistenciaData?.id === selectedQrId
+                                    ? qrAsistenciaData
+                                    : qrsDisponibles.find(q => q.id === selectedQrId);
+                                if (!qr) return null;
+                                return (
+                                    <div className="flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 p-4">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <QrCode className="h-5 w-5 text-green-600 shrink-0" />
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-gray-900 truncate">
+                                                        {qr.descripcion || qr.codigo}
+                                                    </span>
+                                                    <Badge variant="outline" className="border-green-300 text-green-700 bg-green-100 shrink-0">
+                                                        Activo
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-sm text-gray-500 mt-0.5">
+                                                    Código: <span className="font-mono">{qr.codigo}</span>
+                                                    {' · '}
+                                                    {qr.totalAsistencias} asistencia{qr.totalAsistencias !== 1 ? 's' : ''}
+                                                    {qr.tipoAsistencia && (
+                                                        <>
+                                                            {' · '}
+                                                            Tipo: {qr.tipoAsistencia.label}
+                                                        </>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={() => {
+                                                setSelectedQrId(null);
+                                                setQrAsistenciaData(null);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Desvincular
+                                        </Button>
+                                    </div>
+                                );
+                            })() : selectedTipoId ? (() => {
+                                const tipo = tiposAsistencia.find(t => t.id === selectedTipoId);
+                                if (!tipo) return null;
+                                return (
+                                    <div className="flex items-center justify-between gap-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <QrCode className="h-5 w-5 text-blue-600 shrink-0" />
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-gray-900 truncate">
+                                                        Se creará QR &quot;{titulo || 'Sin título'}&quot;
+                                                    </span>
+                                                    <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-100 shrink-0">
+                                                        {tipo.label}
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-sm text-gray-500 mt-0.5">
+                                                    Se creará un nuevo QR de asistencia al guardar
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={() => setSelectedTipoId(null)}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                );
+                            })() : (
+                                <div className="flex items-center justify-between gap-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+                                    <div className="flex items-center gap-3">
+                                        <QrCode className="h-5 w-5 text-gray-400" />
+                                        <span className="text-gray-500">Sin QR de asistencia vinculado</span>
+                                    </div>
+                                    <Popover open={qrComboOpen} onOpenChange={setQrComboOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className="w-[200px] justify-between bg-white border-gray-300"
+                                            >
+                                                <span className="flex items-center gap-2 text-gray-500">
+                                                    <Search className="h-4 w-4" />
+                                                    Vincular QR...
+                                                </span>
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[320px] p-0" align="end">
+                                            <Command>
+                                                <CommandInput placeholder="Buscar QR o tipo..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No se encontraron resultados</CommandEmpty>
+                                                    {qrsDisponibles.length > 0 && (
+                                                        <CommandGroup heading="QRs activos">
+                                                            {qrsDisponibles.map((q) => (
+                                                                <CommandItem
+                                                                    key={`qr-${q.id}`}
+                                                                    value={`${q.descripcion || ''} ${q.codigo} ${q.tipoAsistencia?.label || ''}`}
+                                                                    onSelect={() => {
+                                                                        setSelectedQrId(q.id);
+                                                                        setSelectedTipoId(null);
+                                                                        setQrAsistenciaData(q);
+                                                                        setQrComboOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <div className="flex flex-col">
+                                                                        <span className="font-medium">{q.descripcion || q.codigo}</span>
+                                                                        <span className="text-xs text-gray-500">
+                                                                            {q.codigo}
+                                                                            {q.tipoAsistencia && ` · ${q.tipoAsistencia.label}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    )}
+                                                    {tiposAsistencia.length > 0 && (
+                                                        <>
+                                                            {qrsDisponibles.length > 0 && <CommandSeparator />}
+                                                            <CommandGroup heading="Crear nuevo QR">
+                                                                {tiposAsistencia.map((tipo) => (
+                                                                    <CommandItem
+                                                                        key={`tipo-${tipo.id}`}
+                                                                        value={`crear nuevo ${tipo.nombre} ${tipo.label}`}
+                                                                        onSelect={() => {
+                                                                            setSelectedTipoId(tipo.id);
+                                                                            setSelectedQrId(null);
+                                                                            setQrAsistenciaData(null);
+                                                                            setQrComboOpen(false);
+                                                                        }}
+                                                                    >
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-medium">
+                                                                                <Plus className="h-3.5 w-3.5 inline mr-1" />
+                                                                                Crear QR — {tipo.label}
+                                                                            </span>
+                                                                            <span className="text-xs text-gray-500">
+                                                                                Se creará al guardar el programa
+                                                                            </span>
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </>
+                                                    )}
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {isEditing && codigo && (
                         <div className="space-y-2 md:col-span-2 lg:col-span-4">
                             <Label className="text-gray-700">Código del Programa</Label>
@@ -948,19 +1564,53 @@ export default function ProgramaForm() {
                                     key={item.id}
                                     item={item}
                                     usuarios={usuarios}
+                                    programaId={isEditing ? parseInt(id!) : undefined}
                                     onRemove={() => handleRemoveParte(item.parteId)}
                                     onUpdateUsuarios={(usuarioId, action) => handleUpdateUsuarios(item.parteId, usuarioId, action)}
                                     onAddFreeText={(nombre) => handleAddFreeText(item.parteId, nombre)}
                                     onRemoveFreeText={(nombre) => handleRemoveFreeText(item.parteId, nombre)}
+                                    onReplacePersona={(persona) => setPersonaAReemplazar(persona)}
                                     onAddLink={() => handleAddLink(item.parteId)}
                                     onUpdateLink={(index, field, value) => handleUpdateLink(item.parteId, index, field, value)}
                                     onRemoveLink={(index) => handleRemoveLink(item.parteId, index)}
+                                    onAddFoto={(file) => handleAddFoto(item.parteId, file)}
+                                    onUpdateFoto={(index, nombre) => handleUpdateFoto(item.parteId, index, nombre)}
+                                    onRemoveFoto={(index) => handleRemoveFoto(item.parteId, index)}
                                 />
                             ))}
                         </div>
                     </SortableContext>
                 </DndContext>
             </div>
+
+            {/* Dialog de reemplazo */}
+            <Dialog open={!!personaAReemplazar} onOpenChange={(open) => { if (!open) setPersonaAReemplazar(null); }}>
+                <DialogContent className="bg-white sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-gray-900">
+                            <ArrowLeftRight className="h-5 w-5 text-blue-600" />
+                            Reemplazar persona
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-500">
+                            Reemplazar a <span className="font-semibold text-gray-700">{personaAReemplazar?.nombre}</span> en{' '}
+                            <span className="font-semibold text-gray-700">
+                                {personaAReemplazar ? contarApariciones(personaAReemplazar) : 0} parte(s)
+                            </span>{' '}
+                            del programa.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 pt-2">
+                        <Label className="text-gray-700 text-sm">Seleccionar reemplazo</Label>
+                        <UserAutocomplete
+                            usuarios={usuarios}
+                            selectedIds={personaAReemplazar?.tipo === 'usuario' ? [personaAReemplazar.id] : []}
+                            onSelect={handleReemplazarConUsuario}
+                            onAddFreeText={handleReemplazarConTexto}
+                            placeholder="Buscar reemplazo..."
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </form>
     );
 }

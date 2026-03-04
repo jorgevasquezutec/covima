@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Calendar, Clock, Users, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Calendar, Clock, Users, Link as LinkIcon, Loader2, X } from 'lucide-react';
 import type { Programa } from '@/types';
 import api from '@/services/api';
 import { parseLocalDate } from '@/lib/utils';
@@ -10,6 +10,9 @@ export default function ProgramaPublicPage() {
   const [programa, setPrograma] = useState<Programa | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const closeLightbox = useCallback(() => setLightboxUrl(null), []);
 
   useEffect(() => {
     if (!codigo) return;
@@ -50,6 +53,16 @@ export default function ProgramaPublicPage() {
     year: 'numeric',
   });
 
+  const getBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL.replace(/\/api$/, '');
+    }
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      return `http://${window.location.hostname}:3000`;
+    }
+    return 'http://localhost:3000';
+  };
+
   // Agrupar asignaciones por parte
   const parteMap = new Map<
     number,
@@ -60,6 +73,7 @@ export default function ProgramaPublicPage() {
       textoFijo?: string;
       asignados: string[];
       links: { nombre: string; url: string }[];
+      fotos: { url: string; nombre?: string }[];
     }
   >();
 
@@ -72,6 +86,7 @@ export default function ProgramaPublicPage() {
       textoFijo: pp.parte.textoFijo,
       asignados: [],
       links: [],
+      fotos: [],
     });
   }
 
@@ -89,6 +104,14 @@ export default function ProgramaPublicPage() {
     const p = parteMap.get(link.parte.id);
     if (p) {
       p.links.push({ nombre: link.nombre, url: link.url });
+    }
+  }
+
+  // Agregar fotos
+  for (const foto of programa.fotos) {
+    const p = parteMap.get(foto.parte.id);
+    if (p) {
+      p.fotos.push({ url: foto.url, nombre: foto.nombre });
     }
   }
 
@@ -142,48 +165,99 @@ export default function ProgramaPublicPage() {
 
       {/* Contenido */}
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
-        {partesOrdenadas.map((parte, i) => (
-          <div
-            key={i}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
-          >
-            <div className="px-4 py-3">
-              {/* Nombre de la parte */}
-              <h3 className="font-semibold text-gray-900 text-sm">{parte.nombre}</h3>
+        {partesOrdenadas.map((parte, i) => {
+          const esBienvenida = parte.nombre.toLowerCase().includes('bienvenida');
+          const visitas = programa.visitas || [];
+          return (
+            <div key={i}>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-3">
+                  {/* Nombre de la parte */}
+                  <h3 className="font-semibold text-gray-900 text-sm">{parte.nombre}</h3>
 
-              {/* Texto fijo */}
-              {parte.esFija && parte.textoFijo && (
-                <p className="text-gray-500 text-sm mt-1">{parte.textoFijo}</p>
-              )}
+                  {/* Texto fijo */}
+                  {parte.esFija && parte.textoFijo && (
+                    <p className="text-gray-500 text-sm mt-1">{parte.textoFijo}</p>
+                  )}
 
-              {/* Asignados */}
-              {parte.asignados.length > 0 && (
-                <div className="flex items-center gap-1.5 mt-2 text-sm text-gray-600">
-                  <Users className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                  <span>{parte.asignados.join(', ')}</span>
+                  {/* Asignados */}
+                  {parte.asignados.length > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2 text-sm text-gray-600">
+                      <Users className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>{parte.asignados.join(', ')}</span>
+                    </div>
+                  )}
+
+                  {/* Links */}
+                  {parte.links.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {parte.links.map((link, j) => (
+                        <a
+                          key={j}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                          <LinkIcon className="w-3.5 h-3.5 shrink-0" />
+                          {link.nombre}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Fotos/Videos — thumbnails */}
+                  {parte.fotos.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {parte.fotos.map((foto, j) => {
+                        const fullUrl = `${getBaseUrl()}${foto.url}`;
+                        const isVideo = /\.(mp4|webm|mov)$/i.test(foto.url);
+                        return isVideo ? (
+                          <video
+                            key={j}
+                            src={fullUrl}
+                            controls
+                            className="w-full rounded-lg border border-gray-200"
+                          />
+                        ) : (
+                          <button
+                            key={j}
+                            onClick={() => setLightboxUrl(fullUrl)}
+                            className="relative group"
+                            title={foto.nombre || `Foto ${j + 1}`}
+                          >
+                            <img
+                              src={fullUrl}
+                              alt={foto.nombre || `Foto ${j + 1}`}
+                              className="w-16 h-16 object-cover rounded-lg border border-gray-200 group-hover:border-blue-400 transition-colors"
+                            />
+                            {foto.nombre && (
+                              <p className="text-[10px] text-gray-500 mt-0.5 truncate max-w-16">{foto.nombre}</p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* Links */}
-              {parte.links.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {parte.links.map((link, j) => (
-                    <a
-                      key={j}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      <LinkIcon className="w-3.5 h-3.5 shrink-0" />
-                      {link.nombre}
-                    </a>
-                  ))}
+              </div>
+              {esBienvenida && visitas.length > 0 && (
+                <div className="mt-2 mx-1 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="font-semibold text-amber-800 text-sm mb-1.5">
+                    Visitas ({visitas.length}):
+                  </p>
+                  <div className="space-y-0.5">
+                    {visitas.map((v) => (
+                      <p key={v.id} className="text-sm text-amber-700">
+                        {v.nombre} — {v.procedencia}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {partesOrdenadas.length === 0 && (
           <div className="text-center py-8 text-gray-400">
@@ -198,6 +272,27 @@ export default function ProgramaPublicPage() {
           Código: {programa.codigo}
         </p>
       </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={closeLightbox}
+        >
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 text-white/80 hover:text-white p-2"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt=""
+            className="max-w-full max-h-[90vh] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,9 @@ import type {
   CalendarioMesResponse,
   CreateActividadRequest,
   UpdateActividadRequest,
+  CreateProgramaBatchRequest,
+  ProgramaVisita,
+  QRAsistencia,
 } from '@/types';
 
 // En desarrollo, usar la misma IP/host del navegador para la API
@@ -194,6 +197,12 @@ export const usuariosApi = {
     return response.data;
   },
 
+  // Registro rápido (kiosk puerta - admin + lider)
+  registroRapido: async (data: CreateUsuarioRequest): Promise<Usuario> => {
+    const response = await api.post<Usuario>('/usuarios/registro-rapido', data);
+    return response.data;
+  },
+
   // Cumpleaños del mes
   getCumpleanosDelMes: async (params?: { mes?: number; anio?: number }): Promise<{
     mes: number;
@@ -261,6 +270,11 @@ export const programasApi = {
 
   create: async (data: CreateProgramaRequest): Promise<Programa> => {
     const response = await api.post<Programa>('/programas', data);
+    return response.data;
+  },
+
+  createBatch: async (data: CreateProgramaBatchRequest): Promise<Programa[]> => {
+    const response = await api.post<Programa[]>('/programas/batch', data);
     return response.data;
   },
 
@@ -375,9 +389,47 @@ export const programasApi = {
     return response.data;
   },
 
-  getProximoPrograma: async (): Promise<Programa | null> => {
-    const response = await api.get<Programa | null>('/programas/proximo');
+  getProximoPrograma: async (): Promise<Programa[]> => {
+    const response = await api.get<Programa[]>('/programas/proximo');
     return response.data;
+  },
+
+  // ==================== FOTOS ====================
+
+  uploadFotoPrograma: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append('foto', file);
+    const response = await api.post<{ url: string }>('/programas/fotos/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // ==================== VISITAS ====================
+
+  getProgramasHoyVisitas: async (): Promise<{
+    id: number;
+    titulo: string;
+    fecha: string;
+    visitas: ProgramaVisita[];
+    qrAsistencia?: QRAsistencia | null;
+  }[]> => {
+    const response = await api.get('/programas/visitas/hoy');
+    return response.data;
+  },
+
+  getVisitas: async (programaId: number): Promise<ProgramaVisita[]> => {
+    const response = await api.get<ProgramaVisita[]>(`/programas/${programaId}/visitas`);
+    return response.data;
+  },
+
+  createVisita: async (programaId: number, data: { nombre: string; procedencia: string; telefono?: string; direccion?: string }): Promise<ProgramaVisita> => {
+    const response = await api.post<ProgramaVisita>(`/programas/${programaId}/visitas`, data);
+    return response.data;
+  },
+
+  deleteVisita: async (visitaId: number): Promise<void> => {
+    await api.delete(`/programas/visitas/${visitaId}`);
   },
 
   // ==================== PLANTILLAS ====================
@@ -567,7 +619,6 @@ export const tiposAsistenciaApi = {
 // ==================== ASISTENCIA API ====================
 
 import type {
-  QRAsistencia,
   Asistencia,
   CreateQRRequest,
   RegistrarAsistenciaRequest,
@@ -610,7 +661,7 @@ export const asistenciaApi = {
     return response.data;
   },
 
-  updateQR: async (id: number, data: { semanaInicio?: string; horaInicio?: string; horaFin?: string; margenTemprana?: number; margenTardia?: number; descripcion?: string }): Promise<QRAsistencia> => {
+  updateQR: async (id: number, data: { semanaInicio?: string; horaInicio?: string; horaFin?: string; margenTemprana?: number; margenTardia?: number; descripcion?: string; programaId?: number | null }): Promise<QRAsistencia> => {
     const response = await api.patch<QRAsistencia>(`/asistencia/qr/${id}`, data);
     return response.data;
   },

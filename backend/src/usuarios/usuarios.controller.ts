@@ -38,7 +38,7 @@ export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   @Get()
-  @Roles('admin')
+  @Roles('admin', 'lider')
   @ApiOperation({ summary: 'Listar usuarios' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'rol', required: false })
@@ -243,6 +243,13 @@ export class UsuariosController {
   @Roles('admin')
   @ApiOperation({ summary: 'Crear usuario' })
   async create(@Body() dto: CreateUsuarioDto, @Request() req: any) {
+    return this.usuariosService.create(dto, req.user.id);
+  }
+
+  @Post('registro-rapido')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Registro rápido de miembro (kiosk puerta)' })
+  async registroRapido(@Body() dto: CreateUsuarioDto, @Request() req: any) {
     return this.usuariosService.create(dto, req.user.id);
   }
 

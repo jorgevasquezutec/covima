@@ -75,8 +75,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { asistenciaApi, tiposAsistenciaApi, usuariosApi } from '@/services/api';
-import type { QRAsistencia, Asistencia, EstadisticasGenerales, TipoAsistencia } from '@/types';
+import { asistenciaApi, tiposAsistenciaApi, usuariosApi, programasApi } from '@/services/api';
+import type { QRAsistencia, Asistencia, EstadisticasGenerales, TipoAsistencia, Programa } from '@/types';
 import RegistroManualAsistencia from './RegistroManualAsistencia';
 import { DatePickerString } from '@/components/ui/date-picker';
 import { DateRangePickerString } from '@/components/ui/date-range-picker';
@@ -143,6 +143,7 @@ export default function AsistenciaPage() {
         horaFin: string;
         margenTemprana: number;
         margenTardia: number;
+        programaId?: number | null;
     }>({
         semanaInicio: '',
         tipoId: null,
@@ -151,6 +152,7 @@ export default function AsistenciaPage() {
         horaFin: '12:00',
         margenTemprana: 15,
         margenTardia: 30,
+        programaId: null,
     });
 
     // Edit QR Dialog state
@@ -163,6 +165,7 @@ export default function AsistenciaPage() {
         descripcion: '',
         margenTemprana: 15,
         margenTardia: 30,
+        programaId: null as number | null,
     });
     const [updatingQR, setUpdatingQR] = useState(false);
 
@@ -187,6 +190,16 @@ export default function AsistenciaPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [asistenciaToDelete, setAsistenciaToDelete] = useState<Asistencia | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    // Programas for linking QR
+    const [availableProgramas, setAvailableProgramas] = useState<Programa[]>([]);
+    const fetchProgramas = async () => {
+        try {
+            const res = await programasApi.getAll({ limit: 50 });
+            setAvailableProgramas(res.data);
+        } catch { /* ignore */ }
+    };
+    useEffect(() => { fetchProgramas(); }, []);
 
     // Load tipos on mount
     useEffect(() => {
@@ -294,10 +307,11 @@ export default function AsistenciaPage() {
                 margenTemprana: newQR.margenTemprana,
                 margenTardia: newQR.margenTardia,
                 descripcion: newQR.descripcion || undefined,
+                programaId: newQR.programaId || undefined,
             });
             toast.success('QR creado exitosamente');
             setCreateQROpen(false);
-            setNewQR({ semanaInicio: '', tipoId: tipos[0]?.id || null, descripcion: '', horaInicio: '09:00', horaFin: '12:00', margenTemprana: 15, margenTardia: 30 });
+            setNewQR({ semanaInicio: '', tipoId: tipos[0]?.id || null, descripcion: '', horaInicio: '09:00', horaFin: '12:00', margenTemprana: 15, margenTardia: 30, programaId: null });
             loadData();
         } catch (error: unknown) {
             const axiosError = error as { response?: { data?: { message?: string } } };
@@ -345,6 +359,7 @@ export default function AsistenciaPage() {
             descripcion: qr.descripcion || '',
             margenTemprana: qr.margenTemprana ?? 15,
             margenTardia: qr.margenTardia ?? 30,
+            programaId: qr.programaId ?? null,
         });
         setEditQROpen(true);
     };
@@ -361,6 +376,7 @@ export default function AsistenciaPage() {
                 margenTemprana: editQRData.margenTemprana,
                 margenTardia: editQRData.margenTardia,
                 descripcion: editQRData.descripcion || undefined,
+                programaId: editQRData.programaId,
             });
             toast.success('QR actualizado correctamente');
             setEditQROpen(false);
@@ -1479,6 +1495,28 @@ export default function AsistenciaPage() {
                                 className="bg-white border-gray-300 text-gray-900"
                             />
                         </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-gray-700">Programa vinculado (opcional)</Label>
+                            <Select
+                                value={newQR.programaId?.toString() ?? 'none'}
+                                onValueChange={(val) => setNewQR({ ...newQR, programaId: val === 'none' ? null : parseInt(val) })}
+                            >
+                                <SelectTrigger className="bg-white border-gray-300">
+                                    <SelectValue placeholder="Sin programa vinculado" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white border-gray-200">
+                                    <SelectItem value="none">Sin programa vinculado</SelectItem>
+                                    {availableProgramas
+                                        .filter((p) => !newQR.semanaInicio || p.fecha.startsWith(newQR.semanaInicio))
+                                        .map((p) => (
+                                            <SelectItem key={p.id} value={p.id.toString()}>
+                                                {p.titulo} ({p.fecha.split('T')[0]})
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <DialogFooter>
@@ -1588,6 +1626,26 @@ export default function AsistenciaPage() {
                                 placeholder="Descripción del QR"
                                 className="bg-white border-gray-300 text-gray-900"
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-gray-700">Programa vinculado</Label>
+                            <Select
+                                value={editQRData.programaId?.toString() ?? 'none'}
+                                onValueChange={(val) => setEditQRData({ ...editQRData, programaId: val === 'none' ? null : parseInt(val) })}
+                            >
+                                <SelectTrigger className="bg-white border-gray-300">
+                                    <SelectValue placeholder="Sin programa vinculado" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white border-gray-200">
+                                    <SelectItem value="none">Sin programa vinculado</SelectItem>
+                                    {availableProgramas.map((p) => (
+                                        <SelectItem key={p.id} value={p.id.toString()}>
+                                            {p.titulo} ({p.fecha.split('T')[0]})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {/* Info del QR */}

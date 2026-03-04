@@ -26,7 +26,7 @@ interface LevelUpData {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
-  const { collapsed } = useSidebarStore();
+  const { collapsed, fabHidden } = useSidebarStore();
   const { user, token } = useAuthStore();
   const location = useLocation();
   const { showBanner: showPwaBanner, isIos, canInstall, triggerInstall, dismiss: dismissPwa } = usePwaInstall();
@@ -155,8 +155,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </div>
       </main>
 
-      {/* FAB global - Onboarding (oculto en páginas con controles inferiores) */}
-      {!HIDE_FAB_ROUTES.some(route => location.pathname.startsWith(route)) && (
+      {/* FAB global - Onboarding (oculto en páginas con controles inferiores o por preferencia) */}
+      {!fabHidden && !HIDE_FAB_ROUTES.some(route => location.pathname.startsWith(route)) && (
         <Button
           onClick={() => setShowOnboarding(true)}
           className={cn(

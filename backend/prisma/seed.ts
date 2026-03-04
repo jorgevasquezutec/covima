@@ -248,6 +248,16 @@ async function main() {
       orden: 3,
       campos: [],
     },
+    {
+      nombre: 'culto_divino',
+      label: 'Culto Divino',
+      descripcion: 'Registro de asistencia a Culto Divino',
+      icono: 'Church',
+      color: '#8B5CF6',
+      soloPresencia: true,
+      orden: 4,
+      campos: [],
+    },
   ];
 
   for (const tipo of tiposAsistencia) {

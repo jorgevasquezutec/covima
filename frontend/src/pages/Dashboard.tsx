@@ -80,6 +80,12 @@ function WeeklyAttendanceRecord({ historial }: { historial?: MiAsistencia['histo
       if (item.tipo) grouped.get(weekKey)!.add(item.tipo.id);
     }
 
+    // Ensure current week is always included
+    const currentSabado = getSabado(new Date().toISOString().slice(0, 10));
+    if (!grouped.has(currentSabado)) {
+      grouped.set(currentSabado, new Set());
+    }
+
     // Sort descending, take 5, then reverse for chronological display
     const semanas = [...grouped.entries()]
       .sort(([a], [b]) => b.localeCompare(a))
@@ -176,7 +182,9 @@ export default function Dashboard() {
   const [selectedYear] = useState(now.getFullYear());
 
   // Personal stats
-  const [proximoPrograma, setProximoPrograma] = useState<Programa | null>(null);
+  const [proximosProgramas, setProximosProgramas] = useState<Programa[]>([]);
+  const [programaIndex, setProgramaIndex] = useState(0);
+  const proximoPrograma = proximosProgramas[programaIndex] ?? null;
   const [miAsistencia, setMiAsistencia] = useState<MiAsistencia | null>(null);
 
   // Estudios bíblicos
@@ -233,7 +241,7 @@ export default function Dashboard() {
 
         const results = await Promise.all(promises);
         setMiAsistencia(results[0]);
-        setProximoPrograma(results[1]);
+        setProximosProgramas(results[1] || []);
         setMiProgreso(results[2]);
         setPeriodoActivo(results[3]);
         setMisPosiciones(results[4] || []);
@@ -1032,24 +1040,51 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-medium text-gray-900 flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-indigo-600" />
-              Próximo Programa
+              Próximos Programas
             </CardTitle>
-            {proximoPrograma && (
-              <Badge
-                variant="outline"
-                className={
-                  proximoPrograma.estado === 'enviado'
-                    ? 'bg-green-50 text-green-700 border-green-200'
-                    : proximoPrograma.estado === 'completo'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : proximoPrograma.estado === 'finalizado'
-                        ? 'bg-gray-50 text-gray-600 border-gray-200'
-                        : 'bg-amber-50 text-amber-700 border-amber-200'
-                }
-              >
-                {proximoPrograma.estado}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {proximosProgramas.length > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={programaIndex === 0}
+                    onClick={() => setProgramaIndex(i => i - 1)}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-gray-500 tabular-nums min-w-[3ch] text-center">
+                    {programaIndex + 1}/{proximosProgramas.length}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={programaIndex === proximosProgramas.length - 1}
+                    onClick={() => setProgramaIndex(i => i + 1)}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              {proximoPrograma && (
+                <Badge
+                  variant="outline"
+                  className={
+                    proximoPrograma.estado === 'enviado'
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : proximoPrograma.estado === 'completo'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : proximoPrograma.estado === 'finalizado'
+                          ? 'bg-gray-50 text-gray-600 border-gray-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }
+                >
+                  {proximoPrograma.estado}
+                </Badge>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -1089,23 +1124,38 @@ export default function Dashboard() {
                     const esMiParte = asignados.some(
                       (a) => a.usuario?.id === user?.id
                     );
+                    const esBienvenida = pp.parte.nombre.toLowerCase().includes('bienvenida');
+                    const visitasPrograma = proximoPrograma.visitas || [];
                     return (
-                      <div
-                        key={pp.id}
-                        className={`flex items-start gap-3 px-3 py-2 rounded-md text-sm ${
-                          esMiParte
-                            ? 'bg-indigo-50 border border-indigo-200'
-                            : 'bg-gray-50'
-                        }`}
-                      >
-                        <span className={`font-medium w-32 sm:w-40 shrink-0 truncate ${esMiParte ? 'text-indigo-700' : 'text-gray-700'}`} title={pp.parte.nombre}>
-                          {pp.parte.nombre}
-                        </span>
-                        <span className={`flex-1 truncate ${esMiParte ? 'text-indigo-600 font-semibold' : 'text-gray-500'}`} title={nombres}>
-                          {nombres || pp.parte.textoFijo || <span className="text-gray-300 italic">Sin asignar</span>}
-                        </span>
-                        {esMiParte && (
-                          <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] shrink-0">Tú</Badge>
+                      <div key={pp.id}>
+                        <div
+                          className={`flex items-start gap-3 px-3 py-2 rounded-md text-sm ${
+                            esMiParte
+                              ? 'bg-indigo-50 border border-indigo-200'
+                              : 'bg-gray-50'
+                          }`}
+                        >
+                          <span className={`font-medium w-32 sm:w-40 shrink-0 truncate ${esMiParte ? 'text-indigo-700' : 'text-gray-700'}`} title={pp.parte.nombre}>
+                            {pp.parte.nombre}
+                          </span>
+                          <span className={`flex-1 truncate ${esMiParte ? 'text-indigo-600 font-semibold' : 'text-gray-500'}`} title={nombres}>
+                            {nombres || pp.parte.textoFijo || <span className="text-gray-300 italic">Sin asignar</span>}
+                          </span>
+                          {esMiParte && (
+                            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] shrink-0">Tú</Badge>
+                          )}
+                        </div>
+                        {esBienvenida && visitasPrograma.length > 0 && (
+                          <div className="ml-2 mt-1 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-sm">
+                            <p className="font-medium text-amber-800 text-xs mb-1">
+                              Visitas ({visitasPrograma.length}):
+                            </p>
+                            {visitasPrograma.map((v) => (
+                              <p key={v.id} className="text-xs text-amber-700">
+                                {v.nombre} — {v.procedencia}
+                              </p>
+                            ))}
+                          </div>
                         )}
                       </div>
                     );

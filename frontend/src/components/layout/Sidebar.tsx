@@ -27,6 +27,8 @@ import {
   UserSearch,
   BookOpen,
   Scale,
+  DoorOpen,
+  HelpCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -51,50 +53,43 @@ const navSections: NavSection[] = [
     collapsible: false,
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-      { label: 'Ranking', icon: Trophy, href: '/ranking' },
       { label: 'Mi Progreso', icon: Star, href: '/mi-progreso' },
-      { label: 'Comparar', icon: Scale, href: '/comparar', roles: ['admin', 'lider'] },
+      { label: 'Ranking', icon: Trophy, href: '/ranking' },
       { label: 'Mis Estudiantes', icon: BookOpen, href: '/mis-estudiantes' },
     ],
   },
   {
-    title: 'Gestión',
+    title: 'Operativo',
     roles: ['admin', 'lider'],
     collapsible: true,
     defaultCollapsed: false,
     items: [
-      { label: 'Programas', icon: Calendar, href: '/programas' },
-      { label: 'Partes Programa', icon: LayoutList, href: '/admin/partes-programa', roles: ['admin'] },
-      { label: 'Plantillas', icon: LayoutTemplate, href: '/admin/plantillas-programa', roles: ['admin'] },
-      { label: 'Calendario', icon: CalendarPlus, href: '/admin/calendario' },
+      { label: 'Registro Puerta', icon: DoorOpen, href: '/puerta' },
       { label: 'Asistencia', icon: ClipboardCheck, href: '/asistencias' },
+      { label: 'Programas', icon: Calendar, href: '/programas' },
+      { label: 'Calendario', icon: CalendarPlus, href: '/admin/calendario' },
+      { label: 'Registrar Evento', icon: Gift, href: '/admin/gamificacion/registrar' },
+      { label: 'Eventos', icon: Gift, href: '/admin/gamificacion/eventos' },
+      { label: 'Historial Puntos', icon: History, href: '/admin/gamificacion/historial' },
+      { label: 'Comparar', icon: Scale, href: '/comparar' },
       { label: 'Seguimiento', icon: UserSearch, href: '/seguimiento' },
       { label: 'Inbox', icon: Inbox, href: '/inbox' },
     ],
   },
   {
-    title: 'Gamificación',
-    roles: ['admin', 'lider'],
-    collapsible: true,
-    defaultCollapsed: true,
-    items: [
-      { label: 'Períodos Ranking', icon: Trophy, href: '/admin/gamificacion/periodos', roles: ['admin'] },
-      { label: 'Grupos Ranking', icon: Users, href: '/admin/gamificacion/grupos', roles: ['admin'] },
-      { label: 'Registrar Evento', icon: CalendarPlus, href: '/admin/gamificacion/registrar' },
-      { label: 'Eventos', icon: Gift, href: '/admin/gamificacion/eventos', roles: ['admin', 'lider'] },
-      { label: 'Config Puntos', icon: Settings, href: '/admin/gamificacion/puntajes', roles: ['admin'] },
-      { label: 'Niveles', icon: Medal, href: '/admin/gamificacion/niveles', roles: ['admin'] },
-      { label: 'Historial Puntos', icon: History, href: '/admin/gamificacion/historial', roles: ['admin'] },
-    ],
-  },
-  {
-    title: 'Administración',
+    title: 'Configuración',
     roles: ['admin'],
     collapsible: true,
     defaultCollapsed: true,
     items: [
       { label: 'Usuarios', icon: Users, href: '/usuarios' },
       { label: 'Tipos Asistencia', icon: ClipboardList, href: '/tipos-asistencia' },
+      { label: 'Partes Programa', icon: LayoutList, href: '/admin/partes-programa' },
+      { label: 'Plantillas', icon: LayoutTemplate, href: '/admin/plantillas-programa' },
+      { label: 'Config Puntos', icon: Settings, href: '/admin/gamificacion/puntajes' },
+      { label: 'Niveles', icon: Medal, href: '/admin/gamificacion/niveles' },
+      { label: 'Períodos Ranking', icon: Trophy, href: '/admin/gamificacion/periodos' },
+      { label: 'Grupos Ranking', icon: Users, href: '/admin/gamificacion/grupos' },
     ],
   },
 ];
@@ -108,6 +103,8 @@ interface SidebarContentProps {
   onToggleCollapsed: () => void;
   collapsedSections: Record<string, boolean>;
   onToggleSection: (title: string) => void;
+  fabHidden: boolean;
+  onToggleFab: () => void;
 }
 
 function SidebarContent({
@@ -119,6 +116,8 @@ function SidebarContent({
   onToggleCollapsed,
   collapsedSections,
   onToggleSection,
+  fabHidden,
+  onToggleFab,
 }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full">
@@ -174,7 +173,7 @@ function SidebarContent({
               <div
                 className={cn(
                   'space-y-1 overflow-hidden transition-all duration-200',
-                  canCollapse && isCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'
+                  canCollapse && isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[600px] opacity-100'
                 )}
               >
                 {section.items.map((item) => (
@@ -242,6 +241,18 @@ function SidebarContent({
             'w-full mt-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100',
             collapsed && 'px-2'
           )}
+          onClick={onToggleFab}
+          title={fabHidden ? 'Mostrar botón de ayuda' : 'Ocultar botón de ayuda'}
+        >
+          <HelpCircle className={cn('w-4 h-4 shrink-0', fabHidden && 'opacity-40')} />
+          {!collapsed && <span className="ml-2">{fabHidden ? 'Mostrar ayuda' : 'Ocultar ayuda'}</span>}
+        </Button>
+        <Button
+          variant="ghost"
+          className={cn(
+            'w-full mt-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+            collapsed && 'px-2'
+          )}
           onClick={onLogout}
         >
           <LogOut className="w-4 h-4 shrink-0" />
@@ -272,7 +283,7 @@ function getInitialCollapsedState(): Record<string, boolean> {
 }
 
 export default function Sidebar() {
-  const { collapsed, mobileOpen, toggleCollapsed, setMobileOpen } = useSidebarStore();
+  const { collapsed, mobileOpen, toggleCollapsed, setMobileOpen, fabHidden, toggleFab } = useSidebarStore();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(getInitialCollapsedState);
@@ -315,6 +326,8 @@ export default function Sidebar() {
     onToggleCollapsed: toggleCollapsed,
     collapsedSections,
     onToggleSection: handleToggleSection,
+    fabHidden,
+    onToggleFab: toggleFab,
   };
 
   return (

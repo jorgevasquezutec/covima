@@ -49,7 +49,7 @@ export interface CrearAsistenciaParams {
   semanaInicio: Date;
   datosFormulario?: any;
   metodoRegistro: 'plataforma' | 'manual' | 'manual_historico' | 'qr_bot';
-  estado: 'pendiente_confirmacion' | 'confirmado';
+  estado: 'pendiente_confirmacion' | 'confirmado' | 'fuera_horario';
   qrId?: number | null;
   confirmadoPor?: number;
   confirmadoAt?: Date;
@@ -98,6 +98,7 @@ export class AsistenciaService {
         semanaInicio: toStartOfDayUTC(dto.semanaInicio),
         codigo,
         tipoId: dto.tipoId,
+        programaId: dto.programaId ?? null,
         descripcion: dto.descripcion,
         horaInicio,
         horaFin,
@@ -338,6 +339,9 @@ export class AsistenciaService {
     }
     if (dto.descripcion !== undefined) {
       updateData.descripcion = dto.descripcion;
+    }
+    if (dto.programaId !== undefined) {
+      updateData.programaId = dto.programaId;
     }
 
     const updated = await this.prisma.qRAsistencia.update({
@@ -708,22 +712,10 @@ export class AsistenciaService {
     const margenTemprana = qr.margenTemprana || 0;
     const horaAperturaQR = horaInicioQR - margenTemprana;
 
-    if (
+    // Determinar si está fuera de horario (no lanza error, guarda con estado fuera_horario)
+    const esFueraDeHorario =
       horaActualEnMinutos < horaAperturaQR ||
-      horaActualEnMinutos >= horaFinQR
-    ) {
-      const horaAperturaDate = new Date();
-      horaAperturaDate.setHours(
-        Math.floor(horaAperturaQR / 60),
-        horaAperturaQR % 60,
-        0,
-      );
-      const horaAperturaStr = this.formatHora(horaAperturaDate);
-      const horaFinStr = this.formatHora(qr.horaFin);
-      throw new BadRequestException(
-        `Solo se puede registrar asistencia entre ${horaAperturaStr} y ${horaFinStr}`,
-      );
-    }
+      horaActualEnMinutos >= horaFinQR;
 
     const semanaInicio = getInicioSemana(hoy);
     const tipoId = qr.tipoId;
@@ -811,7 +803,8 @@ export class AsistenciaService {
       }
     }
 
-    // Crear asistencia confirmada automáticamente
+    // Crear asistencia (fuera_horario si aplica, confirmado si en horario)
+    const estadoAsistencia = esFueraDeHorario ? 'fuera_horario' : 'confirmado';
     const asistencia = await this.crearAsistencia({
       usuarioId,
       telefonoRegistro,
@@ -822,7 +815,7 @@ export class AsistenciaService {
       semanaInicio,
       datosFormulario: dto.datosFormulario,
       metodoRegistro: 'manual',
-      estado: 'confirmado',
+      estado: estadoAsistencia,
       confirmadoPor: registradoPorId,
       confirmadoAt: new Date(),
       qrId: qr.id,
@@ -831,9 +824,9 @@ export class AsistenciaService {
 
     const formattedAsistencia = this.formatAsistencia(asistencia);
 
-    // Asignar puntos de gamificación si tiene usuario
+    // Asignar puntos de gamificación solo si está en horario y tiene usuario
     let gamificacionResult: AsignarPuntosResult | null = null;
-    if (usuarioId) {
+    if (usuarioId && !esFueraDeHorario) {
       try {
         const horaInicio =
           qr.horaInicio || new Date('1970-01-01T09:00:00');
@@ -2175,6 +2168,7 @@ export class AsistenciaService {
       margenTemprana: qr.margenTemprana,
       margenTardia: qr.margenTardia,
       creador: qr.creador,
+      programaId: qr.programaId ?? null,
       totalAsistencias: qr._count?.asistencias || 0,
       createdAt: qr.createdAt,
     };
@@ -2301,6 +2295,7 @@ export class AsistenciaService {
       { header: 'Nombre', key: 'nombre', width: 30 },
       { header: 'Teléfono', key: 'telefono', width: 15 },
       { header: 'Tipo Asistencia', key: 'tipo', width: 20 },
+      { header: 'Fecha', key: 'fecha', width: 15 },
       { header: 'Fecha Registro', key: 'fechaRegistro', width: 18 },
       { header: 'Estado', key: 'estado', width: 15 },
     ];
@@ -2348,6 +2343,7 @@ export class AsistenciaService {
           ? `+${a.usuario.codigoPais}${a.usuario.telefono}`
           : a.telefonoRegistro || '',
         tipo: a.tipo?.label || 'Sin tipo',
+        fecha: a.fecha.toISOString().split('T')[0],
         fechaRegistro: a.createdAt.toLocaleString('es-PE', {
           timeZone: 'America/Lima',
         }),

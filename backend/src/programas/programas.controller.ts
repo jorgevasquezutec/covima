@@ -10,17 +10,24 @@ import {
   UseGuards,
   ParseIntPipe,
   Request,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { ProgramasService } from './programas.service';
-import { CreateProgramaDto, UpdateProgramaDto } from './dto';
+import { CreateProgramaDto, CreateProgramaBatchDto, UpdateProgramaDto, CreateVisitaDto } from './dto';
 
 @ApiTags('Programas')
 @ApiBearerAuth()
@@ -102,6 +109,7 @@ export class ProgramasController {
       esFija?: boolean;
       esObligatoria?: boolean;
       textoFijo?: string;
+      permiteFotos?: boolean;
       puntos?: number;
       xp?: number;
     },
@@ -123,6 +131,7 @@ export class ProgramasController {
       esObligatoria?: boolean;
       textoFijo?: string;
       activo?: boolean;
+      permiteFotos?: boolean;
       puntos?: number;
       xp?: number;
     },
@@ -205,11 +214,95 @@ export class ProgramasController {
     return this.programasService.getUsuariosParaAsignar();
   }
 
+  @Post('fotos/upload')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Subir foto para una parte del programa' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      storage: diskStorage({
+        destination: './uploads/programas',
+        filename: (req, file, callback) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          callback(null, `programa-${uniqueSuffix}${ext}`);
+        },
+      }),
+      fileFilter: (req, file, callback) => {
+        if (
+          !file.mimetype.match(
+            /^(image\/(jpg|jpeg|png|gif|webp)|video\/(mp4|webm|quicktime))$/,
+          )
+        ) {
+          return callback(
+            new BadRequestException(
+              'Solo se permiten imágenes (jpg, png, gif, webp) y videos (mp4, webm, mov)',
+            ),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 50 * 1024 * 1024, // 50MB
+      },
+    }),
+  )
+  async uploadFotoPrograma(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No se recibió ninguna imagen');
+    }
+    return { url: `/uploads/programas/${file.filename}` };
+  }
+
+  // ==================== VISITAS ====================
+
+  @Get('visitas/hoy')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Obtener programas del día para registro de visitas' })
+  async getProgramasHoyVisitas() {
+    return this.programasService.getProgramasHoyParaVisitas();
+  }
+
+  @Get(':id/visitas')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Listar visitas de un programa' })
+  async getVisitas(@Param('id', ParseIntPipe) id: number) {
+    return this.programasService.getVisitasByPrograma(id);
+  }
+
+  @Post(':id/visitas')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Registrar visita en un programa' })
+  async createVisita(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateVisitaDto,
+  ) {
+    return this.programasService.createVisita(id, dto);
+  }
+
+  @Delete('visitas/:visitaId')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Eliminar visita' })
+  async deleteVisita(@Param('visitaId', ParseIntPipe) visitaId: number) {
+    return this.programasService.deleteVisita(visitaId);
+  }
+
+  // ==================== PROGRAMA ====================
+
   @Get(':id')
   @Roles('admin', 'lider')
   @ApiOperation({ summary: 'Obtener programa por ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.programasService.findOne(id);
+  }
+
+  @Post('batch')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Crear múltiples programas en una transacción' })
+  async createBatch(@Body() dto: CreateProgramaBatchDto, @Request() req: any) {
+    return this.programasService.createBatch(dto, req.user.id);
   }
 
   @Post()

@@ -87,6 +87,7 @@ model Usuario {
   notificaciones       Notificacion[]
   qrsCreados           QRAsistencia[]
   linksAgregados       ProgramaLink[]
+  fotosAgregadas       ProgramaFoto[]
   rolesAsignados       UsuarioRol[]     @relation("AsignadoPor")
 
   // === RELACIONES INBOX/HANDOFF ===
@@ -142,6 +143,7 @@ model Parte {
   esObligatoria Boolean     @default(false) @map("es_obligatoria") // Siempre aparece en programas nuevos
   textoFijo     String?     @map("texto_fijo") @db.VarChar(100)
   activo        Boolean     @default(true)
+  permiteFotos  Boolean     @default(false) @map("permite_fotos") // true = se pueden subir fotos en esta parte
   // Gamificación - puntos por participar en esta parte
   puntos        Int         @default(0) // Puntos por participar
   xp            Int         @default(0) // XP por participar
@@ -150,6 +152,7 @@ model Parte {
   usuarioPartes UsuarioParte[]
   asignaciones  ProgramaAsignacion[]
   links         ProgramaLink[]
+  fotos         ProgramaFoto[]
   programaPartes ProgramaParte[]
   plantillaPartes PlantillaParte[]
 
@@ -189,10 +192,26 @@ model Programa {
   partes         ProgramaParte[]
   asignaciones   ProgramaAsignacion[]
   links          ProgramaLink[]
+  fotos          ProgramaFoto[]
   notificaciones Notificacion[]
   conversaciones Conversacion[]
+  visitas        ProgramaVisita[]
+  qrAsistencia   QRAsistencia?
 
   @@map("programas")
+}
+
+model ProgramaVisita {
+  id           Int      @id @default(autoincrement())
+  programaId   Int      @map("programa_id")
+  nombre       String   @db.VarChar(150)
+  procedencia  String   @db.VarChar(200)
+  telefono     String?  @db.VarChar(30)
+  direccion    String?  @db.VarChar(300)
+  createdAt    DateTime @default(now()) @map("created_at")
+  programa     Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
+
+  @@map("programa_visitas")
 }
 
 // Nueva tabla para almacenar las partes de cada programa con su orden
@@ -247,6 +266,23 @@ model ProgramaLink {
   @@map("programa_links")
 }
 
+model ProgramaFoto {
+  id          Int      @id @default(autoincrement())
+  programaId  Int      @map("programa_id")
+  parteId     Int      @map("parte_id")
+  url         String   @db.VarChar(500)
+  nombre      String?  @db.VarChar(200)
+  orden       Int      @default(1)
+  agregadoPor Int?     @map("agregado_por")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  programa    Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte       Parte    @relation(fields: [parteId], references: [id])
+  agregador   Usuario? @relation(fields: [agregadoPor], references: [id])
+
+  @@map("programa_fotos")
+}
+
 // ==================== PLANTILLAS DE PROGRAMA ====================
 
 model PlantillaPrograma {
@@ -282,6 +318,7 @@ model QRAsistencia {
   semanaInicio    DateTime     @map("semana_inicio") @db.Date
   codigo          String       @unique @db.VarChar(50)
   tipoId          Int?         @map("tipo_id")
+  programaId      Int?         @unique @map("programa_id")
   descripcion     String?      @db.VarChar(200)
   urlGenerada     String?      @map("url_generada")
   activo          Boolean      @default(true)
@@ -294,6 +331,7 @@ model QRAsistencia {
 
   creador        Usuario?        @relation(fields: [createdBy], references: [id])
   tipoAsistencia TipoAsistencia? @relation(fields: [tipoId], references: [id])
+  programa       Programa?       @relation(fields: [programaId], references: [id])
   asistencias    Asistencia[]
 
   @@map("qr_asistencia")
