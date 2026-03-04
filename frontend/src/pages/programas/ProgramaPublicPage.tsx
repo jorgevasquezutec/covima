@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Calendar, Clock, Users, Link as LinkIcon, Loader2, X } from 'lucide-react';
+import { Calendar, Clock, Users, Link as LinkIcon, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Programa } from '@/types';
 import api from '@/services/api';
 import { parseLocalDate } from '@/lib/utils';
@@ -10,9 +10,24 @@ export default function ProgramaPublicPage() {
   const [programa, setPrograma] = useState<Programa | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [carouselImages, setCarouselImages] = useState<{ url: string; nombre?: string }[]>([]);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const touchStartX = useRef(0);
 
-  const closeLightbox = useCallback(() => setLightboxUrl(null), []);
+  const closeCarousel = useCallback(() => setCarouselImages([]), []);
+
+  const openCarousel = useCallback((images: { url: string; nombre?: string }[], startIndex: number) => {
+    setCarouselImages(images);
+    setCarouselIndex(startIndex);
+  }, []);
+
+  const goNext = useCallback(() => {
+    setCarouselIndex(i => (i + 1) % carouselImages.length);
+  }, [carouselImages.length]);
+
+  const goPrev = useCallback(() => {
+    setCarouselIndex(i => (i - 1 + carouselImages.length) % carouselImages.length);
+  }, [carouselImages.length]);
 
   useEffect(() => {
     if (!codigo) return;
@@ -22,6 +37,18 @@ export default function ProgramaPublicPage() {
       .catch(() => setError('Programa no encontrado'))
       .finally(() => setLoading(false));
   }, [codigo]);
+
+  // Keyboard navigation for carousel
+  useEffect(() => {
+    if (carouselImages.length === 0) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') goNext();
+      else if (e.key === 'ArrowLeft') goPrev();
+      else if (e.key === 'Escape') closeCarousel();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [carouselImages.length, goNext, goPrev, closeCarousel]);
 
   if (loading) {
     return (
@@ -207,7 +234,10 @@ export default function ProgramaPublicPage() {
                   )}
 
                   {/* Fotos/Videos — thumbnails */}
-                  {parte.fotos.length > 0 && (
+                  {parte.fotos.length > 0 && (() => {
+                    const imageFotos = parte.fotos.filter(f => !/\.(mp4|webm|mov)$/i.test(f.url));
+                    const carouselItems = imageFotos.map(f => ({ url: `${getBaseUrl()}${f.url}`, nombre: f.nombre }));
+                    return (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {parte.fotos.map((foto, j) => {
                         const fullUrl = `${getBaseUrl()}${foto.url}`;
@@ -222,7 +252,10 @@ export default function ProgramaPublicPage() {
                         ) : (
                           <button
                             key={j}
-                            onClick={() => setLightboxUrl(fullUrl)}
+                            onClick={() => {
+                              const idx = carouselItems.findIndex(c => c.url === fullUrl);
+                              openCarousel(carouselItems, idx >= 0 ? idx : 0);
+                            }}
                             className="relative group"
                             title={foto.nombre || `Foto ${j + 1}`}
                           >
@@ -238,7 +271,8 @@ export default function ProgramaPublicPage() {
                         );
                       })}
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
               {esBienvenida && visitas.length > 0 && (
@@ -273,24 +307,81 @@ export default function ProgramaPublicPage() {
         </p>
       </div>
 
-      {/* Lightbox */}
-      {lightboxUrl && (
+      {/* Carousel Lightbox */}
+      {carouselImages.length > 0 && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-          onClick={closeLightbox}
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center"
+          onClick={closeCarousel}
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            const diff = e.changedTouches[0].clientX - touchStartX.current;
+            if (Math.abs(diff) > 50) {
+              if (diff < 0) goNext(); else goPrev();
+            }
+          }}
         >
+          {/* Close */}
           <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 text-white/80 hover:text-white p-2"
+            onClick={closeCarousel}
+            className="absolute top-4 right-4 text-white/80 hover:text-white p-2 z-10"
           >
             <X className="w-6 h-6" />
           </button>
-          <img
-            src={lightboxUrl}
-            alt=""
-            className="max-w-full max-h-[90vh] rounded-lg object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+
+          {/* Counter */}
+          {carouselImages.length > 1 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm z-10">
+              {carouselIndex + 1} / {carouselImages.length}
+            </div>
+          )}
+
+          {/* Image */}
+          <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-16" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={carouselImages[carouselIndex].url}
+              alt={carouselImages[carouselIndex].nombre || ''}
+              className="max-w-full max-h-[85vh] rounded-lg object-contain select-none"
+              draggable={false}
+            />
+          </div>
+
+          {/* Caption */}
+          {carouselImages[carouselIndex].nombre && (
+            <p className="text-white/80 text-sm text-center pb-4 px-4">
+              {carouselImages[carouselIndex].nombre}
+            </p>
+          )}
+
+          {/* Nav arrows */}
+          {carouselImages.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 text-white/60 hover:text-white transition-colors"
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); goNext(); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-white/60 hover:text-white transition-colors"
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            </>
+          )}
+
+          {/* Dots */}
+          {carouselImages.length > 1 && carouselImages.length <= 10 && (
+            <div className="flex gap-1.5 pb-4">
+              {carouselImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => { e.stopPropagation(); setCarouselIndex(idx); }}
+                  className={`w-2 h-2 rounded-full transition-colors ${idx === carouselIndex ? 'bg-white' : 'bg-white/30'}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
