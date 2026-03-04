@@ -289,6 +289,11 @@ async function seedPlantillas() {
     where: { plantillaId: plantillaVacia.id },
   });
 
+  // Resetear secuencia de auto-increment para evitar colisión con IDs hardcodeados
+  await prisma.$executeRawUnsafe(
+    `SELECT setval(pg_get_serial_sequence('"PlantillaPrograma"', 'id'), (SELECT COALESCE(MAX(id), 1) FROM "PlantillaPrograma"))`,
+  );
+
   console.log('Seed de plantillas completado!');
 }
 
