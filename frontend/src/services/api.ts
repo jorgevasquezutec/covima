@@ -1406,6 +1406,15 @@ export const mediaApi = {
     return response.data;
   },
 
+  replace: async (id: number, file: File): Promise<MediaItem> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<MediaItem>(`/media/${id}/replace`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   delete: async (id: number): Promise<void> => {
     await api.delete(`/media/${id}`);
   },

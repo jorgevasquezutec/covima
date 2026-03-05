@@ -12,6 +12,7 @@ import {
     Check,
     X,
     FileImage,
+    RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,7 +65,9 @@ export default function MediaLibraryPage() {
     const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [uploadNames, setUploadNames] = useState<string[]>([]);
+    const [replaceTarget, setReplaceTarget] = useState<MediaItem | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const replaceInputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     const handleSearchChange = (value: string) => {
@@ -90,6 +93,17 @@ export default function MediaLibraryPage() {
             toast.success('Nombre actualizado');
         },
         onError: () => toast.error('Error al renombrar'),
+    });
+
+    const replaceMutation = useMutation({
+        mutationFn: ({ id, file }: { id: number; file: File }) =>
+            mediaApi.replace(id, file),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['media-library'] });
+            setReplaceTarget(null);
+            toast.success(`Archivo reemplazado (${data._count?.programaFotos || 0} programa(s) actualizados)`);
+        },
+        onError: () => toast.error('Error al reemplazar'),
     });
 
     const deleteMutation = useMutation({
@@ -247,6 +261,7 @@ export default function MediaLibraryPage() {
                                         size="icon"
                                         variant="secondary"
                                         className="h-8 w-8"
+                                        title="Renombrar"
                                         onClick={() => startEdit(item)}
                                     >
                                         <Pencil className="h-3.5 w-3.5" />
@@ -254,7 +269,20 @@ export default function MediaLibraryPage() {
                                     <Button
                                         size="icon"
                                         variant="secondary"
+                                        className="h-8 w-8"
+                                        title="Reemplazar archivo"
+                                        onClick={() => {
+                                            setReplaceTarget(item);
+                                            setTimeout(() => replaceInputRef.current?.click(), 100);
+                                        }}
+                                    >
+                                        <RefreshCw className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="secondary"
                                         className="h-8 w-8 hover:bg-red-100 hover:text-red-600"
+                                        title="Eliminar"
                                         onClick={() => setDeleteTarget(item)}
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
@@ -327,6 +355,21 @@ export default function MediaLibraryPage() {
                     </Button>
                 </div>
             )}
+
+            {/* Hidden input for replace */}
+            <input
+                ref={replaceInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && replaceTarget) {
+                        replaceMutation.mutate({ id: replaceTarget.id, file });
+                        e.target.value = '';
+                    }
+                }}
+            />
 
             {/* Upload naming dialog */}
             <Dialog open={pendingFiles.length > 0} onOpenChange={(open) => { if (!open) { setPendingFiles([]); setUploadNames([]); } }}>
@@ -401,7 +444,9 @@ export default function MediaLibraryPage() {
                         <AlertDialogTitle>Eliminar archivo</AlertDialogTitle>
                         <AlertDialogDescription>
                             ¿Estás seguro de eliminar <strong>{deleteTarget?.nombre || deleteTarget?.nombreOriginal || 'este archivo'}</strong>?
-                            Solo se puede eliminar si no está siendo usado en ningún programa.
+                            {deleteTarget?._count && deleteTarget._count.programaFotos > 0 ? (
+                                <> También se eliminarán <strong>{deleteTarget._count.programaFotos} foto(s)</strong> de programas que la usan.</>
+                            ) : null}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

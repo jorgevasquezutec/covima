@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -68,6 +67,24 @@ export class MediaService {
   }
 
   async delete(id: number) {
+    const item = await this.prisma.mediaItem.findUnique({ where: { id } });
+    if (!item) {
+      throw new NotFoundException('MediaItem no encontrado');
+    }
+
+    // Eliminar todas las referencias ProgramaFoto y luego el MediaItem
+    await this.prisma.$transaction([
+      this.prisma.programaFoto.deleteMany({ where: { mediaItemId: id } }),
+      this.prisma.mediaItem.delete({ where: { id } }),
+    ]);
+
+    return { deleted: true };
+  }
+
+  async replace(
+    id: number,
+    data: { url: string; nombreOriginal?: string; mimeType: string; tamanio: number },
+  ) {
     const item = await this.prisma.mediaItem.findUnique({
       where: { id },
       include: { _count: { select: { programaFotos: true } } },
@@ -75,11 +92,25 @@ export class MediaService {
     if (!item) {
       throw new NotFoundException('MediaItem no encontrado');
     }
-    if (item._count.programaFotos > 0) {
-      throw new BadRequestException(
-        `No se puede eliminar: está referenciado por ${item._count.programaFotos} foto(s) de programa`,
-      );
-    }
-    return this.prisma.mediaItem.delete({ where: { id } });
+
+    // Actualizar el MediaItem con la nueva URL/archivo
+    const updated = await this.prisma.mediaItem.update({
+      where: { id },
+      data: {
+        url: data.url,
+        nombreOriginal: data.nombreOriginal,
+        mimeType: data.mimeType,
+        tamanio: data.tamanio,
+      },
+      include: { _count: { select: { programaFotos: true } } },
+    });
+
+    // Actualizar la URL en todas las ProgramaFoto que referencian este MediaItem
+    await this.prisma.programaFoto.updateMany({
+      where: { mediaItemId: id },
+      data: { url: data.url },
+    });
+
+    return updated;
   }
 }
