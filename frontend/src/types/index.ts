@@ -225,6 +225,39 @@ export interface EstadisticasEstudiosBiblicos {
   promedioProgreso: number;
 }
 
+// ==================== INTERESADOS ====================
+
+export type EstadoInteresado = 'PENDIENTE' | 'ASIGNADO' | 'EN_CONTACTO' | 'CONVERTIDO' | 'DESCARTADO';
+
+export interface Interesado {
+  id: number;
+  nombre: string;
+  telefono?: string;
+  direccion?: string;
+  notas?: string;
+  estado: EstadoInteresado;
+  instructorId?: number;
+  registradoPorId: number;
+  estudianteId?: number;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  instructor?: { id: number; nombre: string };
+  registradoPor: { id: number; nombre: string };
+  estudiante?: { id: number; nombre: string; cursoId: number };
+}
+
+export interface EstadisticasInteresados {
+  total: number;
+  porEstado: { estado: EstadoInteresado; cantidad: number }[];
+  porInstructor: { instructorId: number; instructorNombre: string; cantidad: number }[];
+}
+
+export interface InstructorSimple {
+  id: number;
+  nombre: string;
+}
+
 export interface ProgramaParte {
   id: number;
   parteId: number;

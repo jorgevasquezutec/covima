@@ -85,7 +85,7 @@ export default function UserAutocomplete({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full sm:w-64 p-0 bg-white border-gray-200" align="start">
+            <PopoverContent className="p-0 bg-white border-gray-200" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
                 <Command className="bg-white" shouldFilter={false}>
                     <CommandInput
                         ref={inputRef}

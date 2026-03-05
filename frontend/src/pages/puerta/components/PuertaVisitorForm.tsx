@@ -69,7 +69,7 @@ export function PuertaVisitorForm({ programaId, onSuccess }: PuertaVisitorFormPr
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="v-telefono">Teléfono <span className="text-gray-400 font-normal">(opcional)</span></Label>
-          <Input id="v-telefono" placeholder="987 654 321" className="h-14 text-lg mt-1" {...register('telefono')} />
+          <Input id="v-telefono" type="tel" inputMode="numeric" placeholder="987 654 321" className="h-14 text-lg mt-1" {...register('telefono')} onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^\d\s+()-]/g, ''); }} />
         </div>
         <div>
           <Label htmlFor="v-direccion">Dirección <span className="text-gray-400 font-normal">(opcional)</span></Label>

@@ -477,6 +477,10 @@ import type {
   CursoBiblico,
   EstudianteBiblico,
   EstadisticasEstudiosBiblicos,
+  Interesado,
+  EstadisticasInteresados,
+  InstructorSimple,
+  EstadoInteresado,
 } from '@/types';
 
 export const estudiosBiblicosApi = {
@@ -559,6 +563,92 @@ export const estudiosBiblicosApi = {
 
   getEstadisticasGlobal: async (): Promise<EstadisticasEstudiosBiblicos> => {
     const response = await api.get<EstadisticasEstudiosBiblicos>('/estudios-biblicos/estadisticas-global');
+    return response.data;
+  },
+
+  // ==================== INTERESADOS ====================
+
+  getInteresados: async (params?: {
+    page?: number;
+    limit?: number;
+    estado?: EstadoInteresado;
+    instructorId?: number;
+    sinAsignar?: boolean;
+    search?: string;
+  }): Promise<PaginatedResponse<Interesado>> => {
+    const response = await api.get<PaginatedResponse<Interesado>>(
+      '/estudios-biblicos/interesados',
+      { params }
+    );
+    return response.data;
+  },
+
+  createInteresado: async (data: {
+    nombre: string;
+    telefono?: string;
+    direccion?: string;
+    notas?: string;
+  }): Promise<Interesado> => {
+    const response = await api.post<Interesado>('/estudios-biblicos/interesados', data);
+    return response.data;
+  },
+
+  createInteresadosBulk: async (items: {
+    nombre: string;
+    telefono: string;
+    direccion?: string;
+    notas?: string;
+  }[]): Promise<Interesado[]> => {
+    const response = await api.post<Interesado[]>('/estudios-biblicos/interesados/bulk', { items });
+    return response.data;
+  },
+
+  updateInteresado: async (id: number, data: {
+    nombre?: string;
+    telefono?: string;
+    direccion?: string;
+    notas?: string;
+  }): Promise<Interesado> => {
+    const response = await api.put<Interesado>(`/estudios-biblicos/interesados/${id}`, data);
+    return response.data;
+  },
+
+  deleteInteresado: async (id: number): Promise<void> => {
+    await api.delete(`/estudios-biblicos/interesados/${id}`);
+  },
+
+  asignarInteresado: async (id: number, instructorId: number): Promise<Interesado> => {
+    const response = await api.post<Interesado>(`/estudios-biblicos/interesados/${id}/asignar`, { instructorId });
+    return response.data;
+  },
+
+  asignarMasivo: async (ids: number[], instructorId: number): Promise<{ actualizados: number }> => {
+    const response = await api.post<{ actualizados: number }>('/estudios-biblicos/interesados/asignar-masivo', { ids, instructorId });
+    return response.data;
+  },
+
+  getMisInteresados: async (): Promise<Interesado[]> => {
+    const response = await api.get<Interesado[]>('/estudios-biblicos/mis-interesados');
+    return response.data;
+  },
+
+  updateEstadoInteresado: async (id: number, estado: EstadoInteresado): Promise<Interesado> => {
+    const response = await api.put<Interesado>(`/estudios-biblicos/interesados/${id}/estado`, { estado });
+    return response.data;
+  },
+
+  convertirInteresado: async (id: number, cursoId: number): Promise<{ interesado: Interesado; estudiante: EstudianteBiblico }> => {
+    const response = await api.post<{ interesado: Interesado; estudiante: EstudianteBiblico }>(`/estudios-biblicos/interesados/${id}/convertir`, { cursoId });
+    return response.data;
+  },
+
+  getEstadisticasInteresados: async (): Promise<EstadisticasInteresados> => {
+    const response = await api.get<EstadisticasInteresados>('/estudios-biblicos/interesados/estadisticas');
+    return response.data;
+  },
+
+  getInstructores: async (): Promise<InstructorSimple[]> => {
+    const response = await api.get<InstructorSimple[]>('/estudios-biblicos/interesados/instructores');
     return response.data;
   },
 };

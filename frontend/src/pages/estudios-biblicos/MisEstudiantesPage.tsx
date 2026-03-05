@@ -34,6 +34,8 @@ import {
 } from 'lucide-react';
 import { estudiosBiblicosApi } from '@/services/api';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+import { UserPlus } from 'lucide-react';
 
 export default function MisEstudiantesPage() {
   const navigate = useNavigate();
@@ -74,6 +76,15 @@ export default function MisEstudiantesPage() {
     queryKey: ['estadisticas-estudios'],
     queryFn: estudiosBiblicosApi.getEstadisticas,
   });
+
+  const { data: misInteresados } = useQuery({
+    queryKey: ['mis-interesados'],
+    queryFn: estudiosBiblicosApi.getMisInteresados,
+  });
+
+  const interesadosPendientes = misInteresados?.filter(
+    (i) => i.estado === 'ASIGNADO' || i.estado === 'EN_CONTACTO'
+  ).length ?? 0;
 
   // Mutations
   const createMutation = useMutation({
@@ -162,6 +173,21 @@ export default function MisEstudiantesPage() {
           Agregar Estudiante
         </Button>
       </div>
+
+      {/* Banner: Interesados pendientes */}
+      {interesadosPendientes > 0 && (
+        <Link to="/mis-interesados">
+          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-4 flex items-center gap-3">
+              <UserPlus className="h-5 w-5 text-amber-600 shrink-0" />
+              <span className="text-amber-800 font-medium">
+                Tienes {interesadosPendientes} interesado{interesadosPendientes !== 1 ? 's' : ''} pendiente{interesadosPendientes !== 1 ? 's' : ''}
+              </span>
+              <ChevronRight className="h-4 w-4 text-amber-600 ml-auto shrink-0" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Stats Cards */}
       {estadisticas && (
@@ -432,8 +458,10 @@ export default function MisEstudiantesPage() {
             <div className="space-y-2">
               <Label>Teléfono (opcional)</Label>
               <Input
+                type="tel"
+                inputMode="numeric"
                 value={formData.telefono}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/[^\d\s+()-]/g, '') })}
                 placeholder="Ej: 999 123 456"
               />
             </div>

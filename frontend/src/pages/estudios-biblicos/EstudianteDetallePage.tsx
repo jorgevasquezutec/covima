@@ -434,8 +434,9 @@ export default function EstudianteDetallePage() {
               <Label>Teléfono</Label>
               <Input
                 type="tel"
+                inputMode="numeric"
                 value={editForm.telefono}
-                onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })}
+                onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value.replace(/[^\d\s+()-]/g, '') })}
                 placeholder="Ej: 999 123 456"
               />
             </div>

@@ -1736,8 +1736,10 @@ export default function AsistenciaPage() {
                             <div className="flex items-center gap-2">
                                 <span className="text-sm text-gray-500">+51</span>
                                 <Input
+                                    type="tel"
+                                    inputMode="numeric"
                                     value={userToRegister?.telefono || ''}
-                                    onChange={(e) => setUserToRegister(prev => prev ? { ...prev, telefono: e.target.value } : null)}
+                                    onChange={(e) => setUserToRegister(prev => prev ? { ...prev, telefono: e.target.value.replace(/[^\d\s+()-]/g, '') } : null)}
                                     placeholder="987654321"
                                     className="bg-white border-gray-300 text-gray-900"
                                 />

@@ -22,7 +22,7 @@ import { RankingPage, MiProgresoPage, CompararPage } from '@/pages/gamificacion'
 import { ConfigPuntajesPage, RegistroEventoPage, EventosPage, PeriodosRankingPage, GruposRankingPage, NivelesPage, HistorialPuntosPage } from '@/pages/admin/gamificacion';
 import { PartesProgramaPage } from '@/pages/admin/partes';
 import { PlantillasProgramaPage } from '@/pages/admin/plantillas';
-import { MisEstudiantesPage, EstudianteDetallePage } from '@/pages/estudios-biblicos';
+import { MisEstudiantesPage, EstudianteDetallePage, InteresadosPage, MisInteresadosPage } from '@/pages/estudios-biblicos';
 import SeguimientoPage from '@/pages/admin/SeguimientoPage';
 import { CalendarioAdminPage } from '@/pages/calendario';
 import RegistroVisitasPage from '@/pages/visitas/RegistroVisitasPage';
@@ -160,6 +160,26 @@ function App() {
           }
         />
         {/* Estudios Bíblicos */}
+        <Route
+          path="/mis-interesados"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <MisInteresadosPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interesados"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <InteresadosPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/mis-estudiantes"
           element={

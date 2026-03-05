@@ -110,7 +110,11 @@ export class EstudiosBiblicosService {
     }
 
     // Crear array de lecciones con estado
-    const lecciones: { numero: number; completada: boolean; fechaCompletada: Date | null }[] = [];
+    const lecciones: {
+      numero: number;
+      completada: boolean;
+      fechaCompletada: Date | null;
+    }[] = [];
     for (let i = 1; i <= estudiante.curso.totalLecciones; i++) {
       const progreso = estudiante.progreso.find((p) => p.leccion === i);
       lecciones.push({
@@ -249,15 +253,17 @@ export class EstudiosBiblicosService {
 
     if (diasDesdeCreacion < 7 && !estudiante.fechaBautismo) {
       // Calcular puntos a restar (solo lecciones desde #3)
-      const leccionesConPuntos = estudiante.progreso.filter(p => p.leccion >= 3).length;
+      const leccionesConPuntos = estudiante.progreso.filter(
+        (p) => p.leccion >= 3,
+      ).length;
 
       if (leccionesConPuntos > 0) {
         try {
           // Restar puntos (3 pts y 5 xp por lección según la configuración)
           await this.gamificacionService.restarPuntos(
             instructorId,
-            leccionesConPuntos * 3,  // puntos
-            leccionesConPuntos * 5,  // xp
+            leccionesConPuntos * 3, // puntos
+            leccionesConPuntos * 5, // xp
             `Estudiante "${estudiante.nombre}" eliminado antes de 7 días`,
           );
         } catch (e) {
@@ -335,7 +341,9 @@ export class EstudiosBiblicosService {
       });
 
       // GAMIFICACIÓN: Solo dar puntos desde lección #3 (anti-farming)
-      let gamificacionResult: Awaited<ReturnType<typeof this.gamificacionService.asignarPuntos>> | null = null;
+      let gamificacionResult: Awaited<
+        ReturnType<typeof this.gamificacionService.asignarPuntos>
+      > | null = null;
       if (leccion >= 3) {
         try {
           gamificacionResult = await this.gamificacionService.asignarPuntos(
@@ -365,7 +373,10 @@ export class EstudiosBiblicosService {
   /**
    * Verificar hitos de progreso (50%, 100%) y otorgar bonus
    */
-  private async verificarHitosProgreso(estudianteId: number, instructorId: number) {
+  private async verificarHitosProgreso(
+    estudianteId: number,
+    instructorId: number,
+  ) {
     const estudiante = await this.prisma.estudianteBiblico.findUnique({
       where: { id: estudianteId },
       include: {
@@ -376,7 +387,8 @@ export class EstudiosBiblicosService {
 
     if (!estudiante) return;
 
-    const porcentaje = (estudiante.progreso.length / estudiante.curso.totalLecciones) * 100;
+    const porcentaje =
+      (estudiante.progreso.length / estudiante.curso.totalLecciones) * 100;
 
     // Obtener perfil de gamificación del instructor
     const perfil = await this.prisma.usuarioGamificacion.findUnique({
@@ -395,8 +407,12 @@ export class EstudiosBiblicosService {
       include: { configPuntaje: true },
     });
 
-    const ya50 = historial.some(h => h.configPuntaje?.codigo === 'estudiante_50_progreso');
-    const ya100 = historial.some(h => h.configPuntaje?.codigo === 'curso_completado');
+    const ya50 = historial.some(
+      (h) => h.configPuntaje?.codigo === 'estudiante_50_progreso',
+    );
+    const ya100 = historial.some(
+      (h) => h.configPuntaje?.codigo === 'curso_completado',
+    );
 
     // Bonus 50%
     if (porcentaje >= 50 && !ya50) {
@@ -449,14 +465,17 @@ export class EstudiosBiblicosService {
     const enProgreso = estudiantes.filter(
       (e) => !e.fechaBautismo && e.progreso.length > 0,
     ).length;
-    const sinIniciar = estudiantes.filter((e) => e.progreso.length === 0).length;
+    const sinIniciar = estudiantes.filter(
+      (e) => e.progreso.length === 0,
+    ).length;
 
     // Promedio de progreso
     const promedioProgreso =
       totalEstudiantes > 0
         ? Math.round(
             estudiantes.reduce(
-              (acc, e) => acc + (e.progreso.length / e.curso.totalLecciones) * 100,
+              (acc, e) =>
+                acc + (e.progreso.length / e.curso.totalLecciones) * 100,
               0,
             ) / totalEstudiantes,
           )
@@ -488,13 +507,16 @@ export class EstudiosBiblicosService {
     const enProgreso = estudiantes.filter(
       (e) => !e.fechaBautismo && e.progreso.length > 0,
     ).length;
-    const sinIniciar = estudiantes.filter((e) => e.progreso.length === 0).length;
+    const sinIniciar = estudiantes.filter(
+      (e) => e.progreso.length === 0,
+    ).length;
 
     const promedioProgreso =
       totalEstudiantes > 0
         ? Math.round(
             estudiantes.reduce(
-              (acc, e) => acc + (e.progreso.length / e.curso.totalLecciones) * 100,
+              (acc, e) =>
+                acc + (e.progreso.length / e.curso.totalLecciones) * 100,
               0,
             ) / totalEstudiantes,
           )
@@ -507,5 +529,407 @@ export class EstudiosBiblicosService {
       sinIniciar,
       promedioProgreso,
     };
+  }
+
+  // =============================================
+  // INTERESADOS
+  // =============================================
+
+  /**
+   * Listar interesados con paginación y filtros (admin/lider)
+   */
+  async getInteresados(options?: {
+    page?: number;
+    limit?: number;
+    estado?: string;
+    instructorId?: number;
+    sinAsignar?: boolean;
+    search?: string;
+  }) {
+    const {
+      page = 1,
+      limit = 10,
+      estado,
+      instructorId,
+      sinAsignar,
+      search,
+    } = options || {};
+    const skip = (page - 1) * limit;
+
+    const where: any = { activo: true };
+
+    if (estado) {
+      where.estado = estado;
+    }
+
+    if (instructorId) {
+      where.instructorId = instructorId;
+    }
+
+    if (sinAsignar) {
+      where.instructorId = null;
+    }
+
+    if (search) {
+      where.OR = [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { telefono: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [interesados, total] = await Promise.all([
+      this.prisma.interesado.findMany({
+        where,
+        include: {
+          instructor: { select: { id: true, nombre: true } },
+          registradoPor: { select: { id: true, nombre: true } },
+          estudiante: { select: { id: true, nombre: true, cursoId: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.interesado.count({ where }),
+    ]);
+
+    return {
+      data: interesados,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Crear un interesado
+   */
+  async createInteresado(
+    registradoPorId: number,
+    data: {
+      nombre: string;
+      telefono: string;
+      direccion?: string;
+      notas?: string;
+    },
+  ) {
+    return this.prisma.interesado.create({
+      data: {
+        ...data,
+        registradoPorId,
+      },
+      include: {
+        instructor: { select: { id: true, nombre: true } },
+        registradoPor: { select: { id: true, nombre: true } },
+      },
+    });
+  }
+
+  /**
+   * Crear interesados en masa
+   */
+  async createInteresadosBulk(
+    registradoPorId: number,
+    items: {
+      nombre: string;
+      telefono: string;
+      direccion?: string;
+      notas?: string;
+    }[],
+  ) {
+    const created = await this.prisma.interesado.createManyAndReturn({
+      data: items.map((item) => ({
+        ...item,
+        registradoPorId,
+      })),
+    });
+
+    return created;
+  }
+
+  /**
+   * Actualizar un interesado
+   */
+  async updateInteresado(
+    id: number,
+    data: {
+      nombre?: string;
+      telefono?: string;
+      direccion?: string;
+      notas?: string;
+    },
+  ) {
+    const interesado = await this.prisma.interesado.findUnique({
+      where: { id },
+    });
+
+    if (!interesado || !interesado.activo) {
+      throw new NotFoundException('Interesado no encontrado');
+    }
+
+    return this.prisma.interesado.update({
+      where: { id },
+      data,
+      include: {
+        instructor: { select: { id: true, nombre: true } },
+        registradoPor: { select: { id: true, nombre: true } },
+      },
+    });
+  }
+
+  /**
+   * Eliminar interesado (soft delete)
+   */
+  async deleteInteresado(id: number) {
+    const interesado = await this.prisma.interesado.findUnique({
+      where: { id },
+    });
+
+    if (!interesado || !interesado.activo) {
+      throw new NotFoundException('Interesado no encontrado');
+    }
+
+    await this.prisma.interesado.update({
+      where: { id },
+      data: { activo: false },
+    });
+
+    return { message: 'Interesado eliminado' };
+  }
+
+  /**
+   * Asignar instructor a un interesado
+   */
+  async asignarInstructor(id: number, instructorId: number) {
+    const interesado = await this.prisma.interesado.findUnique({
+      where: { id },
+    });
+
+    if (!interesado || !interesado.activo) {
+      throw new NotFoundException('Interesado no encontrado');
+    }
+
+    return this.prisma.interesado.update({
+      where: { id },
+      data: {
+        instructorId,
+        estado: 'ASIGNADO',
+      },
+      include: {
+        instructor: { select: { id: true, nombre: true } },
+        registradoPor: { select: { id: true, nombre: true } },
+      },
+    });
+  }
+
+  /**
+   * Asignar instructor masivamente
+   */
+  async asignarMasivo(ids: number[], instructorId: number) {
+    const result = await this.prisma.interesado.updateMany({
+      where: {
+        id: { in: ids },
+        activo: true,
+      },
+      data: {
+        instructorId,
+        estado: 'ASIGNADO',
+      },
+    });
+
+    return { actualizados: result.count };
+  }
+
+  /**
+   * Obtener mis interesados (asignados como instructor O registrados por mí)
+   */
+  async getMisInteresados(userId: number) {
+    return this.prisma.interesado.findMany({
+      where: {
+        activo: true,
+        OR: [
+          { instructorId: userId },
+          { registradoPorId: userId },
+        ],
+      },
+      include: {
+        instructor: { select: { id: true, nombre: true } },
+        registradoPor: { select: { id: true, nombre: true } },
+        estudiante: { select: { id: true, nombre: true, cursoId: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Actualizar estado de un interesado
+   */
+  async updateEstadoInteresado(id: number, estado: string, userId: number) {
+    const interesado = await this.prisma.interesado.findUnique({
+      where: { id },
+    });
+
+    if (!interesado || !interesado.activo) {
+      throw new NotFoundException('Interesado no encontrado');
+    }
+
+    // Verificar que el usuario sea el instructor o admin
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { rol: true } } },
+    });
+
+    const esAdmin = usuario?.roles.some(
+      (r) => r.rol.nombre === 'admin' || r.rol.nombre === 'lider',
+    );
+
+    const esPropio = interesado.instructorId === userId || interesado.registradoPorId === userId;
+
+    if (!esPropio && !esAdmin) {
+      throw new ForbiddenException(
+        'No tienes permiso para cambiar el estado de este interesado',
+      );
+    }
+
+    return this.prisma.interesado.update({
+      where: { id },
+      data: { estado: estado as any },
+      include: {
+        instructor: { select: { id: true, nombre: true } },
+        registradoPor: { select: { id: true, nombre: true } },
+      },
+    });
+  }
+
+  /**
+   * Convertir interesado en estudiante bíblico
+   */
+  async convertirInteresado(id: number, cursoId: number, userId: number) {
+    const interesado = await this.prisma.interesado.findUnique({
+      where: { id },
+    });
+
+    if (!interesado || !interesado.activo) {
+      throw new NotFoundException('Interesado no encontrado');
+    }
+
+    // Verificar que el usuario sea el instructor o admin
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { rol: true } } },
+    });
+
+    const esAdmin = usuario?.roles.some(
+      (r) => r.rol.nombre === 'admin' || r.rol.nombre === 'lider',
+    );
+
+    const esPropio = interesado.instructorId === userId || interesado.registradoPorId === userId;
+
+    if (!esPropio && !esAdmin) {
+      throw new ForbiddenException(
+        'No tienes permiso para convertir este interesado',
+      );
+    }
+
+    // Verificar que el curso existe
+    const curso = await this.prisma.cursoBiblico.findUnique({
+      where: { id: cursoId },
+    });
+
+    if (!curso) {
+      throw new NotFoundException('Curso no encontrado');
+    }
+
+    // Transacción: crear estudiante + actualizar interesado
+    const result = await this.prisma.$transaction(async (tx) => {
+      const estudiante = await tx.estudianteBiblico.create({
+        data: {
+          nombre: interesado.nombre,
+          telefono: interesado.telefono,
+          direccion: interesado.direccion,
+          notas: interesado.notas,
+          cursoId,
+          instructorId: interesado.instructorId || userId,
+        },
+        include: { curso: true },
+      });
+
+      const interesadoActualizado = await tx.interesado.update({
+        where: { id },
+        data: {
+          estado: 'CONVERTIDO',
+          estudianteId: estudiante.id,
+        },
+        include: {
+          instructor: { select: { id: true, nombre: true } },
+          registradoPor: { select: { id: true, nombre: true } },
+          estudiante: { select: { id: true, nombre: true, cursoId: true } },
+        },
+      });
+
+      return { interesado: interesadoActualizado, estudiante };
+    });
+
+    return result;
+  }
+
+  /**
+   * Estadísticas de interesados
+   */
+  async getEstadisticasInteresados() {
+    const [total, porEstado, porInstructor] = await Promise.all([
+      this.prisma.interesado.count({ where: { activo: true } }),
+      this.prisma.interesado.groupBy({
+        by: ['estado'],
+        where: { activo: true },
+        _count: { id: true },
+      }),
+      this.prisma.interesado.groupBy({
+        by: ['instructorId'],
+        where: { activo: true, instructorId: { not: null } },
+        _count: { id: true },
+      }),
+    ]);
+
+    // Obtener nombres de instructores
+    const instructorIds = porInstructor
+      .map((p) => p.instructorId)
+      .filter((id): id is number => id !== null);
+
+    const instructores =
+      instructorIds.length > 0
+        ? await this.prisma.usuario.findMany({
+            where: { id: { in: instructorIds } },
+            select: { id: true, nombre: true },
+          })
+        : [];
+
+    const instructorMap = new Map(instructores.map((i) => [i.id, i.nombre]));
+
+    return {
+      total,
+      porEstado: porEstado.map((e) => ({
+        estado: e.estado,
+        cantidad: e._count.id,
+      })),
+      porInstructor: porInstructor.map((p) => ({
+        instructorId: p.instructorId,
+        instructorNombre: instructorMap.get(p.instructorId!) || 'Desconocido',
+        cantidad: p._count.id,
+      })),
+    };
+  }
+
+  /**
+   * Listar usuarios disponibles como instructores
+   */
+  async getInstructores() {
+    return this.prisma.usuario.findMany({
+      where: { activo: true },
+      select: { id: true, nombre: true },
+      orderBy: { nombre: 'asc' },
+    });
   }
 }

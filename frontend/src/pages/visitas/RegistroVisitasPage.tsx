@@ -179,9 +179,12 @@ export default function RegistroVisitasPage() {
                     <Label htmlFor="telefono">Telefono <span className="text-gray-400 font-normal">(opcional)</span></Label>
                     <Input
                       id="telefono"
+                      type="tel"
+                      inputMode="numeric"
                       placeholder="987 654 321"
                       className="h-12 text-base mt-1"
                       {...register('telefono')}
+                      onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^\d\s+()-]/g, ''); }}
                     />
                   </div>
                   <div>

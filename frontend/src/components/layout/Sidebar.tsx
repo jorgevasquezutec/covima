@@ -30,6 +30,7 @@ import {
   DoorOpen,
   HelpCircle,
   FileImage,
+  UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -57,6 +58,7 @@ const navSections: NavSection[] = [
       { label: 'Mi Progreso', icon: Star, href: '/mi-progreso' },
       { label: 'Ranking', icon: Trophy, href: '/ranking' },
       { label: 'Mis Estudiantes', icon: BookOpen, href: '/mis-estudiantes' },
+      { label: 'Mis Interesados', icon: UserPlus, href: '/mis-interesados' },
     ],
   },
   {
@@ -65,6 +67,7 @@ const navSections: NavSection[] = [
     collapsible: true,
     defaultCollapsed: false,
     items: [
+      { label: 'Interesados', icon: UserPlus, href: '/interesados' },
       { label: 'Registro Puerta', icon: DoorOpen, href: '/puerta' },
       { label: 'Asistencia', icon: ClipboardCheck, href: '/asistencias' },
       { label: 'Programas', icon: Calendar, href: '/programas' },

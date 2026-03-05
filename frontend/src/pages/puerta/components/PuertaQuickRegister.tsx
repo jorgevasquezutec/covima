@@ -205,6 +205,7 @@ export function PuertaQuickRegister({ qr, isOutOfTime = false, onSuccess, onNewU
               required: 'El teléfono es obligatorio',
               pattern: { value: /^\d{6,20}$/, message: 'Solo números (6-20 dígitos)' },
             })}
+            onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^\d]/g, ''); }}
           />
           {errors.telefono && <p className="text-sm text-red-500 mt-1">{errors.telefono.message}</p>}
         </div>

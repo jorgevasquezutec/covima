@@ -671,9 +671,11 @@ export default function RegistroManualAsistencia({ onSuccess, embedded, selected
                             <div className="space-y-1.5">
                                 <Label className="text-gray-700 text-sm">Teléfono (opcional)</Label>
                                 <Input
+                                    type="tel"
+                                    inputMode="numeric"
                                     placeholder="51987654321"
                                     value={telefonoManual}
-                                    onChange={(e) => setTelefonoManual(e.target.value)}
+                                    onChange={(e) => setTelefonoManual(e.target.value.replace(/[^\d\s+()-]/g, ''))}
                                     className="bg-white border-gray-300 text-sm h-9"
                                 />
                             </div>
