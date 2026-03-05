@@ -17,6 +17,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -55,6 +62,8 @@ export default function MediaLibraryPage() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editName, setEditName] = useState('');
     const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
+    const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+    const [uploadNames, setUploadNames] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -96,18 +105,26 @@ export default function MediaLibraryPage() {
         },
     });
 
-    const handleUpload = async (files: FileList) => {
+    const handleFilesSelected = (files: FileList) => {
+        const fileArr = Array.from(files);
+        setPendingFiles(fileArr);
+        setUploadNames(fileArr.map(f => f.name.replace(/\.[^/.]+$/, '')));
+    };
+
+    const handleConfirmUpload = async () => {
         setUploading(true);
         let uploaded = 0;
-        for (const file of Array.from(files)) {
+        for (let i = 0; i < pendingFiles.length; i++) {
             try {
-                await mediaApi.upload(file);
+                await mediaApi.upload(pendingFiles[i], uploadNames[i]?.trim() || undefined);
                 uploaded++;
             } catch {
-                toast.error(`Error al subir ${file.name}`);
+                toast.error(`Error al subir ${pendingFiles[i].name}`);
             }
         }
         setUploading(false);
+        setPendingFiles([]);
+        setUploadNames([]);
         if (uploaded > 0) {
             queryClient.invalidateQueries({ queryKey: ['media-library'] });
             toast.success(`${uploaded} archivo(s) subido(s)`);
@@ -162,7 +179,7 @@ export default function MediaLibraryPage() {
                         className="hidden"
                         onChange={(e) => {
                             if (e.target.files && e.target.files.length > 0) {
-                                handleUpload(e.target.files);
+                                handleFilesSelected(e.target.files);
                                 e.target.value = '';
                             }
                         }}
@@ -310,6 +327,72 @@ export default function MediaLibraryPage() {
                     </Button>
                 </div>
             )}
+
+            {/* Upload naming dialog */}
+            <Dialog open={pendingFiles.length > 0} onOpenChange={(open) => { if (!open) { setPendingFiles([]); setUploadNames([]); } }}>
+                <DialogContent className="bg-white sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-gray-900">
+                            {pendingFiles.length === 1 ? 'Nombrar archivo' : `Nombrar ${pendingFiles.length} archivos`}
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-500">
+                            Asigna un nombre a cada archivo antes de subirlo.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {pendingFiles.map((file, i) => (
+                            <div key={i} className="flex items-center gap-3">
+                                {file.type.startsWith('video/') ? (
+                                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center shrink-0">
+                                        <Film className="h-5 w-5 text-gray-400" />
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={URL.createObjectURL(file)}
+                                        alt=""
+                                        className="w-12 h-12 object-cover rounded border border-gray-200 shrink-0"
+                                    />
+                                )}
+                                <div className="flex-1 space-y-1">
+                                    <Input
+                                        value={uploadNames[i] || ''}
+                                        onChange={(e) => {
+                                            const newNames = [...uploadNames];
+                                            newNames[i] = e.target.value;
+                                            setUploadNames(newNames);
+                                        }}
+                                        placeholder="Nombre del archivo"
+                                        className="h-8 text-sm bg-white border-gray-300"
+                                        autoFocus={i === 0}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && pendingFiles.length === 1) handleConfirmUpload();
+                                        }}
+                                    />
+                                    <p className="text-[10px] text-gray-400">{file.name}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => { setPendingFiles([]); setUploadNames([]); }}
+                            disabled={uploading}
+                            className="border-gray-300"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleConfirmUpload} disabled={uploading}>
+                            {uploading ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Upload className="h-4 w-4 mr-2" />
+                            )}
+                            Subir {pendingFiles.length > 1 ? `(${pendingFiles.length})` : ''}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete confirmation */}
             <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>

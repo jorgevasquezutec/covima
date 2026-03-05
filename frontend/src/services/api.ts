@@ -1391,9 +1391,10 @@ export const mediaApi = {
     return response.data;
   },
 
-  upload: async (file: File): Promise<MediaItem> => {
+  upload: async (file: File, nombre?: string): Promise<MediaItem> => {
     const formData = new FormData();
     formData.append('file', file);
+    if (nombre) formData.append('nombre', nombre);
     const response = await api.post<MediaItem>('/media/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

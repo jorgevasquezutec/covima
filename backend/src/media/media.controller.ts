@@ -91,6 +91,7 @@ export class MediaController {
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Request() req: any,
+    @Body('nombre') nombre?: string,
   ) {
     if (!file) {
       throw new BadRequestException('No se recibió ningún archivo');
@@ -99,6 +100,7 @@ export class MediaController {
     const url = `/uploads/media/${file.filename}`;
     const mediaItem = await this.mediaService.create({
       url,
+      nombre: nombre || undefined,
       nombreOriginal: file.originalname,
       mimeType: file.mimetype,
       tamanio: file.size,
