@@ -181,9 +181,7 @@ export class AuthService {
     // Rate limiting: máximo 3 solicitudes cada 15 min
     const attempts = await this.redisService.get<string>(attemptsKey);
     if (attempts && parseInt(attempts) >= 3) {
-      throw new BadRequestException(
-        'Demasiados intentos. Espera 15 minutos.',
-      );
+      throw new BadRequestException('Demasiados intentos. Espera 15 minutos.');
     }
 
     // Cooldown: 60 segundos entre solicitudes
@@ -200,7 +198,10 @@ export class AuthService {
     });
 
     if (!usuario || !usuario.activo) {
-      return { message: 'Si el número está registrado, recibirás un código por WhatsApp.' };
+      return {
+        message:
+          'Si el número está registrado, recibirás un código por WhatsApp.',
+      };
     }
 
     // Generar y guardar código (limpiar intentos fallidos del código anterior)
@@ -221,7 +222,10 @@ export class AuthService {
       [code],
     );
 
-    return { message: 'Si el número está registrado, recibirás un código por WhatsApp.' };
+    return {
+      message:
+        'Si el número está registrado, recibirás un código por WhatsApp.',
+    };
   }
 
   async verifyResetCode(dto: VerifyResetCodeDto) {

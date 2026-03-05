@@ -37,7 +37,10 @@ export interface ActividadCalendario {
 // ==================== ACTIVIDAD DTOs ====================
 
 export class CreateActividadDto {
-  @ApiProperty({ example: 'Grupo Pequeño - Enero', description: 'Título de la actividad' })
+  @ApiProperty({
+    example: 'Grupo Pequeño - Enero',
+    description: 'Título de la actividad',
+  })
   @IsString()
   @MaxLength(200)
   titulo: string;
@@ -63,19 +66,28 @@ export class CreateActividadDto {
   @MaxLength(10)
   horaFin?: string;
 
-  @ApiPropertyOptional({ example: '#3B82F6', description: 'Color en formato hex' })
+  @ApiPropertyOptional({
+    example: '#3B82F6',
+    description: 'Color en formato hex',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   color?: string;
 
-  @ApiPropertyOptional({ example: 'Calendar', description: 'Nombre del ícono (Lucide)' })
+  @ApiPropertyOptional({
+    example: 'Calendar',
+    description: 'Nombre del ícono (Lucide)',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   icono?: string;
 
-  @ApiPropertyOptional({ example: false, description: 'Si es actividad recurrente' })
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Si es actividad recurrente',
+  })
   @IsOptional()
   @IsBoolean()
   esRecurrente?: boolean;
@@ -89,12 +101,18 @@ export class CreateActividadDto {
   @IsEnum(PatronRecurrencia)
   patronRecurrencia?: PatronRecurrencia;
 
-  @ApiPropertyOptional({ example: '2026-03-31', description: 'Fecha fin de recurrencia' })
+  @ApiPropertyOptional({
+    example: '2026-03-31',
+    description: 'Fecha fin de recurrencia',
+  })
   @IsOptional()
   @IsDateString()
   fechaFinRecurrencia?: string;
 
-  @ApiPropertyOptional({ example: 3, description: 'Día de la semana (0=Dom, 6=Sáb)' })
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'Día de la semana (0=Dom, 6=Sáb)',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)

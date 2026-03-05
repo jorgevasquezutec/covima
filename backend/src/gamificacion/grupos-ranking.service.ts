@@ -736,7 +736,9 @@ export class GruposRankingService {
 
     // Agregar usuarios con 0 puntos que están en el grupo pero no tienen historial
     const usuariosConPuntos = new Set(rankingData.map((r) => r.usuarioId));
-    const usuariosSinPuntos = usuariosIds.filter((id) => !usuariosConPuntos.has(id));
+    const usuariosSinPuntos = usuariosIds.filter(
+      (id) => !usuariosConPuntos.has(id),
+    );
 
     for (const userId of usuariosSinPuntos) {
       const userInfo = usuarioInfoMap.get(userId);
@@ -884,7 +886,7 @@ export class GruposRankingService {
         grupo.id,
         usuarioId,
         periodoActivo.id,
-        1,   // page
+        1, // page
         500, // Limit alto para encontrar la posición
       );
 

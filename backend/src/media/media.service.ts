@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -83,7 +80,12 @@ export class MediaService {
 
   async replace(
     id: number,
-    data: { url: string; nombreOriginal?: string; mimeType: string; tamanio: number },
+    data: {
+      url: string;
+      nombreOriginal?: string;
+      mimeType: string;
+      tamanio: number;
+    },
   ) {
     const item = await this.prisma.mediaItem.findUnique({
       where: { id },

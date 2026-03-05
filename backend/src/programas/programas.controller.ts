@@ -28,7 +28,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { ProgramasService } from './programas.service';
 import { MediaService } from '../media/media.service';
-import { CreateProgramaDto, CreateProgramaBatchDto, UpdateProgramaDto, CreateVisitaDto } from './dto';
+import {
+  CreateProgramaDto,
+  CreateProgramaBatchDto,
+  UpdateProgramaDto,
+  CreateVisitaDto,
+} from './dto';
 
 @ApiTags('Programas')
 @ApiBearerAuth()
@@ -206,7 +211,9 @@ export class ProgramasController {
   }
 
   @Get('proximo')
-  @ApiOperation({ summary: 'Obtener el próximo programa con todas sus partes y asignaciones' })
+  @ApiOperation({
+    summary: 'Obtener el próximo programa con todas sus partes y asignaciones',
+  })
   async getProximoPrograma() {
     return this.programasService.getProximoPrograma();
   }
@@ -275,7 +282,9 @@ export class ProgramasController {
 
   @Get('visitas/hoy')
   @Roles('admin', 'lider')
-  @ApiOperation({ summary: 'Obtener programas del día para registro de visitas' })
+  @ApiOperation({
+    summary: 'Obtener programas del día para registro de visitas',
+  })
   async getProgramasHoyVisitas() {
     return this.programasService.getProgramasHoyParaVisitas();
   }

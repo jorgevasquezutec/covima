@@ -7,7 +7,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateProgramaDto, CreateProgramaBatchDto, UpdateProgramaDto, CreateVisitaDto } from './dto';
+import {
+  CreateProgramaDto,
+  CreateProgramaBatchDto,
+  UpdateProgramaDto,
+  CreateVisitaDto,
+} from './dto';
 import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
 import { OpenAIService } from '../whatsapp-bot/openai.service';
 import { GamificacionService } from '../gamificacion/gamificacion.service';
@@ -317,7 +322,9 @@ export class ProgramasService {
         throw new NotFoundException('QR de asistencia no encontrado');
       }
       if (qr.programaId && qr.programaId !== programa.id) {
-        throw new BadRequestException('Este QR ya está vinculado a otro programa');
+        throw new BadRequestException(
+          'Este QR ya está vinculado a otro programa',
+        );
       }
       await prismaClient.qRAsistencia.update({
         where: { id: dto.qrAsistenciaId },
@@ -501,7 +508,9 @@ export class ProgramasService {
           throw new NotFoundException('QR de asistencia no encontrado');
         }
         if (newQR.programaId && newQR.programaId !== id) {
-          throw new BadRequestException('Este QR ya está vinculado a otro programa');
+          throw new BadRequestException(
+            'Este QR ya está vinculado a otro programa',
+          );
         }
         await this.prisma.qRAsistencia.update({
           where: { id: dto.qrAsistenciaId },
@@ -515,9 +524,13 @@ export class ProgramasService {
             data: { programaId: null },
           });
         }
-        const updatedPrograma = await this.prisma.programa.findUnique({ where: { id } });
-        const horaInicioQR = updatedPrograma?.horaInicio || new Date('1970-01-01T09:00:00');
-        const horaFinQR = updatedPrograma?.horaFin || new Date('1970-01-01T12:00:00');
+        const updatedPrograma = await this.prisma.programa.findUnique({
+          where: { id },
+        });
+        const horaInicioQR =
+          updatedPrograma?.horaInicio || new Date('1970-01-01T09:00:00');
+        const horaFinQR =
+          updatedPrograma?.horaFin || new Date('1970-01-01T12:00:00');
         const codigoQR = `JA${generarCodigoUnico()}`;
         await this.prisma.qRAsistencia.create({
           data: {
@@ -1627,18 +1640,19 @@ export class ProgramasService {
                   label: p.qrAsistencia.tipoAsistencia.label,
                   color: p.qrAsistencia.tipoAsistencia.color,
                   soloPresencia: p.qrAsistencia.tipoAsistencia.soloPresencia,
-                  campos: p.qrAsistencia.tipoAsistencia.campos?.map((c) => ({
-                    id: c.id,
-                    nombre: c.nombre,
-                    label: c.label,
-                    tipo: c.tipo,
-                    requerido: c.requerido,
-                    orden: c.orden,
-                    placeholder: c.placeholder,
-                    valorMinimo: c.valorMinimo,
-                    valorMaximo: c.valorMaximo,
-                    opciones: c.opciones,
-                  })) || [],
+                  campos:
+                    p.qrAsistencia.tipoAsistencia.campos?.map((c) => ({
+                      id: c.id,
+                      nombre: c.nombre,
+                      label: c.label,
+                      tipo: c.tipo,
+                      requerido: c.requerido,
+                      orden: c.orden,
+                      placeholder: c.placeholder,
+                      valorMinimo: c.valorMinimo,
+                      valorMaximo: c.valorMaximo,
+                      opciones: c.opciones,
+                    })) || [],
                 }
               : null,
           }
@@ -1851,8 +1865,15 @@ export class ProgramasService {
           continue;
         }
 
-        const parteVisitas = parte.nombre.toLowerCase().includes('bienvenida') ? visitas : [];
-        texto += this.formatearParteParaWhatsapp(parte, asignaciones, links, parteVisitas);
+        const parteVisitas = parte.nombre.toLowerCase().includes('bienvenida')
+          ? visitas
+          : [];
+        texto += this.formatearParteParaWhatsapp(
+          parte,
+          asignaciones,
+          links,
+          parteVisitas,
+        );
       }
     } else {
       // Usar el orden guardado en programa_partes
@@ -1861,8 +1882,15 @@ export class ProgramasService {
         const asignaciones = asignacionesPorParte.get(parte.id) || [];
         const links = linksPorParte.get(parte.id) || [];
 
-        const parteVisitas = parte.nombre.toLowerCase().includes('bienvenida') ? visitas : [];
-        texto += this.formatearParteParaWhatsapp(parte, asignaciones, links, parteVisitas);
+        const parteVisitas = parte.nombre.toLowerCase().includes('bienvenida')
+          ? visitas
+          : [];
+        texto += this.formatearParteParaWhatsapp(
+          parte,
+          asignaciones,
+          links,
+          parteVisitas,
+        );
       }
     }
 
@@ -2455,7 +2483,8 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
                   nombre: programa.qrAsistencia.tipoAsistencia.nombre,
                   label: programa.qrAsistencia.tipoAsistencia.label,
                   color: programa.qrAsistencia.tipoAsistencia.color,
-                  soloPresencia: programa.qrAsistencia.tipoAsistencia.soloPresencia,
+                  soloPresencia:
+                    programa.qrAsistencia.tipoAsistencia.soloPresencia,
                 }
               : null,
           }

@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query, Res, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Res,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ProgramasService } from './programas.service';
@@ -30,19 +37,36 @@ export class ProgramasPublicController {
       );
       if (passageMatch) {
         passageHtml = passageMatch[1]
-          .replace(/<sup[^>]*class="[^"]*footnote[^"]*"[^>]*>[\s\S]*?<\/sup>/gi, '')
-          .replace(/<sup[^>]*class="[^"]*crossreference[^"]*"[^>]*>[\s\S]*?<\/sup>/gi, '')
-          .replace(/<div[^>]*class="[^"]*footnotes[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
-          .replace(/<div[^>]*class="[^"]*crossrefs[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+          .replace(
+            /<sup[^>]*class="[^"]*footnote[^"]*"[^>]*>[\s\S]*?<\/sup>/gi,
+            '',
+          )
+          .replace(
+            /<sup[^>]*class="[^"]*crossreference[^"]*"[^>]*>[\s\S]*?<\/sup>/gi,
+            '',
+          )
+          .replace(
+            /<div[^>]*class="[^"]*footnotes[^"]*"[^>]*>[\s\S]*?<\/div>/gi,
+            '',
+          )
+          .replace(
+            /<div[^>]*class="[^"]*crossrefs[^"]*"[^>]*>[\s\S]*?<\/div>/gi,
+            '',
+          )
           .replace(/<h3>[\s\S]*?<\/h3>/gi, '')
-          .replace(/<a[^>]*class="[^"]*full-chap-link[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '')
+          .replace(
+            /<a[^>]*class="[^"]*full-chap-link[^"]*"[^>]*>[\s\S]*?<\/a>/gi,
+            '',
+          )
           .replace(/<span\s+class="chapternum">[^<]*<\/span>/gi, '')
           .replace(/<a\b/gi, '<span')
           .replace(/<\/a>/gi, '</span>')
           .trim();
       } else {
         // Try broader match
-        const broader = html.match(/<div\s+class="passage-text">([\s\S]*?)<\/div>/);
+        const broader = html.match(
+          /<div\s+class="passage-text">([\s\S]*?)<\/div>/,
+        );
         if (broader) {
           passageHtml = broader[1]
             .replace(/<sup[^>]*>[\s\S]*?<\/sup>/gi, '')

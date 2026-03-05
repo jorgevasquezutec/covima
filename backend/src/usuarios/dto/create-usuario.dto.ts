@@ -97,7 +97,10 @@ export class CreateUsuarioDto {
   @MaxLength(30)
   numeroDocumento?: string;
 
-  @ApiPropertyOptional({ example: 'M', enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] })
+  @ApiPropertyOptional({
+    example: 'M',
+    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+  })
   @IsOptional()
   @IsString()
   @IsIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])

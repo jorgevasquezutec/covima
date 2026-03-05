@@ -21,10 +21,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { CalendarioService } from './calendario.service';
-import {
-  CreateActividadDto,
-  UpdateActividadDto,
-} from './dto';
+import { CreateActividadDto, UpdateActividadDto } from './dto';
 
 @ApiTags('Calendario')
 @ApiBearerAuth()
@@ -44,8 +41,16 @@ export class CalendarioController {
   @ApiOperation({ summary: 'Listar actividades con filtros' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'desde', required: false, description: 'Fecha inicio (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'hasta', required: false, description: 'Fecha fin (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'desde',
+    required: false,
+    description: 'Fecha inicio (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'hasta',
+    required: false,
+    description: 'Fecha fin (YYYY-MM-DD)',
+  })
   async findAllActividades(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -92,7 +97,9 @@ export class CalendarioController {
 
   @Delete('actividades/:id/serie')
   @Roles('admin', 'lider')
-  @ApiOperation({ summary: 'Eliminar serie completa de actividades recurrentes' })
+  @ApiOperation({
+    summary: 'Eliminar serie completa de actividades recurrentes',
+  })
   async deleteSerieRecurrente(@Param('id', ParseIntPipe) id: number) {
     return this.calendarioService.deleteSerieRecurrente(id);
   }
@@ -100,7 +107,9 @@ export class CalendarioController {
   // ==================== CALENDARIO MES ====================
 
   @Get(':mes/:anio')
-  @ApiOperation({ summary: 'Obtener calendario del mes con todas las actividades' })
+  @ApiOperation({
+    summary: 'Obtener calendario del mes con todas las actividades',
+  })
   @ApiParam({ name: 'mes', description: 'Mes (1-12)', example: 2 })
   @ApiParam({ name: 'anio', description: 'Año', example: 2026 })
   async getCalendarioMes(

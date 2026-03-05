@@ -210,7 +210,9 @@ export class AsistenciaGateway
     },
   ) {
     this.server.to(`user:${usuarioId}`).emit('levelUp', data);
-    this.logger.log(`LevelUp emitted to user:${usuarioId} -> ${data.nivel.nombre}`);
+    this.logger.log(
+      `LevelUp emitted to user:${usuarioId} -> ${data.nivel.nombre}`,
+    );
   }
 
   // Obtener estadísticas de un room

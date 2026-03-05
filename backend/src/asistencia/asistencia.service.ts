@@ -458,9 +458,7 @@ export class AsistenciaService {
       none: undefined,
     } as const;
 
-    const include = params.include
-      ? includeMap[params.include]
-      : undefined;
+    const include = params.include ? includeMap[params.include] : undefined;
 
     return this.prisma.asistencia.create({
       data: {
@@ -642,7 +640,9 @@ export class AsistenciaService {
       fechaEvento,
       semanaInicio,
       datosFormulario: dto.datosFormulario,
-      metodoRegistro: (dto.metodoRegistro as CrearAsistenciaParams['metodoRegistro']) || 'plataforma',
+      metodoRegistro:
+        (dto.metodoRegistro as CrearAsistenciaParams['metodoRegistro']) ||
+        'plataforma',
       estado: 'pendiente_confirmacion',
       qrId,
       include: 'full',
@@ -714,8 +714,7 @@ export class AsistenciaService {
 
     // Determinar si está fuera de horario (no lanza error, guarda con estado fuera_horario)
     const esFueraDeHorario =
-      horaActualEnMinutos < horaAperturaQR ||
-      horaActualEnMinutos >= horaFinQR;
+      horaActualEnMinutos < horaAperturaQR || horaActualEnMinutos >= horaFinQR;
 
     const semanaInicio = getInicioSemana(hoy);
     const tipoId = qr.tipoId;
@@ -828,8 +827,7 @@ export class AsistenciaService {
     let gamificacionResult: AsignarPuntosResult | null = null;
     if (usuarioId && !esFueraDeHorario) {
       try {
-        const horaInicio =
-          qr.horaInicio || new Date('1970-01-01T09:00:00');
+        const horaInicio = qr.horaInicio || new Date('1970-01-01T09:00:00');
         const margenTemprana = qr.margenTemprana ?? 15;
         const margenTardia = qr.margenTardia ?? 30;
 
@@ -1184,8 +1182,7 @@ export class AsistenciaService {
 
         // Asignar puntos
         try {
-          const horaInicio =
-            qr.horaInicio || new Date('1970-01-01T09:00:00');
+          const horaInicio = qr.horaInicio || new Date('1970-01-01T09:00:00');
           const margenTemp = qr.margenTemprana ?? 15;
           const margenTard = qr.margenTardia ?? 30;
 
@@ -2057,9 +2054,10 @@ export class AsistenciaService {
    * @param asistencias - Lista de asistencias ordenadas por fecha descendente
    * @returns rachaActual y ultimaFecha de asistencia
    */
-  private calcularRachaDesdeAsistencias(
-    asistencias: { fecha: Date }[],
-  ): { rachaActual: number; ultimaFecha: Date | null } {
+  private calcularRachaDesdeAsistencias(asistencias: { fecha: Date }[]): {
+    rachaActual: number;
+    ultimaFecha: Date | null;
+  } {
     if (asistencias.length === 0) {
       return { rachaActual: 0, ultimaFecha: null };
     }

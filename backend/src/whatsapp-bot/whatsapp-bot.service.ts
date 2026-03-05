@@ -343,7 +343,10 @@ export class WhatsappBotService {
 
       // Guardar el mensaje en el inbox si se proporciona el contenido
       if (messageContentForInbox) {
-        await this.saveOutgoingMessageToInbox(normalizedPhone, messageContentForInbox);
+        await this.saveOutgoingMessageToInbox(
+          normalizedPhone,
+          messageContentForInbox,
+        );
       }
 
       return { success: true, messageId };
@@ -479,7 +482,10 @@ export class WhatsappBotService {
     conversationId: number,
     body: string,
     buttonText: string,
-    sections: { title: string; rows: { id: string; title: string; description?: string }[] }[],
+    sections: {
+      title: string;
+      rows: { id: string; title: string; description?: string }[];
+    }[],
   ): Promise<any> {
     const telefono = this.conversationPhoneMap.get(conversationId);
     if (!telefono) {
@@ -511,7 +517,10 @@ export class WhatsappBotService {
   /**
    * Enviar mensaje interactivo a WhatsApp Cloud API
    */
-  private async sendWhatsAppInteractive(to: string, interactive: any): Promise<any> {
+  private async sendWhatsAppInteractive(
+    to: string,
+    interactive: any,
+  ): Promise<any> {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
     const normalizedTo = to.replace(/[\s+\-]/g, '');
 

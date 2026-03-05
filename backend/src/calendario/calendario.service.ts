@@ -122,7 +122,8 @@ export class CalendarioService {
         : ultimoDia;
 
       // Determinar el límite de expansión
-      const limite = fechaFinRecurrencia < ultimoDia ? fechaFinRecurrencia : ultimoDia;
+      const limite =
+        fechaFinRecurrencia < ultimoDia ? fechaFinRecurrencia : ultimoDia;
 
       let fechaActual = new Date(fechaInicio);
 
@@ -214,7 +215,10 @@ export class CalendarioService {
     return nueva;
   }
 
-  private async getCumpleanosMes(mes: number, anio: number): Promise<ActividadCalendario[]> {
+  private async getCumpleanosMes(
+    mes: number,
+    anio: number,
+  ): Promise<ActividadCalendario[]> {
     // Obtener usuarios con cumpleaños en este mes
     const usuarios = await this.prisma.usuario.findMany({
       where: {
@@ -237,7 +241,9 @@ export class CalendarioService {
       const fechaNac = new Date(usuario.fechaNacimiento);
       if (fechaNac.getUTCMonth() + 1 === mes) {
         // Crear fecha de cumpleaños para este año (usar UTC para evitar desfase de zona horaria)
-        const fechaCumple = new Date(Date.UTC(anio, mes - 1, fechaNac.getUTCDate()));
+        const fechaCumple = new Date(
+          Date.UTC(anio, mes - 1, fechaNac.getUTCDate()),
+        );
 
         cumpleanos.push({
           id: -usuario.id, // ID negativo para distinguir de actividades reales
@@ -276,7 +282,9 @@ export class CalendarioService {
         icono: dto.icono || 'Calendar',
         esRecurrente: dto.esRecurrente ?? false,
         patronRecurrencia: dto.patronRecurrencia ?? PatronRecurrencia.NINGUNO,
-        fechaFinRecurrencia: dto.fechaFinRecurrencia ? new Date(dto.fechaFinRecurrencia) : null,
+        fechaFinRecurrencia: dto.fechaFinRecurrencia
+          ? new Date(dto.fechaFinRecurrencia)
+          : null,
         diaSemana: dto.diaSemana,
         semanaMes: dto.semanaMes,
         creadoPorId,
@@ -459,7 +467,10 @@ export class CalendarioService {
       id: actividad.id,
       titulo: actividad.titulo,
       descripcion: actividad.descripcion,
-      fecha: actividad.fecha instanceof Date ? actividad.fecha.toISOString() : actividad.fecha,
+      fecha:
+        actividad.fecha instanceof Date
+          ? actividad.fecha.toISOString()
+          : actividad.fecha,
       hora: actividad.hora,
       horaFin: actividad.horaFin,
       color: actividad.color,

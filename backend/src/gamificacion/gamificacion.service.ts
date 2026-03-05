@@ -464,7 +464,14 @@ export class GamificacionService {
     // Construir desglose por categoría
     const categoriasMap = new Map<
       string,
-      Map<string, { codigo: string; nombre: string; valores: Map<number, { cantidad: number; puntos: number }> }>
+      Map<
+        string,
+        {
+          codigo: string;
+          nombre: string;
+          valores: Map<number, { cantidad: number; puntos: number }>;
+        }
+      >
     >();
 
     // Procesar acciones normales
@@ -1888,7 +1895,10 @@ export class GamificacionService {
       .filter((i) => i.referenciaTipo === 'asistencia' && i.referenciaId)
       .map((i) => i.referenciaId!);
 
-    const asistenciasMap = new Map<number, { label: string; color: string | null }>();
+    const asistenciasMap = new Map<
+      number,
+      { label: string; color: string | null }
+    >();
     if (asistenciaIds.length > 0) {
       const asistencias = await this.prisma.asistencia.findMany({
         where: { id: { in: asistenciaIds } },
@@ -1899,7 +1909,10 @@ export class GamificacionService {
       });
       for (const a of asistencias) {
         if (a.tipo) {
-          asistenciasMap.set(a.id, { label: a.tipo.label, color: a.tipo.color });
+          asistenciasMap.set(a.id, {
+            label: a.tipo.label,
+            color: a.tipo.color,
+          });
         }
       }
     }
@@ -1908,7 +1921,7 @@ export class GamificacionService {
       items: items.map((item) => {
         const tipoAsistencia =
           item.referenciaTipo === 'asistencia' && item.referenciaId
-            ? asistenciasMap.get(item.referenciaId) ?? null
+            ? (asistenciasMap.get(item.referenciaId) ?? null)
             : null;
 
         return {
@@ -2124,22 +2137,31 @@ export class GamificacionService {
     });
     const configMap = new Map(configs.map((c) => [c.id, c]));
 
-    const accionesPorTipo: { codigo: string; nombre: string; cantidad: number; puntosTotales: number; categoria: string }[] = accionesAgrupadas
-      .map((a) => {
-        const config = configMap.get(a.configPuntajeId as number);
-        return {
-          codigo: config?.codigo || 'otro',
-          nombre: config?.nombre || 'Otro',
-          cantidad: a._count,
-          puntosTotales: a._sum.puntos || 0,
-          categoria: config?.categoria || 'OTRO',
-        };
-      });
+    const accionesPorTipo: {
+      codigo: string;
+      nombre: string;
+      cantidad: number;
+      puntosTotales: number;
+      categoria: string;
+    }[] = accionesAgrupadas.map((a) => {
+      const config = configMap.get(a.configPuntajeId as number);
+      return {
+        codigo: config?.codigo || 'otro',
+        nombre: config?.nombre || 'Otro',
+        cantidad: a._count,
+        puntosTotales: a._sum.puntos || 0,
+        categoria: config?.categoria || 'OTRO',
+      };
+    });
 
     // Agrupar eventos especiales (referenciaTipo = 'evento')
     const eventosAgrupados = await this.prisma.historialPuntos.groupBy({
       by: ['referenciaId'],
-      where: { ...whereHistorial, referenciaTipo: 'evento', referenciaId: { not: null } },
+      where: {
+        ...whereHistorial,
+        referenciaTipo: 'evento',
+        referenciaId: { not: null },
+      },
       _count: true,
       _sum: { puntos: true },
     });
@@ -2462,7 +2484,12 @@ export class GamificacionService {
       // Obtener top 3 del nivel (si hay período activo)
       let top3: any[] = [];
       if (periodo) {
-        const rankingResult = await this.getRankingNivel(nivel.id, periodo.id, 1, 3);
+        const rankingResult = await this.getRankingNivel(
+          nivel.id,
+          periodo.id,
+          1,
+          3,
+        );
         top3 = rankingResult.data;
       }
 

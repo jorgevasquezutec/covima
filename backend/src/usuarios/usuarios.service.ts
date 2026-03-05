@@ -19,7 +19,14 @@ export class UsuariosService {
     page?: number;
     limit?: number;
   }) {
-    const { search, rol, activo, perfilIncompleto, page = 1, limit = 20 } = options || {};
+    const {
+      search,
+      rol,
+      activo,
+      perfilIncompleto,
+      page = 1,
+      limit = 20,
+    } = options || {};
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -816,7 +823,9 @@ export class UsuariosService {
     });
 
     if (!nivelInicial) {
-      console.error('No existe el nivel bíblico 1 para crear perfil de gamificación');
+      console.error(
+        'No existe el nivel bíblico 1 para crear perfil de gamificación',
+      );
       return null;
     }
 

@@ -138,7 +138,8 @@ export class CreateProgramaDto {
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'ID de un QR de asistencia existente para vincular al programa',
+    description:
+      'ID de un QR de asistencia existente para vincular al programa',
   })
   @IsOptional()
   @IsInt()
@@ -154,7 +155,10 @@ export class CreateProgramaDto {
 }
 
 export class CreateProgramaBatchDto {
-  @ApiProperty({ type: [CreateProgramaDto], description: 'Lista de programas a crear' })
+  @ApiProperty({
+    type: [CreateProgramaDto],
+    description: 'Lista de programas a crear',
+  })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

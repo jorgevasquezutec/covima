@@ -161,7 +161,11 @@ export class NotificacionesHandler {
   ): Promise<void> {
     const lower = message.toLowerCase().trim();
 
-    if (!['sí', 'si', 'yes', 'confirmar', 'enviar', 'confirmar envío'].includes(lower)) {
+    if (
+      !['sí', 'si', 'yes', 'confirmar', 'enviar', 'confirmar envío'].includes(
+        lower,
+      )
+    ) {
       await this.whatsappService.sendMessage(context.conversationId, {
         content: '❌ Envío cancelado.',
       });

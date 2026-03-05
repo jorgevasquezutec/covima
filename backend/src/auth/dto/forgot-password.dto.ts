@@ -7,7 +7,10 @@ export class ForgotPasswordDto {
   @IsNotEmpty()
   codigoPais: string;
 
-  @ApiProperty({ example: '940393758', description: 'Número de teléfono local' })
+  @ApiProperty({
+    example: '940393758',
+    description: 'Número de teléfono local',
+  })
   @IsString()
   @IsNotEmpty()
   telefono: string;
@@ -31,12 +34,17 @@ export class VerifyResetCodeDto {
 }
 
 export class ResetPasswordWithTokenDto {
-  @ApiProperty({ description: 'Token JWT de reset obtenido al verificar el código' })
+  @ApiProperty({
+    description: 'Token JWT de reset obtenido al verificar el código',
+  })
   @IsString()
   @IsNotEmpty()
   resetToken: string;
 
-  @ApiProperty({ example: 'nueva123', description: 'Nueva contraseña (mínimo 6 caracteres)' })
+  @ApiProperty({
+    example: 'nueva123',
+    description: 'Nueva contraseña (mínimo 6 caracteres)',
+  })
   @IsString()
   @MinLength(6)
   newPassword: string;

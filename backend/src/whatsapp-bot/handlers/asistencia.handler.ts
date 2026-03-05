@@ -336,14 +336,16 @@ export class AsistenciaHandler {
           context.conversationId,
           `⚠️ Encontré ${usuarios.length} usuarios con ese nombre:`,
           'Seleccionar',
-          [{
-            title: 'Usuarios encontrados',
-            rows: usuarios.map((u) => ({
-              id: `user_${u.id}`,
-              title: u.nombre,
-              description: u.telefono,
-            })),
-          }],
+          [
+            {
+              title: 'Usuarios encontrados',
+              rows: usuarios.map((u) => ({
+                id: `user_${u.id}`,
+                title: u.nombre,
+                description: u.telefono,
+              })),
+            },
+          ],
         );
         return;
       }
@@ -835,13 +837,15 @@ export class AsistenciaHandler {
         conversationId,
         `${label}${placeholder}`,
         'Seleccionar',
-        [{
-          title: campo.label,
-          rows: opciones.map((opt, i) => ({
-            id: `sel_${i}`,
-            title: opt.label,
-          })),
-        }],
+        [
+          {
+            title: campo.label,
+            rows: opciones.map((opt, i) => ({
+              id: `sel_${i}`,
+              title: opt.label,
+            })),
+          },
+        ],
       );
       return;
     }

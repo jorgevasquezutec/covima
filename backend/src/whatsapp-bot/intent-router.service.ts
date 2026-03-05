@@ -651,7 +651,7 @@ export class IntentRouterService {
     // Botones que mapean directo a intents existentes
     const buttonMap: Record<string, string> = {
       'ver programa': 'ver_programa',
-      'ayuda': 'ayuda',
+      ayuda: 'ayuda',
       'ver ayuda': 'ayuda',
     };
 
@@ -678,7 +678,8 @@ export class IntentRouterService {
 
     if (lower === 'marcar asistencia') {
       await this.whatsappService.sendMessage(context.conversationId, {
-        content: '📋 Envíame el código QR de asistencia.\n\nFormato: *JAXXXXXXXX*',
+        content:
+          '📋 Envíame el código QR de asistencia.\n\nFormato: *JAXXXXXXXX*',
       });
       return true;
     }
