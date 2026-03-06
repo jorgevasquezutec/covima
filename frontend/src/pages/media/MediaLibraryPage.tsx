@@ -13,6 +13,7 @@ import {
     X,
     FileImage,
     RefreshCw,
+    Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,7 @@ export default function MediaLibraryPage() {
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [uploadNames, setUploadNames] = useState<string[]>([]);
     const [replaceTarget, setReplaceTarget] = useState<MediaItem | null>(null);
+    const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const replaceInputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -242,7 +244,7 @@ export default function MediaLibraryPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {items.map((item) => (
                         <Card key={item.id} className="bg-white border-gray-200 overflow-hidden group">
-                            <div className="relative aspect-square bg-gray-50">
+                            <div className="relative aspect-square bg-gray-50 overflow-hidden">
                                 {isVideo(item.mimeType) ? (
                                     <div className="w-full h-full flex items-center justify-center">
                                         <Film className="h-10 w-10 text-gray-400" />
@@ -256,36 +258,43 @@ export default function MediaLibraryPage() {
                                     />
                                 )}
                                 {/* Actions overlay */}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                                <div
+                                    className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                                    onClick={() => setPreviewItem(item)}
+                                >
+                                    <Eye className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-white drop-shadow" />
+                                </div>
+                                {/* Action buttons */}
+                                <div className="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button
                                         size="icon"
                                         variant="secondary"
-                                        className="h-8 w-8"
+                                        className="h-7 w-7"
                                         title="Renombrar"
                                         onClick={() => startEdit(item)}
                                     >
-                                        <Pencil className="h-3.5 w-3.5" />
+                                        <Pencil className="h-3 w-3" />
                                     </Button>
                                     <Button
                                         size="icon"
                                         variant="secondary"
-                                        className="h-8 w-8"
+                                        className="h-7 w-7"
                                         title="Reemplazar archivo"
                                         onClick={() => {
                                             setReplaceTarget(item);
                                             setTimeout(() => replaceInputRef.current?.click(), 100);
                                         }}
                                     >
-                                        <RefreshCw className="h-3.5 w-3.5" />
+                                        <RefreshCw className="h-3 w-3" />
                                     </Button>
                                     <Button
                                         size="icon"
                                         variant="secondary"
-                                        className="h-8 w-8 hover:bg-red-100 hover:text-red-600"
+                                        className="h-7 w-7 hover:bg-red-100 hover:text-red-600"
                                         title="Eliminar"
                                         onClick={() => setDeleteTarget(item)}
                                     >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <Trash2 className="h-3 w-3" />
                                     </Button>
                                 </div>
                                 {/* Usage badge */}
@@ -321,7 +330,7 @@ export default function MediaLibraryPage() {
                                             {item.nombre || item.nombreOriginal || 'Sin nombre'}
                                         </p>
                                         <p className="text-[10px] text-gray-400 mt-0.5">
-                                            {formatFileSize(item.tamanio)} · {formatDate(item.createdAt)}
+                                            {item.tamanio > 0 ? `${formatFileSize(item.tamanio)} · ` : ''}{formatDate(item.createdAt)}
                                         </p>
                                     </>
                                 )}
@@ -463,6 +472,41 @@ export default function MediaLibraryPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Preview lightbox */}
+            <Dialog open={!!previewItem} onOpenChange={(open) => { if (!open) setPreviewItem(null); }}>
+                <DialogContent className="bg-black/95 border-none sm:max-w-4xl max-h-[90vh] p-2 [&_[data-slot=dialog-close]]:text-white [&_[data-slot=dialog-close]]:hover:text-gray-300">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>{previewItem?.nombre || previewItem?.nombreOriginal || 'Vista previa'}</DialogTitle>
+                        <DialogDescription>Vista previa del archivo</DialogDescription>
+                    </DialogHeader>
+                    {previewItem && (
+                        <div className="flex flex-col items-center gap-3">
+                            {isVideo(previewItem.mimeType) ? (
+                                <video
+                                    src={`${getBaseUrl()}${previewItem.url}`}
+                                    controls
+                                    className="max-h-[75vh] max-w-full rounded"
+                                />
+                            ) : (
+                                <img
+                                    src={`${getBaseUrl()}${previewItem.url}`}
+                                    alt={previewItem.nombre || previewItem.nombreOriginal || ''}
+                                    className="max-h-[75vh] max-w-full object-contain rounded"
+                                />
+                            )}
+                            <div className="text-center">
+                                <p className="text-sm font-medium text-white">
+                                    {previewItem.nombre || previewItem.nombreOriginal || 'Sin nombre'}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                    {previewItem.tamanio > 0 ? `${formatFileSize(previewItem.tamanio)} · ` : ''}{formatDate(previewItem.createdAt)}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
