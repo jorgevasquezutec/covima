@@ -923,7 +923,7 @@ export default function ProgramaFormMulti() {
             </div>
 
             {/* Multi-column container with horizontal scroll + drag to reorder */}
-            <div className="overflow-x-auto pb-4">
+            <div className={programs.length > 3 ? 'overflow-x-auto pb-4' : 'pb-4'}>
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -933,7 +933,15 @@ export default function ProgramaFormMulti() {
                   items={programs.map(p => p.key)}
                   strategy={horizontalListSortingStrategy}
                 >
-                <div className="flex gap-4" style={{ minWidth: programs.length > 1 ? `${programs.length * 500}px` : undefined }}>
+                <div className={
+                    programs.length === 1
+                        ? 'grid grid-cols-1 gap-4'
+                        : programs.length === 2
+                            ? 'grid grid-cols-1 lg:grid-cols-2 gap-4'
+                            : programs.length === 3
+                                ? 'grid grid-cols-1 lg:grid-cols-3 gap-4'
+                                : 'flex gap-4'
+                } style={programs.length > 3 ? { minWidth: `${programs.length * 500}px` } : undefined}>
                     {programs.map((prog) => {
                         const availablePartes = todasLasPartes.filter(
                             (p: Parte) => !prog.partes.some(ep => ep.parteId === p.id)
@@ -943,8 +951,8 @@ export default function ProgramaFormMulti() {
                             <SortableProgramColumn key={prog.key} id={prog.key}>
                               {({ listeners, attributes }) => (
                             <div
-                                className="flex-shrink-0 border border-gray-200 rounded-xl bg-white shadow-sm"
-                                style={{ width: programs.length > 1 ? '480px' : '100%' }}
+                                className={programs.length > 3 ? 'flex-shrink-0 border border-gray-200 rounded-xl bg-white shadow-sm' : 'border border-gray-200 rounded-xl bg-white shadow-sm'}
+                                style={programs.length > 3 ? { width: '480px' } : undefined}
                             >
                                 {/* Column header */}
                                 <div className="sticky top-0 z-[5] bg-white border-b border-gray-200 rounded-t-xl px-4 py-3">
@@ -1224,6 +1232,7 @@ export default function ProgramaFormMulti() {
                                                         onRemoveFoto={(index) => handleRemoveFoto(prog.key, item.parteId, index)}
                                                         onReorderFotos={(from, to) => handleReorderFotos(prog.key, item.parteId, from, to)}
                                                         onPickFromLibrary={(mediaItem) => handlePickFromLibrary(prog.key, item.parteId, mediaItem)}
+                                                        fetchSearch={(q) => programasApi.getUsuarios(q)}
                                                     />
                                                 ))}
                                             </div>
@@ -1272,6 +1281,7 @@ export default function ProgramaFormMulti() {
                             onSelect={handleReemplazarConUsuario}
                             onAddFreeText={handleReemplazarConTexto}
                             placeholder="Buscar reemplazo..."
+                            fetchSearch={(q) => programasApi.getUsuarios(q)}
                         />
                     </div>
                 </DialogContent>

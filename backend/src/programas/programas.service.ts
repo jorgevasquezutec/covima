@@ -97,7 +97,10 @@ export class ProgramasService {
             orderBy: { orden: 'asc' },
           },
           links: {
-            include: { parte: true },
+            include: {
+              parte: true,
+              mediaItem: { select: { id: true, url: true } },
+            },
             orderBy: { orden: 'asc' },
           },
           fotos: {
@@ -149,7 +152,10 @@ export class ProgramasService {
           orderBy: { orden: 'asc' },
         },
         links: {
-          include: { parte: true },
+          include: {
+            parte: true,
+            mediaItem: { select: { id: true, url: true } },
+          },
           orderBy: { orden: 'asc' },
         },
         fotos: {
@@ -284,6 +290,7 @@ export class ProgramasService {
             parteId: link.parteId,
             nombre: link.nombre,
             url: link.url,
+            mediaItemId: link.mediaItemId || null,
             orden: orden++,
           },
         });
@@ -453,6 +460,7 @@ export class ProgramasService {
             parteId: link.parteId,
             nombre: link.nombre,
             url: link.url,
+            mediaItemId: link.mediaItemId || null,
             orden: orden++,
           },
         });
@@ -1565,7 +1573,10 @@ export class ProgramasService {
           orderBy: { orden: 'asc' },
         },
         links: {
-          include: { parte: true },
+          include: {
+            parte: true,
+            mediaItem: { select: { id: true, url: true } },
+          },
           orderBy: { orden: 'asc' },
         },
         fotos: {
@@ -1942,9 +1953,14 @@ export class ProgramasService {
     return resultado;
   }
 
-  async getUsuariosParaAsignar() {
+  async getUsuariosParaAsignar(search?: string) {
     return this.prisma.usuario.findMany({
-      where: { activo: true },
+      where: {
+        activo: true,
+        ...(search
+          ? { nombre: { contains: search, mode: 'insensitive' as const } }
+          : {}),
+      },
       select: {
         id: true,
         nombre: true,
@@ -2011,7 +2027,10 @@ export class ProgramasService {
           orderBy: { orden: 'asc' },
         },
         links: {
-          include: { parte: true },
+          include: {
+            parte: true,
+            mediaItem: { select: { id: true, url: true } },
+          },
           orderBy: { orden: 'asc' },
         },
       },
@@ -2307,7 +2326,10 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
           orderBy: { orden: 'asc' },
         },
         links: {
-          include: { parte: true },
+          include: {
+            parte: true,
+            mediaItem: { select: { id: true, url: true } },
+          },
           orderBy: { orden: 'asc' },
         },
         fotos: {
@@ -2349,7 +2371,10 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
           orderBy: { orden: 'asc' },
         },
         links: {
-          include: { parte: true },
+          include: {
+            parte: true,
+            mediaItem: { select: { id: true, url: true } },
+          },
           orderBy: { orden: 'asc' },
         },
         fotos: {
@@ -2450,6 +2475,8 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
           nombre: l.nombre,
           url: l.url,
           orden: l.orden,
+          mediaItemId: l.mediaItemId || null,
+          mediaItem: l.mediaItem || null,
         })) || [],
       fotos:
         programa.fotos?.map((f: any) => ({

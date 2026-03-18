@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -14,10 +14,12 @@ import {
     FileImage,
     RefreshCw,
     Eye,
+    CheckSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -37,7 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { mediaApi } from '@/services/api';
-import type { MediaItem } from '@/types';
+import type { MediaItem, TagMedia } from '@/types';
 
 function formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 B';
@@ -63,11 +65,16 @@ export default function MediaLibraryPage() {
     const [uploading, setUploading] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editName, setEditName] = useState('');
+    const [editTag, setEditTag] = useState<TagMedia>('OTRO');
     const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [uploadNames, setUploadNames] = useState<string[]>([]);
     const [replaceTarget, setReplaceTarget] = useState<MediaItem | null>(null);
     const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
+    const [activeTag, setActiveTag] = useState<TagMedia | null>(null);
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [deleteMultiOpen, setDeleteMultiOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const replaceInputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -82,19 +89,22 @@ export default function MediaLibraryPage() {
     };
 
     const { data, isLoading } = useQuery({
-        queryKey: ['media-library', debouncedSearch, page],
-        queryFn: () => mediaApi.getAll({ page, limit: 24, search: debouncedSearch || undefined }),
+        queryKey: ['media-library', debouncedSearch, page, activeTag],
+        queryFn: () => mediaApi.getAll({ page, limit: 24, search: debouncedSearch || undefined, tag: activeTag || undefined }),
     });
 
+    const items = data?.data || [];
+    const meta = data?.meta;
+
     const renameMutation = useMutation({
-        mutationFn: ({ id, nombre }: { id: number; nombre: string }) =>
-            mediaApi.updateNombre(id, nombre),
+        mutationFn: ({ id, nombre, tag }: { id: number; nombre: string; tag: TagMedia }) =>
+            mediaApi.update(id, { nombre, tag }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['media-library'] });
             setEditingId(null);
-            toast.success('Nombre actualizado');
+            toast.success('Medio actualizado');
         },
-        onError: () => toast.error('Error al renombrar'),
+        onError: () => toast.error('Error al actualizar'),
     });
 
     const replaceMutation = useMutation({
@@ -121,10 +131,59 @@ export default function MediaLibraryPage() {
         },
     });
 
+    const deleteBatchMutation = useMutation({
+        mutationFn: (ids: number[]) => mediaApi.deleteBatch(ids),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['media-library'] });
+            setDeleteMultiOpen(false);
+            setSelectedIds(new Set());
+            setSelectMode(false);
+            toast.success(`${data.deleted} archivo(s) eliminado(s)`);
+        },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.message || 'Error al eliminar');
+            setDeleteMultiOpen(false);
+        },
+    });
+
+    const toggleSelect = useCallback((id: number) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    const toggleSelectAll = useCallback(() => {
+        if (selectedIds.size === items.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(items.map(i => i.id)));
+        }
+    }, [selectedIds.size, items]);
+
+    const exitSelectMode = useCallback(() => {
+        setSelectMode(false);
+        setSelectedIds(new Set());
+    }, []);
+
+    const [uploadTags, setUploadTags] = useState<TagMedia[]>([]);
+
+    const detectTagFromFile = (file: File, name: string): TagMedia => {
+        const nameLower = name.toLowerCase();
+        if (nameLower.includes('himno') || nameLower.includes('adventista') || nameLower.includes('hymn')) return 'HIMNO';
+        if (file.type.startsWith('image/')) return 'IMAGEN';
+        if (file.type.startsWith('video/')) return 'VIDEO';
+        return 'OTRO';
+    };
+
     const handleFilesSelected = (files: FileList) => {
         const fileArr = Array.from(files);
         setPendingFiles(fileArr);
-        setUploadNames(fileArr.map(f => f.name.replace(/\.[^/.]+$/, '')));
+        const names = fileArr.map(f => f.name.replace(/\.[^/.]+$/, ''));
+        setUploadNames(names);
+        setUploadTags(fileArr.map((f, i) => detectTagFromFile(f, names[i])));
     };
 
     const handleConfirmUpload = async () => {
@@ -132,7 +191,7 @@ export default function MediaLibraryPage() {
         let uploaded = 0;
         for (let i = 0; i < pendingFiles.length; i++) {
             try {
-                await mediaApi.upload(pendingFiles[i], uploadNames[i]?.trim() || undefined);
+                await mediaApi.upload(pendingFiles[i], uploadNames[i]?.trim() || undefined, uploadTags[i] || undefined);
                 uploaded++;
             } catch {
                 toast.error(`Error al subir ${pendingFiles[i].name}`);
@@ -141,6 +200,7 @@ export default function MediaLibraryPage() {
         setUploading(false);
         setPendingFiles([]);
         setUploadNames([]);
+        setUploadTags([]);
         if (uploaded > 0) {
             queryClient.invalidateQueries({ queryKey: ['media-library'] });
             toast.success(`${uploaded} archivo(s) subido(s)`);
@@ -150,11 +210,12 @@ export default function MediaLibraryPage() {
     const startEdit = (item: MediaItem) => {
         setEditingId(item.id);
         setEditName(item.nombre || item.nombreOriginal || '');
+        setEditTag(item.tag || 'OTRO');
     };
 
     const saveEdit = () => {
         if (editingId && editName.trim()) {
-            renameMutation.mutate({ id: editingId, nombre: editName.trim() });
+            renameMutation.mutate({ id: editingId, nombre: editName.trim(), tag: editTag });
         }
     };
 
@@ -169,8 +230,6 @@ export default function MediaLibraryPage() {
     };
 
     const isVideo = (mimeType: string) => mimeType.startsWith('video/');
-    const items = data?.data || [];
-    const meta = data?.meta;
 
     return (
         <div className="space-y-6">
@@ -186,7 +245,7 @@ export default function MediaLibraryPage() {
                         {' — '}Las fotos subidas aquí se pueden reutilizar en cualquier programa.
                     </p>
                 </div>
-                <div>
+                <div className="flex gap-2">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -200,29 +259,84 @@ export default function MediaLibraryPage() {
                             }
                         }}
                     />
-                    <Button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                    >
-                        {uploading ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                            <Upload className="h-4 w-4 mr-2" />
-                        )}
-                        Subir archivos
-                    </Button>
+                    {!selectMode ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                onClick={() => setSelectMode(true)}
+                                className="border-gray-300"
+                            >
+                                <CheckSquare className="h-4 w-4 mr-2" />
+                                Seleccionar
+                            </Button>
+                            <Button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                            >
+                                {uploading ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Upload className="h-4 w-4 mr-2" />
+                                )}
+                                Subir archivos
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleSelectAll}
+                                className="border-gray-300"
+                            >
+                                {selectedIds.size === items.length && items.length > 0 ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={selectedIds.size === 0}
+                                onClick={() => setDeleteMultiOpen(true)}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Eliminar ({selectedIds.size})
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={exitSelectMode}
+                                className="border-gray-300"
+                            >
+                                Cancelar
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                    value={search}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Buscar por nombre..."
-                    className="pl-9 bg-white border-gray-300"
-                />
+            {/* Search + Tags */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                        value={search}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        placeholder="Buscar por nombre..."
+                        className="pl-9 bg-white border-gray-300"
+                    />
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                    {([null, 'HIMNO', 'VIDEO', 'IMAGEN', 'ANUNCIO', 'OTRO'] as (TagMedia | null)[]).map((tag) => (
+                        <Button
+                            key={tag ?? 'ALL'}
+                            variant={activeTag === tag ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => { setActiveTag(tag); setPage(1); }}
+                            className={activeTag === tag ? '' : 'border-gray-300 text-gray-600'}
+                        >
+                            {tag === null ? 'Todos' : tag === 'HIMNO' ? 'Himnos' : tag === 'VIDEO' ? 'Videos' : tag === 'IMAGEN' ? 'Imágenes' : tag === 'ANUNCIO' ? 'Anuncios' : 'Otros'}
+                        </Button>
+                    ))}
+                </div>
             </div>
 
             {/* Grid */}
@@ -243,7 +357,11 @@ export default function MediaLibraryPage() {
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {items.map((item) => (
-                        <Card key={item.id} className="bg-white border-gray-200 overflow-hidden group">
+                        <Card
+                            key={item.id}
+                            className={`bg-white border-gray-200 overflow-hidden group ${selectMode && selectedIds.has(item.id) ? 'ring-2 ring-blue-500' : ''}`}
+                            onClick={selectMode ? () => toggleSelect(item.id) : undefined}
+                        >
                             <div className="relative aspect-square bg-gray-50 overflow-hidden">
                                 {isVideo(item.mimeType) ? (
                                     <div className="w-full h-full flex items-center justify-center">
@@ -257,14 +375,28 @@ export default function MediaLibraryPage() {
                                         loading="lazy"
                                     />
                                 )}
+                                {/* Select mode checkbox */}
+                                {selectMode && (
+                                    <div className="absolute top-1.5 left-1.5 z-10">
+                                        <Checkbox
+                                            checked={selectedIds.has(item.id)}
+                                            onCheckedChange={() => toggleSelect(item.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="bg-white"
+                                        />
+                                    </div>
+                                )}
                                 {/* Actions overlay */}
+                                {!selectMode && (
                                 <div
                                     className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
                                     onClick={() => setPreviewItem(item)}
                                 >
                                     <Eye className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-white drop-shadow" />
                                 </div>
+                                )}
                                 {/* Action buttons */}
+                                {!selectMode && (
                                 <div className="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button
                                         size="icon"
@@ -297,32 +429,53 @@ export default function MediaLibraryPage() {
                                         <Trash2 className="h-3 w-3" />
                                     </Button>
                                 </div>
-                                {/* Usage badge */}
-                                {item._count && item._count.programaFotos > 0 && (
-                                    <Badge className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5">
-                                        {item._count.programaFotos} uso{item._count.programaFotos > 1 ? 's' : ''}
-                                    </Badge>
                                 )}
+                                {/* Tag + Usage badges */}
+                                <div className="absolute top-1.5 right-1.5 flex gap-1">
+                                    {item.tag && item.tag !== 'OTRO' && (
+                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-white/80">
+                                            {item.tag === 'HIMNO' ? '🎵' : item.tag === 'VIDEO' ? '🎬' : item.tag === 'IMAGEN' ? '🖼️' : item.tag === 'ANUNCIO' ? '📢' : ''} {item.tag.toLowerCase()}
+                                        </Badge>
+                                    )}
+                                    {item._count && item._count.programaFotos > 0 && (
+                                        <Badge className="text-[10px] px-1.5 py-0.5">
+                                            {item._count.programaFotos} uso{item._count.programaFotos > 1 ? 's' : ''}
+                                        </Badge>
+                                    )}
+                                </div>
                             </div>
                             <CardContent className="p-2">
                                 {editingId === item.id ? (
-                                    <div className="flex items-center gap-1">
-                                        <Input
-                                            value={editName}
-                                            onChange={(e) => setEditName(e.target.value)}
-                                            className="h-7 text-xs bg-white border-gray-300"
-                                            autoFocus
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') saveEdit();
-                                                if (e.key === 'Escape') setEditingId(null);
-                                            }}
-                                        />
-                                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={saveEdit}>
-                                            <Check className="h-3.5 w-3.5 text-green-600" />
-                                        </Button>
-                                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingId(null)}>
-                                            <X className="h-3.5 w-3.5 text-gray-400" />
-                                        </Button>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-1">
+                                            <Input
+                                                value={editName}
+                                                onChange={(e) => setEditName(e.target.value)}
+                                                className="h-7 text-xs bg-white border-gray-300"
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') saveEdit();
+                                                    if (e.key === 'Escape') setEditingId(null);
+                                                }}
+                                            />
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={saveEdit}>
+                                                <Check className="h-3.5 w-3.5 text-green-600" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingId(null)}>
+                                                <X className="h-3.5 w-3.5 text-gray-400" />
+                                            </Button>
+                                        </div>
+                                        <select
+                                            value={editTag}
+                                            onChange={(e) => setEditTag(e.target.value as TagMedia)}
+                                            className="w-full h-6 text-[10px] rounded border border-gray-300 bg-white px-1"
+                                        >
+                                            <option value="HIMNO">Himno</option>
+                                            <option value="VIDEO">Video</option>
+                                            <option value="IMAGEN">Imagen</option>
+                                            <option value="ANUNCIO">Anuncio</option>
+                                            <option value="OTRO">Otro</option>
+                                        </select>
                                     </div>
                                 ) : (
                                     <>
@@ -381,7 +534,7 @@ export default function MediaLibraryPage() {
             />
 
             {/* Upload naming dialog */}
-            <Dialog open={pendingFiles.length > 0} onOpenChange={(open) => { if (!open) { setPendingFiles([]); setUploadNames([]); } }}>
+            <Dialog open={pendingFiles.length > 0} onOpenChange={(open) => { if (!open) { setPendingFiles([]); setUploadNames([]); setUploadTags([]); } }}>
                 <DialogContent className="bg-white sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="text-gray-900">
@@ -406,20 +559,37 @@ export default function MediaLibraryPage() {
                                     />
                                 )}
                                 <div className="flex-1 space-y-1">
-                                    <Input
-                                        value={uploadNames[i] || ''}
-                                        onChange={(e) => {
-                                            const newNames = [...uploadNames];
-                                            newNames[i] = e.target.value;
-                                            setUploadNames(newNames);
-                                        }}
-                                        placeholder="Nombre del archivo"
-                                        className="h-8 text-sm bg-white border-gray-300"
-                                        autoFocus={i === 0}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && pendingFiles.length === 1) handleConfirmUpload();
-                                        }}
-                                    />
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={uploadNames[i] || ''}
+                                            onChange={(e) => {
+                                                const newNames = [...uploadNames];
+                                                newNames[i] = e.target.value;
+                                                setUploadNames(newNames);
+                                            }}
+                                            placeholder="Nombre del archivo"
+                                            className="h-8 text-sm bg-white border-gray-300 flex-1"
+                                            autoFocus={i === 0}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && pendingFiles.length === 1) handleConfirmUpload();
+                                            }}
+                                        />
+                                        <select
+                                            value={uploadTags[i] || 'OTRO'}
+                                            onChange={(e) => {
+                                                const newTags = [...uploadTags];
+                                                newTags[i] = e.target.value as TagMedia;
+                                                setUploadTags(newTags);
+                                            }}
+                                            className="h-8 text-xs rounded border border-gray-300 bg-white px-2 shrink-0"
+                                        >
+                                            <option value="HIMNO">Himno</option>
+                                            <option value="VIDEO">Video</option>
+                                            <option value="IMAGEN">Imagen</option>
+                                            <option value="ANUNCIO">Anuncio</option>
+                                            <option value="OTRO">Otro</option>
+                                        </select>
+                                    </div>
                                     <p className="text-[10px] text-gray-400">{file.name}</p>
                                 </div>
                             </div>
@@ -428,7 +598,7 @@ export default function MediaLibraryPage() {
                     <div className="flex justify-end gap-2 pt-2">
                         <Button
                             variant="outline"
-                            onClick={() => { setPendingFiles([]); setUploadNames([]); }}
+                            onClick={() => { setPendingFiles([]); setUploadNames([]); setUploadTags([]); }}
                             disabled={uploading}
                             className="border-gray-300"
                         >
@@ -468,6 +638,31 @@ export default function MediaLibraryPage() {
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             ) : null}
                             Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Batch delete confirmation */}
+            <AlertDialog open={deleteMultiOpen} onOpenChange={(open) => { if (!open) setDeleteMultiOpen(false); }}>
+                <AlertDialogContent className="bg-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Eliminar {selectedIds.size} archivo(s)</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Estás seguro de eliminar <strong>{selectedIds.size} archivo(s)</strong> seleccionado(s)?
+                            Esta acción también eliminará las referencias en programas asociados.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => deleteBatchMutation.mutate(Array.from(selectedIds))}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {deleteBatchMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : null}
+                            Eliminar {selectedIds.size}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

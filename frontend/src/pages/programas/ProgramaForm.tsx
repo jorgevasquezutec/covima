@@ -45,6 +45,9 @@ import {
     Search,
     Monitor,
     Image,
+    CloudDownload,
+    CheckCircle,
+    FolderDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -79,7 +82,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import UserAutocomplete from '@/components/UserAutocomplete';
-import { programasApi, asistenciaApi, tiposAsistenciaApi } from '@/services/api';
+import { programasApi, asistenciaApi, tiposAsistenciaApi, mediaApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
 import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, PlantillaPrograma, QRAsistencia, TipoAsistencia } from '@/types';
 import { downloadOBSSceneCollection } from '@/lib/obs-scene-export';
@@ -100,7 +103,7 @@ export interface ParteEnPrograma {
     parte: Parte;
     usuarioIds: number[];
     nombresLibres: string[];
-    links: { _key: string; nombre: string; url: string }[];
+    links: { _key: string; nombre: string; url: string; mediaItemId?: number | null; mediaUrl?: string | null }[];
     fotos: { _key: string; url: string; nombre?: string; mediaItemId?: number }[];
 }
 
@@ -233,7 +236,13 @@ export function SortableParteItem({
     onRemoveFoto,
     onReorderFotos,
     onPickFromLibrary,
+    onDownloadYouTube,
+    onAssociateMedia,
+    onDownloadBatch,
+    downloadingLinkKey,
+    batchDownloading,
     programaId,
+    fetchSearch,
 }: {
     item: ParteEnPrograma;
     usuarios: UsuarioSimple[];
@@ -251,7 +260,13 @@ export function SortableParteItem({
     onRemoveFoto?: (index: number) => void;
     onReorderFotos?: (fromIndex: number, toIndex: number) => void;
     onPickFromLibrary?: (item: { url: string; nombre?: string; mediaItemId: number }) => void;
+    onDownloadYouTube?: (index: number) => void;
+    onAssociateMedia?: (linkIndex: number, mediaItem: { id: number; url: string; nombre?: string }) => void;
+    onDownloadBatch?: () => void;
+    downloadingLinkKey?: string | null;
+    batchDownloading?: boolean;
     programaId?: number;
+    fetchSearch?: (query: string) => Promise<UsuarioSimple[]>;
 }) {
     const {
         attributes,
@@ -266,6 +281,7 @@ export function SortableParteItem({
     const linksDndId = useId();
     const [fotosOpen, setFotosOpen] = useState(item.fotos.length > 0);
     const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+    const [mediaPickerForLink, setMediaPickerForLink] = useState<number | null>(null);
     const fotoInputRef = useRef<HTMLInputElement>(null);
     const fotoSensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -423,6 +439,7 @@ export function SortableParteItem({
                             onSelect={(usuarioId) => onUpdateUsuarios(usuarioId, 'add')}
                             onAddFreeText={onAddFreeText}
                             placeholder="Buscar participante..."
+                            fetchSearch={fetchSearch}
                         />
                     </div>
 
@@ -472,17 +489,61 @@ export function SortableParteItem({
                                     className="bg-white border-gray-300 text-gray-900 flex-1"
                                 />
                                 <div className="flex gap-1">
-                                    {link.url && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => window.open(link.url, '_blank')}
-                                            className="hover:bg-blue-50 hover:text-blue-600"
-                                        >
-                                            <ExternalLink className="h-4 w-4" />
-                                        </Button>
-                                    )}
+                                    {link.url && (() => {
+                                        const isYt = (() => {
+                                            try { const u = new URL(link.url); return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'; } catch { return false; }
+                                        })();
+                                        const isDownloading = downloadingLinkKey === `${item.parteId}-${index}`;
+                                        return (
+                                            <>
+                                                {isYt && onDownloadYouTube && (
+                                                    link.mediaItemId ? (
+                                                        <Button type="button" variant="ghost" size="icon" className="text-green-600 cursor-default" title="Video descargado">
+                                                            <CheckCircle className="h-4 w-4" />
+                                                        </Button>
+                                                    ) : isDownloading ? (
+                                                        <Button type="button" variant="ghost" size="icon" disabled className="text-purple-500" title="Descargando...">
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        </Button>
+                                                    ) : (
+                                                        <>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => onDownloadYouTube(index)}
+                                                                className="hover:bg-purple-50 hover:text-purple-600"
+                                                                title="Descargar video"
+                                                            >
+                                                                <CloudDownload className="h-4 w-4" />
+                                                            </Button>
+                                                            {onAssociateMedia && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => setMediaPickerForLink(index)}
+                                                                    className="hover:bg-amber-50 hover:text-amber-600"
+                                                                    title="Importar desde biblioteca"
+                                                                >
+                                                                    <FolderDown className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </>
+                                                    )
+                                                )}
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => window.open(link.url, '_blank')}
+                                                    className="hover:bg-blue-50 hover:text-blue-600"
+                                                >
+                                                    <ExternalLink className="h-4 w-4" />
+                                                </Button>
+                                            </>
+                                        );
+                                    })()}
                                     <Button
                                         type="button"
                                         variant="ghost"
@@ -500,16 +561,53 @@ export function SortableParteItem({
                             </SortableContext>
                         </DndContext>
 
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={onAddLink}
-                            className="border-gray-300 hover:bg-gray-50 text-gray-700"
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Agregar Link
-                        </Button>
+                        <div className="flex gap-2 flex-wrap">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={onAddLink}
+                                className="border-gray-300 hover:bg-gray-50 text-gray-700"
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Agregar Link
+                            </Button>
+                            {onDownloadBatch && (() => {
+                                const pendingYt = item.links.filter(l => {
+                                    if (l.mediaItemId) return false;
+                                    try { const u = new URL(l.url); return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'; } catch { return false; }
+                                });
+                                return pendingYt.length > 0 ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={onDownloadBatch}
+                                        disabled={batchDownloading}
+                                        className="border-purple-300 hover:bg-purple-50 text-purple-700"
+                                    >
+                                        {batchDownloading ? (
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        ) : (
+                                            <CloudDownload className="h-4 w-4 mr-2" />
+                                        )}
+                                        {batchDownloading ? 'Descargando...' : `Descargar videos (${pendingYt.length})`}
+                                    </Button>
+                                ) : null;
+                            })()}
+                        </div>
+
+                        {/* MediaPicker for link import */}
+                        {mediaPickerForLink !== null && onAssociateMedia && (
+                            <MediaPickerDialog
+                                open={true}
+                                onOpenChange={(open) => { if (!open) setMediaPickerForLink(null); }}
+                                onSelect={(selected) => {
+                                    onAssociateMedia(mediaPickerForLink, { id: selected.mediaItemId, url: selected.url, nombre: selected.nombre });
+                                    setMediaPickerForLink(null);
+                                }}
+                            />
+                        )}
                     </div>
 
                     {/* Visitas - only for Bienvenida parts when editing */}
@@ -745,7 +843,7 @@ export default function ProgramaForm() {
                             parte: pp.parte,
                             usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                             nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
-                            links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url })),
+                            links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url, mediaItemId: l.mediaItemId, mediaUrl: l.mediaItem?.url })),
                             fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre, mediaItemId: f.mediaItemId })),
                         });
                     }
@@ -763,7 +861,7 @@ export default function ProgramaForm() {
                                 parte,
                                 usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                                 nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
-                                links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url })),
+                                links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url, mediaItemId: l.mediaItemId, mediaUrl: l.mediaItem?.url })),
                                 fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre, mediaItemId: f.mediaItemId })),
                             });
                         }
@@ -844,7 +942,7 @@ export default function ProgramaForm() {
         const partes: OBSExportParte[] = partesEnPrograma.map((p) => ({
             nombre: p.parte.nombre,
             participantes: [],
-            links: p.links,
+            links: p.links.map(l => ({ nombre: l.nombre, url: l.url, mediaUrl: l.mediaUrl })),
             fotos: p.fotos,
         }));
 
@@ -1000,6 +1098,32 @@ export default function ProgramaForm() {
                 return p;
             })
         );
+
+        // Auto-match YouTube URL to existing media
+        if (field === 'url' && value) {
+            try {
+                const u = new URL(value);
+                if (u.hostname.includes('youtube.com') || u.hostname === 'youtu.be') {
+                    mediaApi.findByYoutubeUrl(value).then(existing => {
+                        if (existing) {
+                            setPartesEnPrograma(prev =>
+                                prev.map(p => {
+                                    if (p.parteId === parteId) {
+                                        const newLinks = [...p.links];
+                                        if (newLinks[index] && !newLinks[index].mediaItemId) {
+                                            newLinks[index] = { ...newLinks[index], mediaItemId: existing.id, mediaUrl: existing.url };
+                                        }
+                                        return { ...p, links: newLinks };
+                                    }
+                                    return p;
+                                })
+                            );
+                            toast.success(`Video encontrado en biblioteca: ${existing.nombre || 'YouTube'}`);
+                        }
+                    }).catch(() => {});
+                }
+            } catch {}
+        }
     };
 
     const handleReorderLinks = (parteId: number, fromIndex: number, toIndex: number) => {
@@ -1049,6 +1173,102 @@ export default function ProgramaForm() {
                 return p;
             })
         );
+    };
+
+    const [downloadingLink, setDownloadingLink] = useState<string | null>(null);
+    const [batchDownloading, setBatchDownloading] = useState<number | null>(null);
+
+    const handleDownloadYouTube = async (parteId: number, linkIndex: number) => {
+        const parte = partesEnPrograma.find(p => p.parteId === parteId);
+        if (!parte) return;
+        const link = parte.links[linkIndex];
+        if (!link?.url) return;
+
+        const downloadKey = `${parteId}-${linkIndex}`;
+        setDownloadingLink(downloadKey);
+        try {
+            const mediaItem = await mediaApi.downloadYouTube(
+                link.url,
+                link.nombre || undefined,
+                link.id as any, // link.id from backend if editing
+            );
+            setPartesEnPrograma(prev =>
+                prev.map(p => {
+                    if (p.parteId === parteId) {
+                        const newLinks = [...p.links];
+                        newLinks[linkIndex] = { ...newLinks[linkIndex], mediaItemId: mediaItem.id, mediaUrl: mediaItem.url };
+                        return { ...p, links: newLinks };
+                    }
+                    return p;
+                })
+            );
+            toast.success(`Video descargado: ${mediaItem.nombre || 'YouTube'}`);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Error al descargar el video');
+        } finally {
+            setDownloadingLink(null);
+        }
+    };
+
+    const handleAssociateMediaToLink = (parteId: number, linkIndex: number, mediaItem: { id: number; url: string; nombre?: string }) => {
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (p.parteId === parteId) {
+                    const newLinks = [...p.links];
+                    newLinks[linkIndex] = { ...newLinks[linkIndex], mediaItemId: mediaItem.id, mediaUrl: mediaItem.url };
+                    return { ...p, links: newLinks };
+                }
+                return p;
+            })
+        );
+        toast.success(`Video importado: ${mediaItem.nombre || 'Biblioteca'}`);
+    };
+
+    const handleDownloadBatch = async (parteId: number) => {
+        const parte = partesEnPrograma.find(p => p.parteId === parteId);
+        if (!parte) return;
+
+        const isYouTube = (url: string) => {
+            try { const u = new URL(url); return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'; } catch { return false; }
+        };
+        const pendingLinks = parte.links
+            .map((l, i) => ({ ...l, originalIndex: i }))
+            .filter(l => !l.mediaItemId && isYouTube(l.url));
+
+        if (pendingLinks.length === 0) return;
+
+        setBatchDownloading(parteId);
+        try {
+            const results = await mediaApi.downloadYouTubeBatch(
+                pendingLinks.map(l => ({ url: l.url, nombre: l.nombre || undefined }))
+            );
+            setPartesEnPrograma(prev =>
+                prev.map(p => {
+                    if (p.parteId === parteId) {
+                        const newLinks = [...p.links];
+                        results.forEach((result, i) => {
+                            if (result.mediaItem) {
+                                const idx = pendingLinks[i].originalIndex;
+                                newLinks[idx] = { ...newLinks[idx], mediaItemId: result.mediaItem.id, mediaUrl: result.mediaItem.url };
+                            }
+                        });
+                        return { ...p, links: newLinks };
+                    }
+                    return p;
+                })
+            );
+            const downloaded = results.filter(r => r.mediaItem && !r.skipped).length;
+            const skipped = results.filter(r => r.skipped).length;
+            const errors = results.filter(r => r.error).length;
+            let msg = `${downloaded} video(s) descargado(s)`;
+            if (skipped > 0) msg += `, ${skipped} ya existían`;
+            if (errors > 0) msg += `, ${errors} error(es)`;
+            toast.success(msg);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Error al descargar videos');
+        } finally {
+            setBatchDownloading(null);
+        }
     };
 
     const handleUpdateFoto = (parteId: number, index: number, nombre: string) => {
@@ -1205,6 +1425,7 @@ export default function ProgramaForm() {
                             parteId: p.parteId,
                             nombre: l.nombre,
                             url: l.url,
+                            mediaItemId: l.mediaItemId,
                         }))
                 );
 
@@ -1691,6 +1912,78 @@ export default function ProgramaForm() {
                     )}
                 </div>
 
+                {/* Global batch download button */}
+                {(() => {
+                    const isYouTube = (url: string) => {
+                        try { const u = new URL(url); return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'; } catch { return false; }
+                    };
+                    const allPendingYt = partesEnPrograma.flatMap(p =>
+                        p.links.filter(l => !l.mediaItemId && isYouTube(l.url))
+                    );
+                    return allPendingYt.length > 0 ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                                // Collect ALL pending YouTube links across all partes into one batch call
+                                const allItems: { url: string; nombre?: string; parteId: number; linkIndex: number }[] = [];
+                                for (const p of partesEnPrograma) {
+                                    p.links.forEach((l, i) => {
+                                        if (!l.mediaItemId && isYouTube(l.url)) {
+                                            allItems.push({ url: l.url, nombre: l.nombre || undefined, parteId: p.parteId, linkIndex: i });
+                                        }
+                                    });
+                                }
+                                if (allItems.length === 0) return;
+                                setBatchDownloading(-1);
+                                try {
+                                    const results = await mediaApi.downloadYouTubeBatch(
+                                        allItems.map(it => ({ url: it.url, nombre: it.nombre }))
+                                    );
+                                    setPartesEnPrograma(prev => {
+                                        const next = prev.map(p => ({ ...p, links: [...p.links] }));
+                                        results.forEach((result, i) => {
+                                            if (result.mediaItem) {
+                                                const meta = allItems[i];
+                                                const parte = next.find(p => p.parteId === meta.parteId);
+                                                if (parte) {
+                                                    parte.links[meta.linkIndex] = {
+                                                        ...parte.links[meta.linkIndex],
+                                                        mediaItemId: result.mediaItem.id,
+                                                        mediaUrl: result.mediaItem.url,
+                                                    };
+                                                }
+                                            }
+                                        });
+                                        return next;
+                                    });
+                                    const downloaded = results.filter(r => r.mediaItem && !r.skipped).length;
+                                    const skipped = results.filter(r => r.skipped).length;
+                                    const errors = results.filter(r => r.error).length;
+                                    let msg = `${downloaded} video(s) descargado(s)`;
+                                    if (skipped > 0) msg += `, ${skipped} ya existían`;
+                                    if (errors > 0) msg += `, ${errors} error(es)`;
+                                    toast.success(msg);
+                                } catch (err: any) {
+                                    toast.error(err?.response?.data?.message || 'Error al descargar videos');
+                                } finally {
+                                    setBatchDownloading(null);
+                                }
+                            }}
+                            disabled={batchDownloading !== null}
+                            className="border-purple-300 hover:bg-purple-50 text-purple-700"
+                        >
+                            {batchDownloading !== null ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <CloudDownload className="h-4 w-4 mr-2" />
+                            )}
+                            {batchDownloading !== null ? 'Descargando...' : `Descargar todos los videos (${allPendingYt.length})`}
+                        </Button>
+                    ) : null;
+                })()}
+
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -1721,6 +2014,12 @@ export default function ProgramaForm() {
                                     onRemoveFoto={(index) => handleRemoveFoto(item.parteId, index)}
                                     onReorderFotos={(from, to) => handleReorderFotos(item.parteId, from, to)}
                                     onPickFromLibrary={(mediaItem) => handlePickFromLibrary(item.parteId, mediaItem)}
+                                    onDownloadYouTube={(linkIndex) => handleDownloadYouTube(item.parteId, linkIndex)}
+                                    onAssociateMedia={(linkIndex, mediaItem) => handleAssociateMediaToLink(item.parteId, linkIndex, mediaItem)}
+                                    onDownloadBatch={() => handleDownloadBatch(item.parteId)}
+                                    downloadingLinkKey={downloadingLink}
+                                    batchDownloading={batchDownloading === item.parteId}
+                                    fetchSearch={(q) => programasApi.getUsuarios(q)}
                                 />
                             ))}
                         </div>
@@ -1752,6 +2051,7 @@ export default function ProgramaForm() {
                             onSelect={handleReemplazarConUsuario}
                             onAddFreeText={handleReemplazarConTexto}
                             placeholder="Buscar reemplazo..."
+                            fetchSearch={(q) => programasApi.getUsuarios(q)}
                         />
                     </div>
                 </DialogContent>

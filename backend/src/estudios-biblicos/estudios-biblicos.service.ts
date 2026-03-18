@@ -610,6 +610,7 @@ export class EstudiosBiblicosService {
     registradoPorId: number,
     data: {
       nombre: string;
+      edad: number;
       telefono: string;
       direccion?: string;
       notas?: string;
@@ -634,6 +635,7 @@ export class EstudiosBiblicosService {
     registradoPorId: number,
     items: {
       nombre: string;
+      edad: number;
       telefono: string;
       direccion?: string;
       notas?: string;
@@ -656,6 +658,7 @@ export class EstudiosBiblicosService {
     id: number,
     data: {
       nombre?: string;
+      edad?: number;
       telefono?: string;
       direccion?: string;
       notas?: string;

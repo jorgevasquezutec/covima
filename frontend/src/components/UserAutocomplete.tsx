@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Check, ChevronsUpDown, Search, UserPlus } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Check, ChevronsUpDown, Search, UserPlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +24,7 @@ interface UserAutocompleteProps {
     onAddFreeText?: (nombre: string) => void;
     placeholder?: string;
     allowFreeText?: boolean;
+    fetchSearch?: (query: string) => Promise<UsuarioSimple[]>;
 }
 
 export default function UserAutocomplete({
@@ -33,12 +34,60 @@ export default function UserAutocomplete({
     onAddFreeText,
     placeholder = 'Buscar participante...',
     allowFreeText = true,
+    fetchSearch,
 }: UserAutocompleteProps) {
     const [open, setOpen] = useState(false);
     const [searchValue, setSearchValue] = useState('');
+    const [backendResults, setBackendResults] = useState<UsuarioSimple[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-    const availableUsuarios = usuarios.filter(u => !selectedIds.includes(u.id));
+    const doBackendSearch = useCallback(
+        async (query: string) => {
+            if (!fetchSearch || query.length < 2) {
+                setBackendResults([]);
+                setIsSearching(false);
+                return;
+            }
+            setIsSearching(true);
+            try {
+                const results = await fetchSearch(query);
+                setBackendResults(results);
+            } catch {
+                setBackendResults([]);
+            } finally {
+                setIsSearching(false);
+            }
+        },
+        [fetchSearch],
+    );
+
+    useEffect(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        if (!fetchSearch || searchValue.length < 2) {
+            setBackendResults([]);
+            setIsSearching(false);
+            return;
+        }
+        setIsSearching(true);
+        debounceRef.current = setTimeout(() => {
+            doBackendSearch(searchValue);
+        }, 300);
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [searchValue, doBackendSearch, fetchSearch]);
+
+    // Merge local + backend results, deduplicate by id
+    const mergedUsuarios = (() => {
+        const map = new Map<number, UsuarioSimple>();
+        for (const u of usuarios) map.set(u.id, u);
+        for (const u of backendResults) map.set(u.id, u);
+        return Array.from(map.values());
+    })();
+
+    const availableUsuarios = mergedUsuarios.filter(u => !selectedIds.includes(u.id));
 
     const filteredUsuarios = searchValue
         ? availableUsuarios.filter(u =>
@@ -96,11 +145,17 @@ export default function UserAutocomplete({
                         className="border-none focus:ring-0"
                     />
                     <CommandList>
-                        {filteredUsuarios.length === 0 && !canAddFreeText && (
+                        {isSearching && (
+                            <div className="flex items-center justify-center py-3 text-sm text-gray-500">
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Buscando...
+                            </div>
+                        )}
+                        {!isSearching && filteredUsuarios.length === 0 && !canAddFreeText && (
                             <CommandEmpty>No se encontraron participantes.</CommandEmpty>
                         )}
                         {filteredUsuarios.length > 0 && (
-                            <CommandGroup heading="Usuarios registrados" className="max-h-60 overflow-y-auto">
+                            <CommandGroup heading="Usuarios registrados">
                                 {filteredUsuarios.map((usuario) => (
                                     <CommandItem
                                         key={usuario.id}

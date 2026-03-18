@@ -11,7 +11,7 @@
 export interface OBSExportParte {
   nombre: string;
   participantes: string[];
-  links: { nombre: string; url: string }[];
+  links: { nombre: string; url: string; mediaUrl?: string | null }[];
   fotos: { url: string; nombre?: string }[];
 }
 
@@ -297,6 +297,16 @@ function buildBibleSlideUrl(search: string, version: string): string {
   return `${base}/api/programas/public/bible-slide?search=${encodeURIComponent(search)}&version=${encodeURIComponent(version)}`;
 }
 
+function makeMediaSource(name: string, url: string) {
+  return sourceBase('ffmpeg_source', 'ffmpeg_source', name, {
+    input: url,
+    is_local_file: false,
+    looping: false,
+    restart_on_activate: true,
+    hw_decode: true,
+  });
+}
+
 function makeHtmlBrowserSource(name: string, html: string) {
   const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
   return makeBrowserSource(name, dataUrl);
@@ -402,31 +412,36 @@ export function generateOBSSceneCollection(input: OBSExportInput) {
       bounds: { x: WIDTH, y: HEIGHT },
     });
 
-    // Links: YouTube, Bible, or generic browser sources
+    // Links: downloaded video (ffmpeg_source), YouTube, Bible, or generic browser sources
     parte.links.forEach((link, li) => {
       const isYt = isYouTubeUrl(link.url);
       const isBible = isBibleUrl(link.url);
       const label = link.nombre || (isYt ? 'YouTube' : isBible ? 'Biblia' : 'Link');
       const srcName = `${label} - ${sceneName}${li > 0 ? ` (${li + 1})` : ''}`;
 
-      let bs;
-      if (isBible) {
+      let src;
+      if (link.mediaUrl) {
+        // Downloaded video: use ffmpeg_source
+        const mediaFullUrl = getServerUrl(link.mediaUrl);
+        src = addSource(makeMediaSource(srcName, mediaFullUrl));
+        (src as any).monitoring_type = 1; // monitor audio
+      } else if (isBible) {
         // Bible: use backend endpoint that fetches and renders the text
         const parsed = parseBibleGatewayUrl(link.url);
         const ref = parsed?.search || link.nombre || 'Lectura Bíblica';
         const ver = parsed?.version || 'NVI';
         const bibleUrl = buildBibleSlideUrl(ref, ver);
-        bs = addSource(makeBrowserSource(srcName, bibleUrl));
+        src = addSource(makeBrowserSource(srcName, bibleUrl));
       } else {
         const ytUrl = isYt ? normalizeYouTubeUrl(link.url) : null;
         const finalUrl = ytUrl ?? link.url;
-        bs = addSource(makeBrowserSource(srcName, finalUrl, WIDTH, HEIGHT, isYt ? YOUTUBE_CSS : undefined));
-        if (isYt) (bs as any).monitoring_type = 1;
+        src = addSource(makeBrowserSource(srcName, finalUrl, WIDTH, HEIGHT, isYt ? YOUTUBE_CSS : undefined));
+        if (isYt) (src as any).monitoring_type = 1;
       }
 
       items.push({
-        sourceName: bs.name,
-        sourceUuid: bs.uuid,
+        sourceName: src.name,
+        sourceUuid: src.uuid,
         bounds: { x: WIDTH, y: HEIGHT },
         visible: false,
       });

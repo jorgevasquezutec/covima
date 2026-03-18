@@ -232,6 +232,7 @@ export type EstadoInteresado = 'PENDIENTE' | 'ASIGNADO' | 'EN_CONTACTO' | 'CONVE
 export interface Interesado {
   id: number;
   nombre: string;
+  edad: number;
   telefono?: string;
   direccion?: string;
   notas?: string;
@@ -286,6 +287,8 @@ export interface ProgramaLink {
   nombre: string;
   url: string;
   orden: number;
+  mediaItemId?: number | null;
+  mediaItem?: { id: number; url: string } | null;
 }
 
 export interface ProgramaFoto {
@@ -344,6 +347,7 @@ export interface LinkDto {
   parteId: number;
   nombre: string;
   url: string;
+  mediaItemId?: number;
 }
 
 export interface FotoDto {
@@ -355,6 +359,8 @@ export interface FotoDto {
 
 // ==================== BIBLIOTECA DE MEDIOS ====================
 
+export type TagMedia = 'HIMNO' | 'ANUNCIO' | 'VIDEO' | 'IMAGEN' | 'OTRO';
+
 export interface MediaItem {
   id: number;
   url: string;
@@ -362,6 +368,8 @@ export interface MediaItem {
   nombreOriginal?: string;
   mimeType: string;
   tamanio: number;
+  tag: TagMedia;
+  youtubeUrl?: string;
   createdAt: string;
   _count?: { programaFotos: number };
 }

@@ -221,8 +221,9 @@ export class ProgramasController {
   @Get('usuarios')
   @Roles('admin', 'lider')
   @ApiOperation({ summary: 'Obtener usuarios disponibles para asignar' })
-  async getUsuarios() {
-    return this.programasService.getUsuariosParaAsignar();
+  @ApiQuery({ name: 'search', required: false })
+  async getUsuarios(@Query('search') search?: string) {
+    return this.programasService.getUsuariosParaAsignar(search);
   }
 
   @Post('fotos/upload')

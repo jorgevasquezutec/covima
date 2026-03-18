@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { mediaApi } from '@/services/api';
-import type { MediaItem } from '@/types';
+import type { MediaItem, TagMedia } from '@/types';
 
 interface MediaPickerDialogProps {
     open: boolean;
@@ -30,6 +30,7 @@ export default function MediaPickerDialog({
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [activeTag, setActiveTag] = useState<TagMedia | null>(null);
     // Estado para el paso de "nombrar archivo"
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [uploadName, setUploadName] = useState('');
@@ -45,8 +46,8 @@ export default function MediaPickerDialog({
     }, []);
 
     const { data, isLoading, refetch } = useQuery({
-        queryKey: ['media-library', debouncedSearch],
-        queryFn: () => mediaApi.getAll({ limit: 50, search: debouncedSearch || undefined }),
+        queryKey: ['media-library', debouncedSearch, activeTag],
+        queryFn: () => mediaApi.getAll({ limit: 50, search: debouncedSearch || undefined, tag: activeTag || undefined }),
         enabled: open,
     });
 
@@ -223,6 +224,21 @@ export default function MediaPickerDialog({
                                 <Upload className="h-4 w-4 mr-2" />
                                 Subir nuevo
                             </Button>
+                        </div>
+
+                        <div className="flex gap-1 flex-wrap">
+                            {([null, 'HIMNO', 'VIDEO', 'IMAGEN', 'ANUNCIO', 'OTRO'] as (TagMedia | null)[]).map((tag) => (
+                                <Button
+                                    key={tag ?? 'ALL'}
+                                    type="button"
+                                    variant={activeTag === tag ? 'default' : 'outline'}
+                                    size="sm"
+                                    className={`h-7 text-xs ${activeTag === tag ? '' : 'border-gray-300 text-gray-600'}`}
+                                    onClick={() => setActiveTag(tag)}
+                                >
+                                    {tag === null ? 'Todos' : tag === 'HIMNO' ? 'Himnos' : tag === 'VIDEO' ? 'Videos' : tag === 'IMAGEN' ? 'Imágenes' : tag === 'ANUNCIO' ? 'Anuncios' : 'Otros'}
+                                </Button>
+                            ))}
                         </div>
 
                         <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">

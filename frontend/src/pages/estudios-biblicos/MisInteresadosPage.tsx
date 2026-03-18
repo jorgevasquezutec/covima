@@ -48,6 +48,7 @@ export default function MisInteresadosPage() {
 
   // Quick registration form
   const [formNombre, setFormNombre] = useState('');
+  const [formEdad, setFormEdad] = useState('');
   const [formTelefono, setFormTelefono] = useState('');
   const [formDireccion, setFormDireccion] = useState('');
 
@@ -75,6 +76,7 @@ export default function MisInteresadosPage() {
       queryClient.invalidateQueries({ queryKey: ['mis-interesados'] });
       toast.success('Interesado registrado');
       setFormNombre('');
+      setFormEdad('');
       setFormTelefono('');
       setFormDireccion('');
       nombreInputRef.current?.focus();
@@ -115,8 +117,14 @@ export default function MisInteresadosPage() {
       toast.error('El nombre es requerido');
       return;
     }
+    const edad = parseInt(formEdad);
+    if (!formEdad || isNaN(edad) || edad < 1 || edad > 120) {
+      toast.error('Ingresa una edad válida (1-120)');
+      return;
+    }
     createMutation.mutate({
       nombre: formNombre.trim(),
+      edad,
       telefono: formTelefono.trim() || undefined,
       direccion: formDireccion.trim() || undefined,
     });
@@ -180,7 +188,7 @@ export default function MisInteresadosPage() {
       {/* Quick Registration Form */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
             <div className="space-y-1">
               <Label htmlFor="reg-nombre">Nombre *</Label>
               <Input
@@ -189,6 +197,20 @@ export default function MisInteresadosPage() {
                 value={formNombre}
                 onChange={(e) => setFormNombre(e.target.value)}
                 placeholder="Nombre completo"
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="reg-edad">Edad *</Label>
+              <Input
+                id="reg-edad"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={120}
+                value={formEdad}
+                onChange={(e) => setFormEdad(e.target.value)}
+                placeholder="Ej: 25"
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               />
             </div>
@@ -271,6 +293,9 @@ export default function MisInteresadosPage() {
                       </div>
 
                       <div className="mt-2 space-y-1">
+                        {interesado.edad > 0 && (
+                          <p className="text-sm text-gray-500">{interesado.edad} años</p>
+                        )}
                         <a
                           href={`tel:${interesado.telefono}`}
                           className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline"

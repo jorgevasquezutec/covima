@@ -260,11 +260,13 @@ model ProgramaLink {
   url         String
   orden       Int      @default(1)
   agregadoPor Int?     @map("agregado_por")
+  mediaItemId Int?     @map("media_item_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  programa    Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
-  parte       Parte    @relation(fields: [parteId], references: [id])
-  agregador   Usuario? @relation(fields: [agregadoPor], references: [id])
+  programa    Programa   @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte       Parte      @relation(fields: [parteId], references: [id])
+  agregador   Usuario?   @relation(fields: [agregadoPor], references: [id])
+  mediaItem   MediaItem? @relation(fields: [mediaItemId], references: [id])
 
   @@map("programa_links")
 }
@@ -290,6 +292,14 @@ model ProgramaFoto {
 
 // ==================== BIBLIOTECA DE MEDIOS ====================
 
+enum TagMedia {
+  HIMNO
+  ANUNCIO
+  VIDEO
+  IMAGEN
+  OTRO
+}
+
 model MediaItem {
   id             Int      @id @default(autoincrement())
   url            String   @db.VarChar(500)
@@ -297,11 +307,14 @@ model MediaItem {
   nombreOriginal String?  @map("nombre_original") @db.VarChar(300)
   mimeType       String   @map("mime_type") @db.VarChar(100)
   tamanio        Int      @default(0)
+  tag            TagMedia @default(OTRO)
+  youtubeUrl     String?  @map("youtube_url") @db.VarChar(500)
   subidoPor      Int?     @map("subido_por")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  subidor       Usuario?       @relation(fields: [subidoPor], references: [id])
-  programaFotos ProgramaFoto[]
+  subidor        Usuario?       @relation(fields: [subidoPor], references: [id])
+  programaFotos  ProgramaFoto[]
+  programaLinks  ProgramaLink[]
 
   @@map("media_items")
 }
@@ -895,6 +908,7 @@ model ProgresoLeccion {
 model Interesado {
   id              Int                @id @default(autoincrement())
   nombre          String             @db.VarChar(200)
+  edad            Int                @default(0)
   telefono        String?            @db.VarChar(30)
   direccion       String?            @db.VarChar(300)
   notas           String?            @db.Text

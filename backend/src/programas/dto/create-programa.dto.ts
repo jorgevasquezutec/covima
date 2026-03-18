@@ -47,6 +47,11 @@ export class LinkDto {
   @ApiProperty({ example: 'https://www.youtube.com/watch?v=xxx' })
   @IsUrl()
   url: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'ID del MediaItem asociado' })
+  @IsOptional()
+  @IsInt()
+  mediaItemId?: number;
 }
 
 export class FotoDto {

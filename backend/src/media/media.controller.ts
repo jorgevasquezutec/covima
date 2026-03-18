@@ -27,6 +27,7 @@ import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { MediaService } from './media.service';
+import { TagMedia } from '@prisma/client';
 
 @ApiTags('Media')
 @ApiBearerAuth()
@@ -41,15 +42,20 @@ export class MediaController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'tag', required: false, enum: TagMedia })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('tag') tag?: string,
   ) {
     return this.mediaService.findAll({
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
       search,
+      tag: tag && Object.values(TagMedia).includes(tag as TagMedia)
+        ? (tag as TagMedia)
+        : undefined,
     });
   }
 
@@ -92,6 +98,7 @@ export class MediaController {
     @UploadedFile() file: Express.Multer.File,
     @Request() req: any,
     @Body('nombre') nombre?: string,
+    @Body('tag') tag?: string,
   ) {
     if (!file) {
       throw new BadRequestException('No se recibió ningún archivo');
@@ -105,19 +112,65 @@ export class MediaController {
       mimeType: file.mimetype,
       tamanio: file.size,
       subidoPor: req.user?.id,
+      tag: tag && Object.values(TagMedia).includes(tag as TagMedia) ? (tag as TagMedia) : undefined,
     });
 
     return mediaItem;
   }
 
+  @Post('download-youtube')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Descargar video de YouTube a la biblioteca' })
+  async downloadYouTube(
+    @Body() body: { url: string; nombre?: string; linkId?: number },
+    @Request() req: any,
+  ) {
+    return this.mediaService.downloadYouTube({
+      url: body.url,
+      nombre: body.nombre,
+      linkId: body.linkId,
+      subidoPor: req.user?.id,
+    });
+  }
+
+  @Get('find-by-youtube')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Buscar medio por URL de YouTube' })
+  @ApiQuery({ name: 'url', required: true, type: String })
+  async findByYoutubeUrl(@Query('url') url: string) {
+    if (!url) throw new BadRequestException('URL requerida');
+    return this.mediaService.findByYoutubeUrl(url);
+  }
+
+  @Post('download-youtube-batch')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Descargar múltiples videos de YouTube' })
+  async downloadYouTubeBatch(
+    @Body() body: { items: { url: string; nombre?: string; linkId?: number }[] },
+    @Request() req: any,
+  ) {
+    if (!body.items || !Array.isArray(body.items)) {
+      throw new BadRequestException('Se requiere un array de items');
+    }
+    return this.mediaService.downloadYouTubeBatch({
+      items: body.items,
+      subidoPor: req.user?.id,
+    });
+  }
+
   @Patch(':id')
   @Roles('admin', 'lider')
-  @ApiOperation({ summary: 'Renombrar medio' })
-  async updateNombre(
+  @ApiOperation({ summary: 'Actualizar medio (nombre, tag)' })
+  async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body('nombre') nombre: string,
+    @Body() body: { nombre?: string; tag?: string },
   ) {
-    return this.mediaService.updateNombre(id, nombre);
+    const data: { nombre?: string; tag?: TagMedia } = {};
+    if (body.nombre !== undefined) data.nombre = body.nombre;
+    if (body.tag && Object.values(TagMedia).includes(body.tag as TagMedia)) {
+      data.tag = body.tag as TagMedia;
+    }
+    return this.mediaService.update(id, data);
   }
 
   @Post(':id/replace')
@@ -168,6 +221,16 @@ export class MediaController {
       mimeType: file.mimetype,
       tamanio: file.size,
     });
+  }
+
+  @Delete('batch')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Eliminar múltiples medios y sus referencias' })
+  async deleteBatch(@Body() body: { ids: number[] }) {
+    if (!body.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+      throw new BadRequestException('Se requiere un array de IDs');
+    }
+    return this.mediaService.deleteBatch(body.ids);
   }
 
   @Delete(':id')

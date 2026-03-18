@@ -25,6 +25,7 @@ import type {
   ProgramaVisita,
   QRAsistencia,
   MediaItem,
+  TagMedia,
 } from '@/types';
 
 // En desarrollo, usar la misma IP/host del navegador para la API
@@ -324,8 +325,10 @@ export const programasApi = {
     return response.data;
   },
 
-  getUsuarios: async (): Promise<UsuarioSimple[]> => {
-    const response = await api.get<UsuarioSimple[]>('/programas/usuarios');
+  getUsuarios: async (search?: string): Promise<UsuarioSimple[]> => {
+    const response = await api.get<UsuarioSimple[]>('/programas/usuarios', {
+      params: search ? { search } : undefined,
+    });
     return response.data;
   },
 
@@ -585,6 +588,7 @@ export const estudiosBiblicosApi = {
 
   createInteresado: async (data: {
     nombre: string;
+    edad: number;
     telefono?: string;
     direccion?: string;
     notas?: string;
@@ -595,6 +599,7 @@ export const estudiosBiblicosApi = {
 
   createInteresadosBulk: async (items: {
     nombre: string;
+    edad: number;
     telefono: string;
     direccion?: string;
     notas?: string;
@@ -605,6 +610,7 @@ export const estudiosBiblicosApi = {
 
   updateInteresado: async (id: number, data: {
     nombre?: string;
+    edad?: number;
     telefono?: string;
     direccion?: string;
     notas?: string;
@@ -1476,23 +1482,55 @@ export const mediaApi = {
     page?: number;
     limit?: number;
     search?: string;
+    tag?: TagMedia;
   }): Promise<PaginatedResponse<MediaItem>> => {
     const response = await api.get<PaginatedResponse<MediaItem>>('/media', { params });
     return response.data;
   },
 
-  upload: async (file: File, nombre?: string): Promise<MediaItem> => {
+  upload: async (file: File, nombre?: string, tag?: TagMedia): Promise<MediaItem> => {
     const formData = new FormData();
     formData.append('file', file);
     if (nombre) formData.append('nombre', nombre);
+    if (tag) formData.append('tag', tag);
     const response = await api.post<MediaItem>('/media/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
 
+  downloadYouTube: async (
+    url: string,
+    nombre?: string,
+    linkId?: number,
+  ): Promise<MediaItem> => {
+    const response = await api.post<MediaItem>(
+      '/media/download-youtube',
+      { url, nombre, linkId },
+      { timeout: 300000 },
+    );
+    return response.data;
+  },
+
   updateNombre: async (id: number, nombre: string): Promise<MediaItem> => {
     const response = await api.patch<MediaItem>(`/media/${id}`, { nombre });
+    return response.data;
+  },
+
+  update: async (id: number, data: { nombre?: string; tag?: TagMedia }): Promise<MediaItem> => {
+    const response = await api.patch<MediaItem>(`/media/${id}`, data);
+    return response.data;
+  },
+
+  findByYoutubeUrl: async (url: string): Promise<MediaItem | null> => {
+    const response = await api.get<MediaItem | null>('/media/find-by-youtube', { params: { url } });
+    return response.data;
+  },
+
+  downloadYouTubeBatch: async (
+    items: { url: string; nombre?: string; linkId?: number }[],
+  ): Promise<{ url: string; mediaItem?: MediaItem; skipped?: boolean; error?: string }[]> => {
+    const response = await api.post('/media/download-youtube-batch', { items }, { timeout: 600000 });
     return response.data;
   },
 
@@ -1507,6 +1545,11 @@ export const mediaApi = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/media/${id}`);
+  },
+
+  deleteBatch: async (ids: number[]): Promise<{ deleted: number }> => {
+    const response = await api.delete<{ deleted: number }>('/media/batch', { data: { ids } });
+    return response.data;
   },
 };
 

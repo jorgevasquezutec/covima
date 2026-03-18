@@ -71,6 +71,7 @@ export default function InteresadosPage() {
 
   // Quick registration form
   const [formNombre, setFormNombre] = useState('');
+  const [formEdad, setFormEdad] = useState('');
   const [formTelefono, setFormTelefono] = useState('');
   const [formDireccion, setFormDireccion] = useState('');
   const [formNotas, setFormNotas] = useState('');
@@ -100,6 +101,7 @@ export default function InteresadosPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Interesado | null>(null);
   const [editNombre, setEditNombre] = useState('');
+  const [editEdad, setEditEdad] = useState('');
   const [editTelefono, setEditTelefono] = useState('');
   const [editDireccion, setEditDireccion] = useState('');
   const [editNotas, setEditNotas] = useState('');
@@ -134,6 +136,7 @@ export default function InteresadosPage() {
       queryClient.invalidateQueries({ queryKey: ['interesados-estadisticas'] });
       toast.success('Interesado registrado');
       setFormNombre('');
+      setFormEdad('');
       setFormTelefono('');
       setFormDireccion('');
       setFormNotas('');
@@ -204,8 +207,14 @@ export default function InteresadosPage() {
       toast.error('El nombre es requerido');
       return;
     }
+    const edad = parseInt(formEdad);
+    if (!formEdad || isNaN(edad) || edad < 1 || edad > 120) {
+      toast.error('Ingresa una edad válida (1-120)');
+      return;
+    }
     createMutation.mutate({
       nombre: formNombre.trim(),
+      edad,
       telefono: formTelefono.trim() || undefined,
       direccion: formDireccion.trim() || undefined,
       notas: formNotas.trim() || undefined,
@@ -279,6 +288,7 @@ export default function InteresadosPage() {
   const handleOpenEditDialog = (interesado: Interesado) => {
     setEditTarget(interesado);
     setEditNombre(interesado.nombre);
+    setEditEdad(interesado.edad ? String(interesado.edad) : '');
     setEditTelefono(interesado.telefono || '');
     setEditDireccion(interesado.direccion || '');
     setEditNotas(interesado.notas || '');
@@ -296,10 +306,16 @@ export default function InteresadosPage() {
       toast.error('El nombre es requerido');
       return;
     }
+    const edad = parseInt(editEdad);
+    if (!editEdad || isNaN(edad) || edad < 1 || edad > 120) {
+      toast.error('Ingresa una edad válida (1-120)');
+      return;
+    }
     updateMutation.mutate({
       id: editTarget.id,
       data: {
         nombre: editNombre.trim(),
+        edad,
         telefono: editTelefono.trim(),
         direccion: editDireccion.trim() || undefined,
         notas: editNotas.trim() || undefined,
@@ -339,7 +355,7 @@ export default function InteresadosPage() {
       {/* Quick Registration Form */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
             <div className="space-y-1">
               <Label htmlFor="reg-nombre">Nombre *</Label>
               <Input
@@ -348,6 +364,20 @@ export default function InteresadosPage() {
                 value={formNombre}
                 onChange={(e) => setFormNombre(e.target.value)}
                 placeholder="Nombre completo"
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="reg-edad">Edad *</Label>
+              <Input
+                id="reg-edad"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={120}
+                value={formEdad}
+                onChange={(e) => setFormEdad(e.target.value)}
+                placeholder="Ej: 25"
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               />
             </div>
@@ -579,6 +609,8 @@ export default function InteresadosPage() {
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-500 mt-0.5">
+                        {interesado.edad > 0 && `${interesado.edad} años`}
+                        {interesado.edad > 0 && interesado.telefono && ' · '}
                         {interesado.telefono}
                       </p>
                       {interesado.instructor && (
@@ -831,6 +863,18 @@ export default function InteresadosPage() {
                 value={editNombre}
                 onChange={(e) => setEditNombre(e.target.value)}
                 placeholder="Nombre completo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Edad *</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={120}
+                value={editEdad}
+                onChange={(e) => setEditEdad(e.target.value)}
+                placeholder="Ej: 25"
               />
             </div>
             <div className="space-y-2">

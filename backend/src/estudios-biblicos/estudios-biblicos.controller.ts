@@ -113,6 +113,7 @@ export class EstudiosBiblicosController {
     body: {
       items: {
         nombre: string;
+        edad: number;
         telefono: string;
         direccion?: string;
         notas?: string;
@@ -137,6 +138,7 @@ export class EstudiosBiblicosController {
     @Body()
     body: {
       nombre: string;
+      edad: number;
       telefono: string;
       direccion?: string;
       notas?: string;
@@ -192,6 +194,7 @@ export class EstudiosBiblicosController {
     @Body()
     body: {
       nombre?: string;
+      edad?: number;
       telefono?: string;
       direccion?: string;
       notas?: string;
