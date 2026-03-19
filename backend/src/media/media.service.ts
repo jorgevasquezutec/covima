@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TagMedia } from '@prisma/client';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { stat } from 'fs/promises';
+import { stat, access } from 'fs/promises';
 import { join } from 'path';
 
 const execFileAsync = promisify(execFile);
@@ -324,13 +324,27 @@ export class MediaService {
       throw new BadRequestException('URL de YouTube no válida');
     }
 
+    // Build yt-dlp args
+    const cookiesPath = join(process.cwd(), 'cookies.txt');
+    const ytDlpArgs: string[] = [];
+
+    // Usar cookies si el archivo existe
+    try {
+      await access(cookiesPath);
+      ytDlpArgs.push('--cookies', cookiesPath);
+    } catch {
+      // Sin cookies, intentar sin autenticación
+    }
+
     // Get video title if no name provided
     let nombre = data.nombre;
     if (!nombre) {
       try {
-        const { stdout } = await execFileAsync('yt-dlp', ['--print', 'title', url], {
-          timeout: 30000,
-        });
+        const { stdout } = await execFileAsync('yt-dlp', [
+          ...ytDlpArgs,
+          '--print', 'title',
+          url,
+        ], { timeout: 30000 });
         nombre = stdout.trim();
       } catch {
         nombre = 'Video YouTube';
@@ -349,16 +363,14 @@ export class MediaService {
       await execFileAsync(
         'yt-dlp',
         [
-          '-f',
-          'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-          '--merge-output-format',
-          'mp4',
+          ...ytDlpArgs,
+          '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+          '--merge-output-format', 'mp4',
           '--no-playlist',
-          '-o',
-          outputPath,
+          '-o', outputPath,
           url,
         ],
-        { timeout: 300000 }, // 5 minutes
+        { timeout: 300000 },
       );
     } catch (error: any) {
       this.logger.error(`yt-dlp failed: ${error.message}`);
