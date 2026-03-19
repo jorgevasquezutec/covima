@@ -324,16 +324,16 @@ export class MediaService {
       throw new BadRequestException('URL de YouTube no válida');
     }
 
-    // Build yt-dlp args
+    // Build yt-dlp args: usar cookies del navegador local, o archivo cookies.txt como fallback
     const cookiesPath = join(process.cwd(), 'cookies.txt');
     const ytDlpArgs: string[] = [];
 
-    // Usar cookies si el archivo existe
     try {
       await access(cookiesPath);
       ytDlpArgs.push('--cookies', cookiesPath);
     } catch {
-      // Sin cookies, intentar sin autenticación
+      // Sin archivo de cookies, intentar con el navegador Chrome local
+      ytDlpArgs.push('--cookies-from-browser', 'chrome');
     }
 
     // Get video title if no name provided

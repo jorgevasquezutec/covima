@@ -15,6 +15,7 @@ import {
     RefreshCw,
     Eye,
     CheckSquare,
+    Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -402,6 +403,30 @@ export default function MediaLibraryPage() {
                                         size="icon"
                                         variant="secondary"
                                         className="h-7 w-7"
+                                        title="Descargar"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            try {
+                                                const res = await fetch(`${getBaseUrl()}${item.url}`);
+                                                const blob = await res.blob();
+                                                const a = document.createElement('a');
+                                                a.href = URL.createObjectURL(blob);
+                                                const ext = item.nombreOriginal?.match(/\.[^/.]+$/)?.[0] || '';
+                                                const baseName = item.nombre || item.nombreOriginal || 'archivo';
+                                                a.download = baseName.match(/\.[^/.]+$/) ? baseName : baseName + ext;
+                                                a.click();
+                                                URL.revokeObjectURL(a.href);
+                                            } catch {
+                                                toast.error('Error al descargar');
+                                            }
+                                        }}
+                                    >
+                                        <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="secondary"
+                                        className="h-7 w-7"
                                         title="Renombrar"
                                         onClick={() => startEdit(item)}
                                     >
@@ -690,13 +715,35 @@ export default function MediaLibraryPage() {
                                     className="max-h-[75vh] max-w-full object-contain rounded"
                                 />
                             )}
-                            <div className="text-center">
+                            <div className="text-center flex flex-col items-center gap-2">
                                 <p className="text-sm font-medium text-white">
                                     {previewItem.nombre || previewItem.nombreOriginal || 'Sin nombre'}
                                 </p>
-                                <p className="text-xs text-gray-400 mt-0.5">
+                                <p className="text-xs text-gray-400">
                                     {previewItem.tamanio > 0 ? `${formatFileSize(previewItem.tamanio)} · ` : ''}{formatDate(previewItem.createdAt)}
                                 </p>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={async () => {
+                                        try {
+                                            const res = await fetch(`${getBaseUrl()}${previewItem.url}`);
+                                            const blob = await res.blob();
+                                            const a = document.createElement('a');
+                                            a.href = URL.createObjectURL(blob);
+                                            const ext = previewItem.nombreOriginal?.match(/\.[^/.]+$/)?.[0] || '';
+                                            const baseName = previewItem.nombre || previewItem.nombreOriginal || 'archivo';
+                                            a.download = baseName.match(/\.[^/.]+$/) ? baseName : baseName + ext;
+                                            a.click();
+                                            URL.revokeObjectURL(a.href);
+                                        } catch {
+                                            toast.error('Error al descargar');
+                                        }
+                                    }}
+                                >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Descargar
+                                </Button>
                             </div>
                         </div>
                     )}

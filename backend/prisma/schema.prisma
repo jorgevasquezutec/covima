@@ -258,7 +258,7 @@ model ProgramaLink {
   programaId  Int      @map("programa_id")
   parteId     Int      @map("parte_id")
   nombre      String   @db.VarChar(200)
-  url         String
+  url         String?
   orden       Int      @default(1)
   agregadoPor Int?     @map("agregado_por")
   mediaItemId Int?     @map("media_item_id")

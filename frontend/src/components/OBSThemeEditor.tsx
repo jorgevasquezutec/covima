@@ -423,7 +423,7 @@ export interface SceneData {
   nombre: string;
   parteId?: number;
   visitas?: string[];
-  links?: { nombre: string; url: string; mediaUrl?: string | null }[];
+  links?: { nombre: string; url?: string | null; mediaUrl?: string | null }[];
   fotos?: { url: string; nombre?: string }[];
 }
 
@@ -454,17 +454,21 @@ export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] 
 
   if (scene.links) {
     for (const link of scene.links) {
+      const url = link.url || '';
       if (link.mediaUrl) {
-        const url = getServerUrl(link.mediaUrl);
+        const mediaFullUrl = getServerUrl(link.mediaUrl);
         tabs.push({
           label: link.nombre || 'Video',
           type: 'media',
-          content: url,
+          content: mediaFullUrl,
           isIframeSrc: true,
           allowInteraction: true,
         });
-      } else if (isYouTubeUrl(link.url)) {
-        const ytUrl = normalizeYouTubeUrl(link.url);
+      } else if (!url) {
+        // No URL and no media — skip
+        continue;
+      } else if (isYouTubeUrl(url)) {
+        const ytUrl = normalizeYouTubeUrl(url);
         if (ytUrl) {
           const videoId = new URL(ytUrl).searchParams.get('v');
           tabs.push({
@@ -475,8 +479,8 @@ export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] 
             allowInteraction: true,
           });
         }
-      } else if (isBibleUrl(link.url)) {
-        const parsed = parseBibleGatewayUrl(link.url);
+      } else if (isBibleUrl(url)) {
+        const parsed = parseBibleGatewayUrl(url);
         const ref = parsed?.search || link.nombre || 'Lectura';
         const ver = parsed?.version || 'NVI';
         tabs.push({
@@ -489,7 +493,7 @@ export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] 
         tabs.push({
           label: link.nombre || 'Link',
           type: 'link',
-          content: link.url,
+          content: url,
           isIframeSrc: true,
         });
       }

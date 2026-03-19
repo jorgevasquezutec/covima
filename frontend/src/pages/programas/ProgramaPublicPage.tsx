@@ -99,7 +99,7 @@ export default function ProgramaPublicPage() {
       esFija: boolean;
       textoFijo?: string;
       asignados: string[];
-      links: { nombre: string; url: string }[];
+      links: { nombre: string; url?: string | null }[];
       fotos: { url: string; nombre?: string }[];
     }
   >();
@@ -219,16 +219,23 @@ export default function ProgramaPublicPage() {
                   {parte.links.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {parte.links.map((link, j) => (
-                        <a
-                          key={j}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
-                        >
-                          <LinkIcon className="w-3.5 h-3.5 shrink-0" />
-                          {link.nombre}
-                        </a>
+                        link.url ? (
+                          <a
+                            key={j}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                          >
+                            <LinkIcon className="w-3.5 h-3.5 shrink-0" />
+                            {link.nombre}
+                          </a>
+                        ) : (
+                          <span key={j} className="flex items-center gap-1.5 text-sm text-gray-600">
+                            <LinkIcon className="w-3.5 h-3.5 shrink-0" />
+                            {link.nombre}
+                          </span>
+                        )
                       ))}
                     </div>
                   )}

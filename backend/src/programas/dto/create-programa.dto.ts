@@ -8,6 +8,7 @@ import {
   IsUrl,
   ArrayMinSize,
   IsObject,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -45,13 +46,16 @@ export class LinkDto {
   @IsString()
   nombre: string;
 
-  @ApiProperty({ example: 'https://www.youtube.com/watch?v=xxx' })
+  @ApiPropertyOptional({ example: 'https://www.youtube.com/watch?v=xxx' })
+  @ValidateIf((o) => !o.mediaItemId)
   @IsUrl()
-  url: string;
+  @IsOptional()
+  url?: string;
 
   @ApiPropertyOptional({ example: 1, description: 'ID del MediaItem asociado' })
-  @IsOptional()
+  @ValidateIf((o) => !o.url)
   @IsInt()
+  @IsOptional()
   mediaItemId?: number;
 }
 

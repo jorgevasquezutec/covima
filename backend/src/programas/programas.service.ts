@@ -99,7 +99,7 @@ export class ProgramasService {
           links: {
             include: {
               parte: true,
-              mediaItem: { select: { id: true, url: true } },
+              mediaItem: { select: { id: true, url: true, nombre: true } },
             },
             orderBy: { orden: 'asc' },
           },
@@ -154,7 +154,7 @@ export class ProgramasService {
         links: {
           include: {
             parte: true,
-            mediaItem: { select: { id: true, url: true } },
+            mediaItem: { select: { id: true, url: true, nombre: true } },
           },
           orderBy: { orden: 'asc' },
         },
@@ -290,7 +290,7 @@ export class ProgramasService {
             programaId: programa.id,
             parteId: link.parteId,
             nombre: link.nombre,
-            url: link.url,
+            url: link.url || null,
             mediaItemId: link.mediaItemId || null,
             orden: orden++,
           },
@@ -461,7 +461,7 @@ export class ProgramasService {
             programaId: id,
             parteId: link.parteId,
             nombre: link.nombre,
-            url: link.url,
+            url: link.url || null,
             mediaItemId: link.mediaItemId || null,
             orden: orden++,
           },
@@ -1577,7 +1577,7 @@ export class ProgramasService {
         links: {
           include: {
             parte: true,
-            mediaItem: { select: { id: true, url: true } },
+            mediaItem: { select: { id: true, url: true, nombre: true } },
           },
           orderBy: { orden: 'asc' },
         },
@@ -1941,7 +1941,11 @@ export class ProgramasService {
 
     // Los links se muestran con el nombre y la URL directa (WhatsApp auto-detecta URLs)
     for (const link of links) {
-      resultado += `• ${link.nombre}: ${link.url}\n`;
+      if (link.url) {
+        resultado += `• ${link.nombre}: ${link.url}\n`;
+      } else {
+        resultado += `• ${link.nombre}\n`;
+      }
     }
 
     // Visitas (se muestran debajo de Bienvenida)
@@ -2031,7 +2035,7 @@ export class ProgramasService {
         links: {
           include: {
             parte: true,
-            mediaItem: { select: { id: true, url: true } },
+            mediaItem: { select: { id: true, url: true, nombre: true } },
           },
           orderBy: { orden: 'asc' },
         },
@@ -2330,7 +2334,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         links: {
           include: {
             parte: true,
-            mediaItem: { select: { id: true, url: true } },
+            mediaItem: { select: { id: true, url: true, nombre: true } },
           },
           orderBy: { orden: 'asc' },
         },
@@ -2375,7 +2379,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         links: {
           include: {
             parte: true,
-            mediaItem: { select: { id: true, url: true } },
+            mediaItem: { select: { id: true, url: true, nombre: true } },
           },
           orderBy: { orden: 'asc' },
         },

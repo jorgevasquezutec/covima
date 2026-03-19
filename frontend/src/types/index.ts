@@ -316,10 +316,10 @@ export interface ProgramaLink {
   id: number;
   parte: Parte;
   nombre: string;
-  url: string;
+  url?: string | null;
   orden: number;
   mediaItemId?: number | null;
-  mediaItem?: { id: number; url: string } | null;
+  mediaItem?: { id: number; url: string; nombre?: string } | null;
 }
 
 export interface ProgramaFoto {
@@ -378,7 +378,7 @@ export interface AsignacionDto {
 export interface LinkDto {
   parteId: number;
   nombre: string;
-  url: string;
+  url?: string;
   mediaItemId?: number;
 }
 

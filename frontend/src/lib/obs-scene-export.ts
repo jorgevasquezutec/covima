@@ -30,7 +30,7 @@ export interface OBSExportParte {
   nombre: string;
   parteId?: number;
   participantes: string[];
-  links: { nombre: string; url: string; mediaUrl?: string | null }[];
+  links: { nombre: string; url?: string | null; mediaUrl?: string | null }[];
   fotos: { url: string; nombre?: string }[];
 }
 
@@ -503,8 +503,9 @@ export function generateOBSSceneCollection(input: OBSExportInput) {
 
     // Links: downloaded video (ffmpeg_source), YouTube, Bible, or generic browser sources
     parte.links.forEach((link, li) => {
-      const isYt = isYouTubeUrl(link.url);
-      const isBible = isBibleUrl(link.url);
+      const url = link.url || '';
+      const isYt = url ? isYouTubeUrl(url) : false;
+      const isBible = url ? isBibleUrl(url) : false;
       const label = link.nombre || (isYt ? 'YouTube' : isBible ? 'Biblia' : 'Link');
       const srcName = `${label} - ${sceneName}${li > 0 ? ` (${li + 1})` : ''}`;
 
@@ -514,16 +515,19 @@ export function generateOBSSceneCollection(input: OBSExportInput) {
         const mediaFullUrl = getServerUrl(link.mediaUrl);
         src = addSource(makeMediaSource(srcName, mediaFullUrl));
         (src as any).monitoring_type = 1; // monitor audio
+      } else if (!url) {
+        // No URL and no media — skip
+        return;
       } else if (isBible) {
         // Bible: use backend endpoint that fetches and renders the text
-        const parsed = parseBibleGatewayUrl(link.url);
+        const parsed = parseBibleGatewayUrl(url);
         const ref = parsed?.search || link.nombre || 'Lectura Bíblica';
         const ver = parsed?.version || 'NVI';
         const bibleUrl = buildBibleSlideUrl(ref, ver);
         src = addSource(makeBrowserSource(srcName, bibleUrl));
       } else {
-        const ytUrl = isYt ? normalizeYouTubeUrl(link.url) : null;
-        const finalUrl = ytUrl ?? link.url;
+        const ytUrl = isYt ? normalizeYouTubeUrl(url) : null;
+        const finalUrl = ytUrl ?? url;
         src = addSource(makeBrowserSource(srcName, finalUrl, WIDTH, HEIGHT, isYt ? YOUTUBE_CSS : undefined));
         if (isYt) (src as any).monitoring_type = 1;
       }

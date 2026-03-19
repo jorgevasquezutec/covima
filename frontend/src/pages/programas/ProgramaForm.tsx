@@ -48,6 +48,7 @@ import {
     CloudDownload,
     CheckCircle,
     FolderDown,
+    Film,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -102,7 +103,7 @@ export interface ParteEnPrograma {
     parte: Parte;
     usuarioIds: number[];
     nombresLibres: string[];
-    links: { _key: string; nombre: string; url: string; mediaItemId?: number | null; mediaUrl?: string | null }[];
+    links: { _key: string; nombre: string; url: string; mediaItemId?: number | null; mediaUrl?: string | null; mediaName?: string | null }[];
     fotos: { _key: string; url: string; nombre?: string; mediaItemId?: number }[];
 }
 
@@ -227,6 +228,7 @@ export function SortableParteItem({
     onRemoveFreeText,
     onReplacePersona,
     onAddLink,
+    onAddLinkFromLibrary,
     onUpdateLink,
     onRemoveLink,
     onReorderLinks,
@@ -251,6 +253,7 @@ export function SortableParteItem({
     onRemoveFreeText: (nombre: string) => void;
     onReplacePersona: (persona: PersonaReemplazo) => void;
     onAddLink: () => void;
+    onAddLinkFromLibrary?: () => void;
     onUpdateLink: (index: number, field: 'nombre' | 'url', value: string) => void;
     onRemoveLink: (index: number) => void;
     onReorderLinks?: (fromIndex: number, toIndex: number) => void;
@@ -481,12 +484,21 @@ export function SortableParteItem({
                                     placeholder="Nombre del link (ej: Himno 366)"
                                     className="bg-white border-gray-300 text-gray-900 flex-1"
                                 />
-                                <Input
-                                    value={link.url}
-                                    onChange={(e) => onUpdateLink(index, 'url', e.target.value)}
-                                    placeholder="https://..."
-                                    className="bg-white border-gray-300 text-gray-900 flex-1"
-                                />
+                                {/* Si tiene mediaItemId pero no URL: mostrar badge del media */}
+                                {!link.url && link.mediaItemId ? (
+                                    <div className="flex items-center gap-2 flex-1 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-md">
+                                        <Film className="h-4 w-4 text-emerald-600 shrink-0" />
+                                        <span className="text-sm text-emerald-700 truncate">{link.mediaName || link.nombre || 'Video de biblioteca'}</span>
+                                        <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+                                    </div>
+                                ) : (
+                                    <Input
+                                        value={link.url}
+                                        onChange={(e) => onUpdateLink(index, 'url', e.target.value)}
+                                        placeholder="https://..."
+                                        className="bg-white border-gray-300 text-gray-900 flex-1"
+                                    />
+                                )}
                                 <div className="flex gap-1">
                                     {link.url && (() => {
                                         const isYt = (() => {
@@ -571,6 +583,18 @@ export function SortableParteItem({
                                 <Plus className="h-4 w-4 mr-2" />
                                 Agregar Link
                             </Button>
+                            {onAddLinkFromLibrary && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={onAddLinkFromLibrary}
+                                    className="border-emerald-300 hover:bg-emerald-50 text-emerald-700"
+                                >
+                                    <FolderDown className="h-4 w-4 mr-2" />
+                                    Desde biblioteca
+                                </Button>
+                            )}
                             {onDownloadBatch && (() => {
                                 const pendingYt = item.links.filter(l => {
                                     if (l.mediaItemId) return false;
@@ -846,7 +870,7 @@ export default function ProgramaForm() {
                             parte: pp.parte,
                             usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                             nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
-                            links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url, mediaItemId: l.mediaItemId, mediaUrl: l.mediaItem?.url })),
+                            links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url || '', mediaItemId: l.mediaItemId, mediaUrl: l.mediaItem?.url, mediaName: l.mediaItem?.nombre })),
                             fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre, mediaItemId: f.mediaItemId })),
                         });
                     }
@@ -864,7 +888,7 @@ export default function ProgramaForm() {
                                 parte,
                                 usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
                                 nombresLibres: asigs.filter(a => !a.usuario && a.nombreLibre).map(a => a.nombreLibre!),
-                                links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url, mediaItemId: l.mediaItemId, mediaUrl: l.mediaItem?.url })),
+                                links: links.map(l => ({ _key: genKey(), nombre: l.nombre, url: l.url || '', mediaItemId: l.mediaItemId, mediaUrl: l.mediaItem?.url, mediaName: l.mediaItem?.nombre })),
                                 fotos: fotos.map(f => ({ _key: genKey(), url: f.url, nombre: f.nombre, mediaItemId: f.mediaItemId })),
                             });
                         }
@@ -1205,6 +1229,35 @@ export default function ProgramaForm() {
         toast.success(`Video importado: ${mediaItem.nombre || 'Biblioteca'}`);
     };
 
+    const [libraryPickerParteId, setLibraryPickerParteId] = useState<number | null>(null);
+
+    const handleAddLinkFromLibrary = (parteId: number) => {
+        setLibraryPickerParteId(parteId);
+    };
+
+    const handleLibraryPickerSelect = (parteId: number, selected: { mediaItemId: number; url: string; nombre?: string }) => {
+        setPartesEnPrograma(prev =>
+            prev.map(p => {
+                if (p.parteId === parteId) {
+                    return {
+                        ...p,
+                        links: [...p.links, {
+                            _key: genKey(),
+                            nombre: selected.nombre || 'Video',
+                            url: '',
+                            mediaItemId: selected.mediaItemId,
+                            mediaUrl: selected.url,
+                            mediaName: selected.nombre,
+                        }],
+                    };
+                }
+                return p;
+            })
+        );
+        setLibraryPickerParteId(null);
+        toast.success(`Video agregado: ${selected.nombre || 'Biblioteca'}`);
+    };
+
     const handleDownloadBatch = async (parteId: number) => {
         const parte = partesEnPrograma.find(p => p.parteId === parteId);
         if (!parte) return;
@@ -1396,16 +1449,16 @@ export default function ProgramaForm() {
                     nombresLibres: p.nombresLibres.length > 0 ? p.nombresLibres : undefined,
                 }));
 
-            // Build links
+            // Build links (url OR mediaItemId required)
             const links: LinkDto[] = partesEnPrograma
                 .filter(p => p.links.length > 0)
                 .flatMap(p =>
                     p.links
-                        .filter(l => l.nombre && l.url)
+                        .filter(l => l.nombre && (l.url || l.mediaItemId))
                         .map(l => ({
                             parteId: p.parteId,
                             nombre: l.nombre,
-                            url: l.url,
+                            url: l.url || undefined,
                             mediaItemId: l.mediaItemId ?? undefined,
                         }))
                 );
@@ -1989,6 +2042,7 @@ export default function ProgramaForm() {
                                     onRemoveFreeText={(nombre) => handleRemoveFreeText(item.parteId, nombre)}
                                     onReplacePersona={(persona) => setPersonaAReemplazar(persona)}
                                     onAddLink={() => handleAddLink(item.parteId)}
+                                    onAddLinkFromLibrary={() => handleAddLinkFromLibrary(item.parteId)}
                                     onUpdateLink={(index, field, value) => handleUpdateLink(item.parteId, index, field, value)}
                                     onRemoveLink={(index) => handleRemoveLink(item.parteId, index)}
                                     onReorderLinks={(from, to) => handleReorderLinks(item.parteId, from, to)}
@@ -2010,6 +2064,15 @@ export default function ProgramaForm() {
                 </DndContext>
             </div>
 
+
+            {/* Dialog de biblioteca para agregar link */}
+            {libraryPickerParteId !== null && (
+                <MediaPickerDialog
+                    open={true}
+                    onOpenChange={(open) => { if (!open) setLibraryPickerParteId(null); }}
+                    onSelect={(selected) => handleLibraryPickerSelect(libraryPickerParteId, selected)}
+                />
+            )}
 
             {/* Dialog de reemplazo */}
             <Dialog open={!!personaAReemplazar} onOpenChange={(open) => { if (!open) setPersonaAReemplazar(null); }}>

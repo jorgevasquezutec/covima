@@ -15,11 +15,11 @@ function buildScenes(programa: Programa): SceneData[] {
   return sorted.map((pp) => {
     const parteId = pp.parteId;
     const links = programa.links
-      .filter((l) => l.parte.id === parteId && l.url)
+      .filter((l) => l.parte.id === parteId && (l.url || l.mediaItemId))
       .sort((a, b) => a.orden - b.orden)
       .map((l) => ({
         nombre: l.nombre,
-        url: l.url,
+        url: l.url ?? undefined,
         mediaUrl: l.mediaItem?.url ?? null,
       }));
 

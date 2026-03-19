@@ -650,16 +650,23 @@ export default function ProgramasPage() {
                                                     {item.links.length > 0 && (
                                                         <div className="space-y-1 pt-1 border-t border-gray-100">
                                                             {item.links.map((link, i) => (
-                                                                <a
-                                                                    key={i}
-                                                                    href={link.url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                                                                >
-                                                                    <span>🔗</span>
-                                                                    <span className="truncate">{link.nombre}</span>
-                                                                </a>
+                                                                link.url ? (
+                                                                    <a
+                                                                        key={i}
+                                                                        href={link.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                                                    >
+                                                                        <span>🔗</span>
+                                                                        <span className="truncate">{link.nombre}</span>
+                                                                    </a>
+                                                                ) : (
+                                                                    <span key={i} className="flex items-center gap-2 text-xs text-gray-600">
+                                                                        <span>🔗</span>
+                                                                        <span className="truncate">{link.nombre}</span>
+                                                                    </span>
+                                                                )
                                                             ))}
                                                         </div>
                                                     )}
