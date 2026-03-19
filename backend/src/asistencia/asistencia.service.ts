@@ -2157,7 +2157,7 @@ export class AsistenciaService {
         : null,
       descripcion: qr.descripcion,
       urlGenerada: qr.urlGenerada
-        ? `${process.env.FRONTEND_URL || 'http://localhost:5173'}${qr.urlGenerada}`
+        ? `${process.env.FRONTEND_URL || 'http://localhost:5174'}${qr.urlGenerada}`
         : null,
       urlWhatsapp,
       activo: qr.activo,

@@ -225,6 +225,7 @@ export class ProgramasService {
         horaFin,
         titulo,
         creadoPor: createdBy,
+        obsTheme: dto.obsTheme || undefined,
       },
     });
 
@@ -374,8 +375,8 @@ export class ProgramasService {
     await this.prisma.programa.update({
       where: { id },
       data: {
-        titulo: dto.titulo,
-        estado: dto.estado,
+        ...(dto.titulo !== undefined && { titulo: dto.titulo }),
+        ...(dto.estado !== undefined && { estado: dto.estado }),
         ...(dto.fecha && { fecha: new Date(dto.fecha) }),
         ...(dto.horaInicio !== undefined && {
           horaInicio: dto.horaInicio ? this.parseTime(dto.horaInicio) : null,
@@ -383,6 +384,7 @@ export class ProgramasService {
         ...(dto.horaFin !== undefined && {
           horaFin: dto.horaFin ? this.parseTime(dto.horaFin) : null,
         }),
+        ...(dto.obsTheme !== undefined && { obsTheme: dto.obsTheme }),
       },
     });
 
@@ -2494,6 +2496,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
           procedencia: v.procedencia,
           createdAt: v.createdAt,
         })) || [],
+      obsTheme: programa.obsTheme ?? undefined,
       qrAsistencia: programa.qrAsistencia
         ? {
             id: programa.qrAsistencia.id,
@@ -2941,8 +2944,9 @@ Has sido asignado/a para el programa del *${fechaFormateada}*.
     descripcion?: string;
     parteIds: number[];
     esDefault?: boolean;
+    obsTheme?: object;
   }) {
-    const { nombre, descripcion, parteIds, esDefault } = data;
+    const { nombre, descripcion, parteIds, esDefault, obsTheme } = data;
 
     // Si es default, quitar el flag de las demás
     if (esDefault) {
@@ -2963,6 +2967,7 @@ Has sido asignado/a para el programa del *${fechaFormateada}*.
         descripcion,
         esDefault: esDefault || false,
         orden: (maxOrden._max.orden || 0) + 1,
+        obsTheme: obsTheme || undefined,
         partes: {
           create: parteIds.map((parteId, index) => ({
             parteId,
@@ -2992,9 +2997,10 @@ Has sido asignado/a para el programa del *${fechaFormateada}*.
       activo?: boolean;
       esDefault?: boolean;
       parteIds?: number[];
+      obsTheme?: object;
     },
   ) {
-    const { parteIds, esDefault, ...updateData } = data;
+    const { parteIds, esDefault, obsTheme, ...updateData } = data;
 
     // Si es default, quitar el flag de las demás
     if (esDefault) {
@@ -3010,6 +3016,7 @@ Has sido asignado/a para el programa del *${fechaFormateada}*.
       data: {
         ...updateData,
         ...(esDefault !== undefined && { esDefault }),
+        ...(obsTheme !== undefined && { obsTheme }),
       },
     });
 

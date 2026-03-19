@@ -13,9 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LayoutTemplate, Plus, Edit2, Trash2, Star, GripVertical, Download, Loader2 } from 'lucide-react';
 import { programasApi } from '@/services/api';
-import type { PlantillaPrograma, PlantillaParte, Parte } from '@/types';
+import type { PlantillaPrograma, PlantillaParte, Parte, OBSThemeWithOverrides } from '@/types';
 import { toast } from 'sonner';
 import PlantillaExportable from '@/components/plantillas/PlantillaExportable';
+import OBSThemeEditor from '@/components/OBSThemeEditor';
+import { DEFAULT_OBS_THEME } from '@/lib/obs-scene-export';
+import { Monitor } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -100,6 +103,9 @@ export default function PlantillasProgramaPage() {
     parteIds: [] as number[],
   });
 
+  const [formObsTheme, setFormObsTheme] = useState<OBSThemeWithOverrides>({ ...DEFAULT_OBS_THEME });
+  const [obsPreviewOpen, setObsPreviewOpen] = useState(false);
+
   // Available partes for selection
   const [selectedPartes, setSelectedPartes] = useState<Parte[]>([]);
 
@@ -169,6 +175,7 @@ export default function PlantillasProgramaPage() {
       parteIds: [],
     });
     setSelectedPartes([]);
+    setFormObsTheme({ ...DEFAULT_OBS_THEME });
     setModalOpen(true);
   };
 
@@ -184,6 +191,7 @@ export default function PlantillasProgramaPage() {
       parteIds: partes.map(p => p.id),
     });
     setSelectedPartes(partes);
+    setFormObsTheme(plantilla.obsTheme ? { ...plantilla.obsTheme } : { ...DEFAULT_OBS_THEME });
     setModalOpen(true);
   };
 
@@ -197,6 +205,7 @@ export default function PlantillasProgramaPage() {
       parteIds: [],
     });
     setSelectedPartes([]);
+    setFormObsTheme({ ...DEFAULT_OBS_THEME });
   };
 
   const handleSubmit = () => {
@@ -215,6 +224,7 @@ export default function PlantillasProgramaPage() {
           descripcion: formData.descripcion || undefined,
           esDefault: formData.esDefault,
           parteIds,
+          obsTheme: formObsTheme,
         },
       });
     } else {
@@ -223,6 +233,7 @@ export default function PlantillasProgramaPage() {
         descripcion: formData.descripcion || undefined,
         esDefault: formData.esDefault,
         parteIds,
+        obsTheme: formObsTheme,
       });
     }
   };
@@ -374,6 +385,13 @@ export default function PlantillasProgramaPage() {
                       </Badge>
                     )}
                   </div>
+                  {plantilla.obsTheme && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: plantilla.obsTheme.colorPrimario }} />
+                      <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: plantilla.obsTheme.colorSecundario }} />
+                      <span className="text-xs text-gray-400 ml-1">Tema OBS</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2 border-t mt-auto">
@@ -504,6 +522,30 @@ export default function PlantillasProgramaPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* OBS Theme */}
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setObsPreviewOpen(true)}
+                className="w-full justify-start gap-2"
+              >
+                <Monitor className="h-4 w-4 text-purple-600" />
+                <span>Tema OBS</span>
+                <div className="flex gap-1 ml-auto">
+                  <div className="w-4 h-4 rounded-full border border-gray-200" style={{ backgroundColor: formObsTheme.colorPrimario }} />
+                  <div className="w-4 h-4 rounded-full border border-gray-200" style={{ backgroundColor: formObsTheme.colorSecundario }} />
+                </div>
+              </Button>
+              <OBSThemeEditor
+                partes={selectedPartes.map((p) => ({ nombre: p.nombre }))}
+                theme={formObsTheme}
+                onChange={setFormObsTheme}
+                onBack={() => setObsPreviewOpen(false)}
+                open={obsPreviewOpen}
+              />
             </div>
           </div>
 

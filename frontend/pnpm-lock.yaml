@@ -98,6 +98,9 @@ importers:
       react-big-calendar:
         specifier: ^1.19.4
         version: 1.19.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react-colorful:
+        specifier: ^5.6.1
+        version: 5.6.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-day-picker:
         specifier: ^9.13.0
         version: 9.13.0(react@19.2.3)
@@ -3329,6 +3332,12 @@ packages:
     peerDependencies:
       react: ^16.14.0 || ^17 || ^18 || ^19
       react-dom: ^16.14.0 || ^17 || ^18 || ^19
+
+  react-colorful@5.6.1:
+    resolution: {integrity: sha512-1exovf0uGTGyq5mXQT0zgQ80uvj2PCwvF8zY1RN9/vbJVSjSo3fsB/4L3ObbF7u70NduSiK4xu4Y6q1MHoUGEw==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   react-day-picker@9.13.0:
     resolution: {integrity: sha512-euzj5Hlq+lOHqI53NiuNhCP8HWgsPf/bBAVijR50hNaY1XwjKjShAnIe8jm8RD2W9IJUvihDIZ+KrmqfFzNhFQ==}
@@ -7342,6 +7351,11 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
       react-overlays: 5.2.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       uncontrollable: 7.2.1(react@19.2.3)
+
+  react-colorful@5.6.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
 
   react-day-picker@9.13.0(react@19.2.3):
     dependencies:

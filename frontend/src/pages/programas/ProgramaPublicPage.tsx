@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Calendar, Clock, Users, Link as LinkIcon, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Users, Link as LinkIcon, Loader2, X, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import type { Programa } from '@/types';
 import api from '@/services/api';
 import { parseLocalDate } from '@/lib/utils';
@@ -10,13 +10,13 @@ export default function ProgramaPublicPage() {
   const [programa, setPrograma] = useState<Programa | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [carouselImages, setCarouselImages] = useState<{ url: string; nombre?: string }[]>([]);
+  const [carouselImages, setCarouselImages] = useState<{ url: string; nombre?: string; isVideo?: boolean }[]>([]);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const touchStartX = useRef(0);
 
   const closeCarousel = useCallback(() => setCarouselImages([]), []);
 
-  const openCarousel = useCallback((images: { url: string; nombre?: string }[], startIndex: number) => {
+  const openCarousel = useCallback((images: { url: string; nombre?: string; isVideo?: boolean }[], startIndex: number) => {
     setCarouselImages(images);
     setCarouselIndex(startIndex);
   }, []);
@@ -235,35 +235,42 @@ export default function ProgramaPublicPage() {
 
                   {/* Fotos/Videos — thumbnails */}
                   {parte.fotos.length > 0 && (() => {
-                    const imageFotos = parte.fotos.filter(f => !/\.(mp4|webm|mov)$/i.test(f.url));
-                    const carouselItems = imageFotos.map(f => ({ url: `${getBaseUrl()}${f.url}`, nombre: f.nombre }));
+                    const carouselItems = parte.fotos.map(f => ({
+                      url: `${getBaseUrl()}${f.url}`,
+                      nombre: f.nombre,
+                      isVideo: /\.(mp4|webm|mov)$/i.test(f.url),
+                    }));
                     return (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {parte.fotos.map((foto, j) => {
                         const fullUrl = `${getBaseUrl()}${foto.url}`;
                         const isVideo = /\.(mp4|webm|mov)$/i.test(foto.url);
-                        return isVideo ? (
-                          <video
-                            key={j}
-                            src={fullUrl}
-                            controls
-                            className="w-full rounded-lg border border-gray-200"
-                          />
-                        ) : (
+                        return (
                           <button
                             key={j}
-                            onClick={() => {
-                              const idx = carouselItems.findIndex(c => c.url === fullUrl);
-                              openCarousel(carouselItems, idx >= 0 ? idx : 0);
-                            }}
+                            onClick={() => openCarousel(carouselItems, j)}
                             className="relative group"
-                            title={foto.nombre || `Foto ${j + 1}`}
+                            title={foto.nombre || (isVideo ? `Video ${j + 1}` : `Foto ${j + 1}`)}
                           >
-                            <img
-                              src={fullUrl}
-                              alt={foto.nombre || `Foto ${j + 1}`}
-                              className="w-16 h-16 object-cover rounded-lg border border-gray-200 group-hover:border-blue-400 transition-colors"
-                            />
+                            {isVideo ? (
+                              <div className="w-16 h-16 rounded-lg border border-gray-200 group-hover:border-blue-400 transition-colors overflow-hidden relative bg-black">
+                                <video
+                                  src={`${fullUrl}#t=0.5`}
+                                  preload="metadata"
+                                  muted
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                  <Play className="w-5 h-5 text-white fill-white" />
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={fullUrl}
+                                alt={foto.nombre || `Foto ${j + 1}`}
+                                className="w-16 h-16 object-cover rounded-lg border border-gray-200 group-hover:border-blue-400 transition-colors"
+                              />
+                            )}
                             {foto.nombre && (
                               <p className="text-[10px] text-gray-500 mt-0.5 truncate max-w-16">{foto.nombre}</p>
                             )}
@@ -335,14 +342,24 @@ export default function ProgramaPublicPage() {
             </div>
           )}
 
-          {/* Image */}
+          {/* Image or Video */}
           <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-16" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={carouselImages[carouselIndex].url}
-              alt={carouselImages[carouselIndex].nombre || ''}
-              className="max-w-full max-h-[85vh] rounded-lg object-contain select-none"
-              draggable={false}
-            />
+            {carouselImages[carouselIndex].isVideo ? (
+              <video
+                key={carouselImages[carouselIndex].url}
+                src={carouselImages[carouselIndex].url}
+                controls
+                autoPlay
+                className="max-w-full max-h-[85vh] rounded-lg object-contain"
+              />
+            ) : (
+              <img
+                src={carouselImages[carouselIndex].url}
+                alt={carouselImages[carouselIndex].nombre || ''}
+                className="max-w-full max-h-[85vh] rounded-lg object-contain select-none"
+                draggable={false}
+              />
+            )}
           </div>
 
           {/* Caption */}

@@ -160,6 +160,36 @@ export interface PlantillaParte {
   parte: Parte;
 }
 
+export type OBSElementId = 'logo' | 'title' | 'subtitle' | 'items' | 'footer';
+
+export interface OBSElementLayout {
+  x: number;       // 0-100, porcentaje de 1920px
+  y: number;       // 0-100, porcentaje de 1080px
+  scale?: number;  // 0.1-3.0, default 1.0
+  visible?: boolean; // default true
+}
+
+export interface OBSTheme {
+  colorPrimario: string;
+  colorSecundario: string;
+  backgroundMode?: 'solid' | 'gradient'; // default 'gradient'
+  colorTexto: string;
+  colorAccent: string;
+  logoSvg?: string;
+  logoUrl?: string;
+  footerTexto: string;
+  fontFamily?: string;
+  backgroundImageUrl?: string;
+  logoRemoveBg?: boolean;
+  elementLayout?: Partial<Record<OBSElementId, OBSElementLayout>>;
+  /** Runtime-only: processed logo with white background removed (not persisted) */
+  _processedLogoUrl?: string;
+}
+
+export interface OBSThemeWithOverrides extends OBSTheme {
+  sceneOverrides?: Record<number, Partial<OBSTheme>>;
+}
+
 export interface PlantillaPrograma {
   id: number;
   nombre: string;
@@ -168,6 +198,7 @@ export interface PlantillaPrograma {
   esDefault: boolean;
   orden: number;
   partes: PlantillaParte[];
+  obsTheme?: OBSThemeWithOverrides;
 }
 
 // ==================== ESTUDIOS BÍBLICOS ====================
@@ -330,6 +361,7 @@ export interface Programa {
   fotos: ProgramaFoto[];
   visitas: ProgramaVisita[];
   qrAsistencia?: QRAsistencia | null;
+  obsTheme?: OBSThemeWithOverrides;
 }
 
 export interface ParteOrdenDto {
@@ -385,6 +417,7 @@ export interface CreateProgramaRequest {
   fotos?: FotoDto[];
   qrAsistenciaId?: number;
   tipoAsistenciaId?: number;
+  obsTheme?: OBSThemeWithOverrides;
 }
 
 export interface CreateProgramaBatchRequest {
@@ -403,6 +436,7 @@ export interface UpdateProgramaRequest {
   fotos?: FotoDto[];
   qrAsistenciaId?: number | null;
   tipoAsistenciaId?: number;
+  obsTheme?: OBSThemeWithOverrides;
 }
 
 export interface UsuarioSimple {

@@ -84,10 +84,9 @@ import {
 import UserAutocomplete from '@/components/UserAutocomplete';
 import { programasApi, asistenciaApi, tiposAsistenciaApi, mediaApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
-import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, PlantillaPrograma, QRAsistencia, TipoAsistencia } from '@/types';
-import { downloadOBSSceneCollection } from '@/lib/obs-scene-export';
+import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, PlantillaPrograma, QRAsistencia, TipoAsistencia, OBSTheme } from '@/types';
+import { DEFAULT_OBS_THEME } from '@/lib/obs-scene-export';
 import MediaPickerDialog from '@/components/MediaPickerDialog';
-import type { OBSExportParte } from '@/lib/obs-scene-export';
 
 // Tipo para identificar a quién se va a reemplazar
 export type PersonaReemplazo =
@@ -775,6 +774,7 @@ export default function ProgramaForm() {
     const [selectedTipoId, setSelectedTipoId] = useState<number | null>(null);
     const [qrAsistenciaData, setQrAsistenciaData] = useState<QRAsistencia | null>(null);
     const [qrComboOpen, setQrComboOpen] = useState(false);
+    const [obsTheme, setObsTheme] = useState<OBSTheme>({ ...DEFAULT_OBS_THEME });
 
     // Replace persona state
     const [personaAReemplazar, setPersonaAReemplazar] = useState<PersonaReemplazo | null>(null);
@@ -816,6 +816,9 @@ export default function ProgramaForm() {
                 setCodigo(programaData.codigo);
                 setHoraInicio(programaData.horaInicio || '');
                 setHoraFin(programaData.horaFin || '');
+                if (programaData.obsTheme) {
+                    setObsTheme(programaData.obsTheme);
+                }
                 if (programaData.qrAsistencia) {
                     setQrAsistenciaData(programaData.qrAsistencia);
                     setSelectedQrId(programaData.qrAsistencia.id);
@@ -935,36 +938,14 @@ export default function ProgramaForm() {
     const handleSelectPlantilla = (plantilla: PlantillaPrograma) => {
         loadPlantillaPartes(plantilla);
         setTitulo(plantilla.nombre);
+        if (plantilla.obsTheme) {
+            setObsTheme(plantilla.obsTheme);
+        } else {
+            setObsTheme({ ...DEFAULT_OBS_THEME });
+        }
         setShowTemplateSelector(false);
     };
 
-    const handleExportOBS = async () => {
-        const partes: OBSExportParte[] = partesEnPrograma.map((p) => ({
-            nombre: p.parte.nombre,
-            participantes: [],
-            links: p.links.map(l => ({ nombre: l.nombre, url: l.url, mediaUrl: l.mediaUrl })),
-            fotos: p.fotos,
-        }));
-
-        // Fetch visitas if editing
-        let visitas: { nombre: string; procedencia: string }[] = [];
-        if (isEditing) {
-            try {
-                const visitasData = await programasApi.getVisitas(parseInt(id!));
-                visitas = visitasData.map((v) => ({ nombre: v.nombre, procedencia: v.procedencia }));
-            } catch {
-                // continue without visitas
-            }
-        }
-
-        downloadOBSSceneCollection({
-            titulo: titulo || 'Programa JA',
-            fecha: fecha || new Date().toISOString().split('T')[0],
-            partes,
-            visitas,
-        });
-        toast.success('Archivo OBS exportado');
-    };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -1451,6 +1432,7 @@ export default function ProgramaForm() {
                     asignaciones,
                     links,
                     fotos,
+                    obsTheme,
                     qrAsistenciaId: selectedQrId || null,
                     tipoAsistenciaId: !selectedQrId && selectedTipoId ? selectedTipoId : undefined,
                 });
@@ -1465,6 +1447,7 @@ export default function ProgramaForm() {
                     asignaciones,
                     links,
                     fotos,
+                    obsTheme,
                     qrAsistenciaId: selectedQrId || undefined,
                     tipoAsistenciaId: !selectedQrId && selectedTipoId ? selectedTipoId : undefined,
                 });
@@ -1614,11 +1597,11 @@ export default function ProgramaForm() {
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={handleExportOBS}
+                            onClick={() => navigate(`/programas/${id}/preview-obs`)}
                             className="border-gray-300"
                         >
                             <Monitor className="h-4 w-4 mr-2" />
-                            Exportar OBS
+                            Preview OBS
                         </Button>
                     )}
                     {!isEditing && plantillas.length > 1 && (
@@ -2026,6 +2009,7 @@ export default function ProgramaForm() {
                     </SortableContext>
                 </DndContext>
             </div>
+
 
             {/* Dialog de reemplazo */}
             <Dialog open={!!personaAReemplazar} onOpenChange={(open) => { if (!open) setPersonaAReemplazar(null); }}>

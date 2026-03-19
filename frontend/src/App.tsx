@@ -12,6 +12,7 @@ import UsuariosPage from '@/pages/usuarios/UsuariosPage';
 import ProgramasPage from '@/pages/programas/ProgramasPage';
 import ProgramaForm from '@/pages/programas/ProgramaForm';
 import ProgramaFormMulti from '@/pages/programas/ProgramaFormMulti';
+import PreviewOBSPage from '@/pages/programas/PreviewOBSPage';
 import AsistenciaPage from '@/pages/asistencia/AsistenciaPage';
 import AsistenciaRoom from '@/pages/asistencia/AsistenciaRoom';
 import RegistrarAsistencia from '@/pages/asistencia/RegistrarAsistencia';
@@ -83,6 +84,14 @@ function App() {
               <MainLayout>
                 <ProgramaForm />
               </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/programas/:id/preview-obs"
+          element={
+            <ProtectedRoute>
+              <PreviewOBSPage />
             </ProtectedRoute>
           }
         />

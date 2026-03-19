@@ -48,12 +48,16 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5173,
+    port: 5174,
     host: true,
     proxy: {
       '/api': {
-        // target: 'http://192.168.0.208:3001',
-        target: 'http://localhost:3001',
+        // target: 'http://192.168.0.208:3005',
+        target: 'http://localhost:3005',
+        changeOrigin: true
+      },
+      '/uploads': {
+        target: 'http://localhost:3005',
         changeOrigin: true
       }
     }

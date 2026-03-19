@@ -12,7 +12,7 @@ export class RedisService implements OnModuleDestroy {
   >();
 
   constructor() {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6380';
 
     this.publisher = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,

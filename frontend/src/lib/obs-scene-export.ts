@@ -6,10 +6,29 @@
  * que renderiza HTML estilizado con el logo adventista.
  */
 
+import type { OBSTheme, OBSThemeWithOverrides, OBSElementId, OBSElementLayout } from '@/types';
+
+// ── Theme ─────────────────────────────────────────────────────────────
+
+export function resolveSceneTheme(global: OBSThemeWithOverrides, parteId?: number): OBSTheme {
+  if (!parteId || !global.sceneOverrides?.[parteId]) return global;
+  const { sceneOverrides, ...base } = global;
+  return { ...base, ...sceneOverrides[parteId] };
+}
+
+export const DEFAULT_OBS_THEME: OBSTheme = {
+  colorPrimario: '#0a1f14',
+  colorSecundario: '#1e5438',
+  colorTexto: '#ffffff',
+  colorAccent: 'rgba(255,255,255,0.5)',
+  footerTexto: 'Iglesia Adventista del Séptimo Día',
+};
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface OBSExportParte {
   nombre: string;
+  parteId?: number;
   participantes: string[];
   links: { nombre: string; url: string; mediaUrl?: string | null }[];
   fotos: { url: string; nombre?: string }[];
@@ -20,6 +39,7 @@ export interface OBSExportInput {
   fecha: string;
   partes: OBSExportParte[];
   visitas?: { nombre: string; procedencia: string }[];
+  theme?: OBSThemeWithOverrides;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -66,7 +86,7 @@ export function normalizeYouTubeUrl(url: string): string | null {
   return null;
 }
 
-function isYouTubeUrl(url: string): boolean {
+export function isYouTubeUrl(url: string): boolean {
   try {
     const u = new URL(url);
     return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be';
@@ -115,13 +135,41 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
+// Positions that closely match the default flexbox-centered layout
+export const DEFAULT_ELEMENT_POSITIONS: Record<OBSElementId, OBSElementLayout> = {
+  logo: { x: 50, y: 42 },
+  title: { x: 50, y: 54 },
+  subtitle: { x: 50, y: 60 },
+  items: { x: 50, y: 72 },
+  footer: { x: 50, y: 97 },
+};
+
 function buildSlideHtml(opts: {
   title: string;
   subtitle?: string;
   items?: string[];
   logoSize?: number;
+  theme?: OBSTheme;
 }): string {
-  const { title, subtitle, items, logoSize = 120 } = opts;
+  const { title, subtitle, items, logoSize = 120, theme = DEFAULT_OBS_THEME } = opts;
+
+  const fontFamily = theme.fontFamily ?? 'Inter';
+  const fontImport = fontFamily === 'Inter'
+    ? `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');`
+    : `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@300;400;600;700&display=swap');`;
+
+  // Use processed logo URL if available (white background removed via canvas)
+  const effectiveLogoUrl = theme._processedLogoUrl ?? theme.logoUrl;
+  const resolvedLogoUrl = effectiveLogoUrl
+    ? (effectiveLogoUrl.startsWith('/') ? getServerUrl(effectiveLogoUrl) : effectiveLogoUrl)
+    : undefined;
+  const logoHtml = resolvedLogoUrl
+    ? `<img src="${resolvedLogoUrl}" style="width:${logoSize}px; height:${logoSize}px; object-fit:contain;" alt="" />`
+    : (theme.logoSvg ?? ADVENTIST_LOGO_SVG);
+
+  const bgUrl = theme.backgroundImageUrl
+    ? (theme.backgroundImageUrl.startsWith('/') ? getServerUrl(theme.backgroundImageUrl) : theme.backgroundImageUrl)
+    : undefined;
 
   const itemsHtml = items && items.length > 0
     ? `<div class="items">${items.map((it) => `<div class="item">${escapeHtml(it)}</div>`).join('')}</div>`
@@ -131,15 +179,28 @@ function buildSlideHtml(opts: {
     ? `<div class="subtitle">${escapeHtml(subtitle)}</div>`
     : '';
 
+  const layout = theme.elementLayout;
+  const isAbsolute = !!layout;
+
+  // Helper to get element style for absolute positioning mode
+  const elStyle = (id: OBSElementId): string => {
+    if (!layout) return '';
+    const el = layout[id] ?? DEFAULT_ELEMENT_POSITIONS[id];
+    if (!el) return '';
+    const visible = el.visible !== false;
+    const scale = el.scale ?? 1;
+    return `position:absolute; left:${el.x}%; top:${el.y}%; transform:translate(-50%,-50%) scale(${scale}); ${visible ? '' : 'display:none;'}`;
+  };
+
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+  ${fontImport}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     width: ${WIDTH}px; height: ${HEIGHT}px; overflow: hidden;
-    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-    background: linear-gradient(135deg, #0a1f14 0%, #14352a 30%, #1a4731 60%, #1e5438 100%);
-    color: white; display: flex; align-items: center; justify-content: center;
+    font-family: '${fontFamily}', 'Segoe UI', Arial, sans-serif;
+    background: ${theme.backgroundMode === 'solid' ? theme.colorPrimario : `linear-gradient(135deg, ${theme.colorPrimario} 0%, ${theme.colorSecundario} 100%)`};
+    color: ${theme.colorTexto};${isAbsolute ? '' : ' display: flex; align-items: center; justify-content: center;'}
     position: relative;
   }
   /* Decorative circles */
@@ -156,7 +217,7 @@ function buildSlideHtml(opts: {
   /* Top accent line */
   .accent {
     position: absolute; top: 0; left: 0; right: 0; height: 4px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    background: linear-gradient(90deg, transparent, ${theme.colorAccent}, transparent);
   }
   /* Bottom bar */
   .bottom-bar {
@@ -193,18 +254,42 @@ function buildSlideHtml(opts: {
     backdrop-filter: blur(4px);
     border: 1px solid rgba(255,255,255,0.1);
   }
+  .bg-image {
+    position: absolute; inset: 0; z-index: 0;
+    background-size: contain; background-position: center; background-repeat: no-repeat;
+  }
 </style></head><body>
+  ${bgUrl ? `<div class="bg-image" style="background-image: url('${bgUrl}')"></div>` : ''}
   <div class="accent"></div>
+  ${isAbsolute ? `
+  <div class="logo" style="${elStyle('logo')}">${logoHtml}</div>
+  <div class="title" style="${elStyle('title')}">${escapeHtml(title)}</div>
+  ${subtitle ? `<div class="subtitle" style="${elStyle('subtitle')}">${escapeHtml(subtitle)}</div>` : ''}
+  ${items && items.length > 0 ? `<div class="items" style="${elStyle('items')}">${items.map((it) => `<div class="item">${escapeHtml(it)}</div>`).join('')}</div>` : ''}
+  <div class="bottom-bar" style="bottom:auto; ${elStyle('footer')}">${escapeHtml(theme.footerTexto)}</div>
+  ` : `
   <div class="content">
-    <div class="logo">${ADVENTIST_LOGO_SVG}</div>
+    <div class="logo">${logoHtml}</div>
     <div class="title">${escapeHtml(title)}</div>
     ${subtitleHtml}
     ${itemsHtml}
   </div>
   <div class="bottom-bar">
-    Iglesia Adventista del Séptimo Día
+    ${escapeHtml(theme.footerTexto)}
   </div>
+  `}
 </body></html>`;
+}
+
+/** Public wrapper for preview rendering */
+export function buildSlideHtmlPublic(opts: {
+  title: string;
+  subtitle?: string;
+  items?: string[];
+  logoSize?: number;
+  theme?: OBSTheme;
+}): string {
+  return buildSlideHtml(opts);
 }
 
 // ── OBS JSON Builders ──────────────────────────────────────────────────
@@ -268,7 +353,7 @@ const YOUTUBE_CSS = `
   }
 `;
 
-function isBibleUrl(url: string): boolean {
+export function isBibleUrl(url: string): boolean {
   try {
     const u = new URL(url);
     return u.hostname.includes('biblegateway.com') || u.hostname.includes('bible.com');
@@ -277,7 +362,7 @@ function isBibleUrl(url: string): boolean {
   }
 }
 
-function parseBibleGatewayUrl(url: string): { search: string; version: string } | null {
+export function parseBibleGatewayUrl(url: string): { search: string; version: string } | null {
   try {
     const u = new URL(url);
     const search = u.searchParams.get('search') || '';
@@ -288,7 +373,7 @@ function parseBibleGatewayUrl(url: string): { search: string; version: string } 
 }
 
 /** Build backend URL that serves a styled Bible slide HTML page */
-function buildBibleSlideUrl(search: string, version: string): string {
+export function buildBibleSlideUrl(search: string, version: string): string {
   const base = import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL.replace(/\/api$/, '')
     : typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -378,6 +463,7 @@ function makeScene(name: string, sceneUuid: string, items: SceneItemDef[], idCou
 export function generateOBSSceneCollection(input: OBSExportInput) {
   itemIdCounter = 1;
 
+  const globalTheme = input.theme ?? DEFAULT_OBS_THEME;
   const sources: ReturnType<typeof sourceBase>[] = [];
   const sceneOrder: { name: string }[] = [];
 
@@ -394,6 +480,8 @@ export function generateOBSSceneCollection(input: OBSExportInput) {
     const sceneUuid = uuid();
     const items: SceneItemDef[] = [];
 
+    const theme = resolveSceneTheme(globalTheme, parte.parteId);
+
     // Determine extra content for the slide
     const esBienvenida = parte.nombre.toLowerCase().includes('bienvenida');
     const visitaNames = esBienvenida && input.visitas && input.visitas.length > 0
@@ -404,6 +492,7 @@ export function generateOBSSceneCollection(input: OBSExportInput) {
     const slideHtml = buildSlideHtml({
       title: parte.nombre,
       items: visitaNames,
+      theme,
     });
     const slideSrc = addSource(makeHtmlBrowserSource(`Slide ${sceneName}`, slideHtml));
     items.push({

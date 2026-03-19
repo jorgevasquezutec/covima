@@ -453,6 +453,7 @@ export const programasApi = {
     descripcion?: string;
     parteIds: number[];
     esDefault?: boolean;
+    obsTheme?: object;
   }): Promise<PlantillaPrograma> => {
     const response = await api.post<PlantillaPrograma>('/programas/plantillas', data);
     return response.data;
@@ -464,6 +465,7 @@ export const programasApi = {
     activo?: boolean;
     esDefault?: boolean;
     parteIds?: number[];
+    obsTheme?: object;
   }): Promise<PlantillaPrograma> => {
     const response = await api.put<PlantillaPrograma>(`/programas/plantillas/${id}`, data);
     return response.data;

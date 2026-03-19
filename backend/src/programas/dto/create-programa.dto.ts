@@ -7,6 +7,7 @@ import {
   IsInt,
   IsUrl,
   ArrayMinSize,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -157,6 +158,11 @@ export class CreateProgramaDto {
   @IsOptional()
   @IsInt()
   tipoAsistenciaId?: number;
+
+  @ApiPropertyOptional({ description: 'Tema OBS personalizado' })
+  @IsOptional()
+  @IsObject()
+  obsTheme?: object;
 }
 
 export class CreateProgramaBatchDto {

@@ -188,6 +188,7 @@ model Programa {
   textoGenerado  String?     @map("texto_generado")
   creadoPor      Int?        @map("creado_por")
   enviadoAt      DateTime?   @map("enviado_at")
+  obsTheme       Json?       @map("obs_theme")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
@@ -328,6 +329,7 @@ model PlantillaPrograma {
   activo      Boolean   @default(true)
   esDefault   Boolean   @default(false) @map("es_default") // Plantilla seleccionada por defecto
   orden       Int       @default(0) // Orden en el selector
+  obsTheme    Json?     @map("obs_theme")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
