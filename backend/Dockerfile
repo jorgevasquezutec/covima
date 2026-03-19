@@ -26,6 +26,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Instalar yt-dlp y ffmpeg para descarga de videos
+RUN apk add --no-cache ffmpeg python3 && \
+    wget -O /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp
+
 # Habilitar pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 

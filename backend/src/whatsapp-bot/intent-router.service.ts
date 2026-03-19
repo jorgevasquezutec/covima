@@ -699,5 +699,16 @@ export class IntentRouterService {
         { id: 'unk_asistencia', title: 'Marcar asistencia' },
       ],
     );
+
+    // Notificar al admin
+    try {
+      await this.whatsappService.sendMessageToPhone(
+        '51940393758',
+        'Admin',
+        `🤖 *Pregunta no entendida*\n\nDe: ${context.nombreWhatsapp} (${context.telefono})\nRevisa el inbox para responder.`,
+      );
+    } catch (error) {
+      this.logger.error('Error notificando admin sobre intent desconocido', error);
+    }
   }
 }
