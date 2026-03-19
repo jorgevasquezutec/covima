@@ -1171,7 +1171,7 @@ export default function ProgramaForm() {
             const mediaItem = await mediaApi.downloadYouTube(
                 link.url,
                 link.nombre || undefined,
-                link.id as any, // link.id from backend if editing
+                (link as any).id, // link.id from backend if editing
             );
             setPartesEnPrograma(prev =>
                 prev.map(p => {
@@ -1406,7 +1406,7 @@ export default function ProgramaForm() {
                             parteId: p.parteId,
                             nombre: l.nombre,
                             url: l.url,
-                            mediaItemId: l.mediaItemId,
+                            mediaItemId: l.mediaItemId ?? undefined,
                         }))
                 );
 
