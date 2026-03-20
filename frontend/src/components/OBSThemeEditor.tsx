@@ -461,8 +461,6 @@ export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] 
           label: link.nombre || 'Video',
           type: 'media',
           content: mediaFullUrl,
-          isIframeSrc: true,
-          allowInteraction: true,
         });
       } else if (!url) {
         // No URL and no media — skip
@@ -942,7 +940,15 @@ export default function OBSThemeEditor({
         {/* CENTER: Preview */}
         <div className="flex-1 flex flex-col min-w-0 bg-neutral-900">
           <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-            {currentSource?.type === 'foto' ? (
+            {currentSource?.type === 'media' ? (
+              <div className="flex items-center justify-center w-full h-full">
+                <video
+                  src={currentSource.content}
+                  controls
+                  className="max-w-full max-h-full rounded-lg"
+                />
+              </div>
+            ) : currentSource?.type === 'foto' ? (
               <div className="flex items-center justify-center w-full h-full">
                 <img
                   src={currentSource.content}
