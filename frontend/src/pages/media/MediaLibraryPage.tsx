@@ -16,6 +16,10 @@ import {
     Eye,
     CheckSquare,
     Download,
+    CheckCircle2,
+    AlertCircle,
+    Clock,
+    RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +43,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { mediaApi } from '@/services/api';
 import type { MediaItem, TagMedia } from '@/types';
 
@@ -63,7 +68,7 @@ export default function MediaLibraryPage() {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [page, setPage] = useState(1);
-    const [uploading, setUploading] = useState(false);
+    const [uploadPhase, setUploadPhase] = useState<'naming' | 'uploading' | null>(null);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editName, setEditName] = useState('');
     const [editTag, setEditTag] = useState<TagMedia>('OTRO');
@@ -171,6 +176,17 @@ export default function MediaLibraryPage() {
 
     const [uploadTags, setUploadTags] = useState<TagMedia[]>([]);
 
+    type FileUploadStatus = 'pending' | 'uploading' | 'done' | 'error';
+    interface FileUploadState {
+        file: File;
+        name: string;
+        tag: TagMedia;
+        status: FileUploadStatus;
+        progress: number;
+        error?: string;
+    }
+    const [uploadStates, setUploadStates] = useState<FileUploadState[]>([]);
+
     const detectTagFromFile = (file: File, name: string): TagMedia => {
         const nameLower = name.toLowerCase();
         if (nameLower.includes('himno') || nameLower.includes('adventista') || nameLower.includes('hymn')) return 'HIMNO';
@@ -187,26 +203,100 @@ export default function MediaLibraryPage() {
         setUploadTags(fileArr.map((f, i) => detectTagFromFile(f, names[i])));
     };
 
-    const handleConfirmUpload = async () => {
-        setUploading(true);
-        let uploaded = 0;
-        for (let i = 0; i < pendingFiles.length; i++) {
-            try {
-                await mediaApi.upload(pendingFiles[i], uploadNames[i]?.trim() || undefined, uploadTags[i] || undefined);
-                uploaded++;
-            } catch {
-                toast.error(`Error al subir ${pendingFiles[i].name}`);
+    const updateUploadState = useCallback((index: number, update: Partial<FileUploadState>) => {
+        setUploadStates(prev => prev.map((s, i) => i === index ? { ...s, ...update } : s));
+    }, []);
+
+    const uploadFilesParallel = useCallback(async (states: FileUploadState[]) => {
+        const pending = states
+            .map((s, i) => ({ ...s, globalIdx: i }))
+            .filter(s => s.status === 'pending' || s.status === 'error');
+        const concurrency = 3;
+        let idx = 0;
+
+        const uploadOne = async () => {
+            while (idx < pending.length) {
+                const current = idx++;
+                const item = pending[current];
+                updateUploadState(item.globalIdx, { status: 'uploading', progress: 0 });
+                try {
+                    await mediaApi.upload(item.file, item.name, item.tag, (progress) => {
+                        updateUploadState(item.globalIdx, { progress });
+                    });
+                    updateUploadState(item.globalIdx, { status: 'done', progress: 100 });
+                } catch (e: any) {
+                    updateUploadState(item.globalIdx, {
+                        status: 'error',
+                        progress: 0,
+                        error: e?.response?.data?.message || 'Error al subir',
+                    });
+                }
             }
+        };
+
+        await Promise.all(Array.from({ length: concurrency }, () => uploadOne()));
+    }, [updateUploadState]);
+
+    const handleConfirmUpload = async () => {
+        const initialStates: FileUploadState[] = pendingFiles.map((file, i) => ({
+            file,
+            name: uploadNames[i]?.trim() || file.name.replace(/\.[^/.]+$/, ''),
+            tag: uploadTags[i] || 'OTRO',
+            status: 'pending' as const,
+            progress: 0,
+        }));
+        setUploadStates(initialStates);
+        setUploadPhase('uploading');
+        await uploadFilesParallel(initialStates);
+    };
+
+    const handleRetryOne = useCallback(async (index: number) => {
+        setUploadStates(prev => prev.map((s, i) => i === index ? { ...s, status: 'uploading' as const, progress: 0, error: undefined } : s));
+        const item = uploadStates[index];
+        try {
+            await mediaApi.upload(item.file, item.name, item.tag, (progress) => {
+                updateUploadState(index, { progress });
+            });
+            updateUploadState(index, { status: 'done', progress: 100 });
+        } catch (e: any) {
+            updateUploadState(index, {
+                status: 'error',
+                progress: 0,
+                error: e?.response?.data?.message || 'Error al subir',
+            });
         }
-        setUploading(false);
+    }, [uploadStates, updateUploadState]);
+
+    const handleRetryAllFailed = useCallback(async () => {
+        const resetStates = uploadStates.map(s =>
+            s.status === 'error' ? { ...s, status: 'pending' as const, progress: 0, error: undefined } : s
+        );
+        setUploadStates(resetStates);
+        await uploadFilesParallel(resetStates);
+    }, [uploadStates, uploadFilesParallel]);
+
+    const handleCloseUploadDialog = useCallback(() => {
+        const hasUploaded = uploadStates.some(s => s.status === 'done');
         setPendingFiles([]);
         setUploadNames([]);
         setUploadTags([]);
-        if (uploaded > 0) {
+        setUploadStates([]);
+        setUploadPhase(null);
+        if (hasUploaded) {
             queryClient.invalidateQueries({ queryKey: ['media-library'] });
-            toast.success(`${uploaded} archivo(s) subido(s)`);
+            const doneCount = uploadStates.filter(s => s.status === 'done').length;
+            toast.success(`${doneCount} archivo(s) subido(s)`);
         }
+    }, [uploadStates, queryClient]);
+
+    const uploadSummary = {
+        total: uploadStates.length,
+        done: uploadStates.filter(s => s.status === 'done').length,
+        uploading: uploadStates.filter(s => s.status === 'uploading').length,
+        error: uploadStates.filter(s => s.status === 'error').length,
+        pending: uploadStates.filter(s => s.status === 'pending').length,
     };
+    const isUploadActive = uploadSummary.uploading > 0 || uploadSummary.pending > 0;
 
     const startEdit = (item: MediaItem) => {
         setEditingId(item.id);
@@ -272,9 +362,9 @@ export default function MediaLibraryPage() {
                             </Button>
                             <Button
                                 onClick={() => fileInputRef.current?.click()}
-                                disabled={uploading}
+                                disabled={uploadPhase === 'uploading'}
                             >
-                                {uploading ? (
+                                {uploadPhase === 'uploading' ? (
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                 ) : (
                                     <Upload className="h-4 w-4 mr-2" />
@@ -407,7 +497,7 @@ export default function MediaLibraryPage() {
                                         onClick={async (e) => {
                                             e.stopPropagation();
                                             try {
-                                                const res = await fetch(`${getBaseUrl()}${item.url}`);
+                                                const res = await fetch(item.url);
                                                 const blob = await res.blob();
                                                 const a = document.createElement('a');
                                                 a.href = URL.createObjectURL(blob);
@@ -558,86 +648,187 @@ export default function MediaLibraryPage() {
                 }}
             />
 
-            {/* Upload naming dialog */}
-            <Dialog open={pendingFiles.length > 0} onOpenChange={(open) => { if (!open) { setPendingFiles([]); setUploadNames([]); setUploadTags([]); } }}>
-                <DialogContent className="bg-white sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-gray-900">
-                            {pendingFiles.length === 1 ? 'Nombrar archivo' : `Nombrar ${pendingFiles.length} archivos`}
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-500">
-                            Asigna un nombre a cada archivo antes de subirlo.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 max-h-80 overflow-y-auto">
-                        {pendingFiles.map((file, i) => (
-                            <div key={i} className="flex items-center gap-3">
-                                {file.type.startsWith('video/') ? (
-                                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center shrink-0">
-                                        <Film className="h-5 w-5 text-gray-400" />
+            {/* Upload dialog — Phase 1: Naming / Phase 2: Uploading */}
+            <Dialog
+                open={pendingFiles.length > 0 || uploadPhase === 'uploading'}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        if (isUploadActive) return; // don't close while uploading
+                        handleCloseUploadDialog();
+                    }
+                }}
+            >
+                <DialogContent className="bg-white sm:max-w-lg">
+                    {uploadPhase === 'uploading' ? (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-gray-900">
+                                    Subiendo {uploadSummary.total} archivo{uploadSummary.total !== 1 ? 's' : ''}
+                                </DialogTitle>
+                                <DialogDescription className="text-gray-500">
+                                    {uploadSummary.done} completado{uploadSummary.done !== 1 ? 's' : ''}
+                                    {uploadSummary.uploading > 0 && ` · ${uploadSummary.uploading} en progreso`}
+                                    {uploadSummary.pending > 0 && ` · ${uploadSummary.pending} en espera`}
+                                    {uploadSummary.error > 0 && ` · ${uploadSummary.error} con error`}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 max-h-80 overflow-y-auto">
+                                {uploadStates.map((state, i) => (
+                                    <div key={i} className="flex items-center gap-3 py-1.5">
+                                        {state.file.type.startsWith('video/') ? (
+                                            <div className="w-9 h-9 bg-gray-100 rounded flex items-center justify-center shrink-0">
+                                                <Film className="h-4 w-4 text-gray-400" />
+                                            </div>
+                                        ) : (
+                                            <img
+                                                src={URL.createObjectURL(state.file)}
+                                                alt=""
+                                                className="w-9 h-9 object-cover rounded border border-gray-200 shrink-0"
+                                            />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-gray-900 truncate">{state.name}</p>
+                                            {state.status === 'pending' && (
+                                                <div className="flex items-center gap-1.5 mt-1">
+                                                    <Clock className="h-3 w-3 text-gray-400" />
+                                                    <span className="text-xs text-gray-400">En espera...</span>
+                                                </div>
+                                            )}
+                                            {state.status === 'uploading' && (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <Progress value={state.progress} className="h-2 flex-1" />
+                                                    <span className="text-xs text-blue-600 font-medium w-8 text-right">{state.progress}%</span>
+                                                </div>
+                                            )}
+                                            {state.status === 'done' && (
+                                                <div className="flex items-center gap-1.5 mt-1">
+                                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                                    <span className="text-xs text-green-600">Completado</span>
+                                                </div>
+                                            )}
+                                            {state.status === 'error' && (
+                                                <div className="flex items-center gap-1.5 mt-1">
+                                                    <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                                                    <span className="text-xs text-red-600">Error</span>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-5 px-1.5 text-xs text-red-600 hover:text-red-700 ml-auto"
+                                                        onClick={() => handleRetryOne(i)}
+                                                    >
+                                                        <RotateCcw className="h-3 w-3 mr-1" />
+                                                        Reintentar
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                ) : (
-                                    <img
-                                        src={URL.createObjectURL(file)}
-                                        alt=""
-                                        className="w-12 h-12 object-cover rounded border border-gray-200 shrink-0"
-                                    />
-                                )}
-                                <div className="flex-1 space-y-1">
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={uploadNames[i] || ''}
-                                            onChange={(e) => {
-                                                const newNames = [...uploadNames];
-                                                newNames[i] = e.target.value;
-                                                setUploadNames(newNames);
-                                            }}
-                                            placeholder="Nombre del archivo"
-                                            className="h-8 text-sm bg-white border-gray-300 flex-1"
-                                            autoFocus={i === 0}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && pendingFiles.length === 1) handleConfirmUpload();
-                                            }}
-                                        />
-                                        <select
-                                            value={uploadTags[i] || 'OTRO'}
-                                            onChange={(e) => {
-                                                const newTags = [...uploadTags];
-                                                newTags[i] = e.target.value as TagMedia;
-                                                setUploadTags(newTags);
-                                            }}
-                                            className="h-8 text-xs rounded border border-gray-300 bg-white px-2 shrink-0"
-                                        >
-                                            <option value="HIMNO">Himno</option>
-                                            <option value="VIDEO">Video</option>
-                                            <option value="IMAGEN">Imagen</option>
-                                            <option value="ANUNCIO">Anuncio</option>
-                                            <option value="OTRO">Otro</option>
-                                        </select>
-                                    </div>
-                                    <p className="text-[10px] text-gray-400">{file.name}</p>
-                                </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => { setPendingFiles([]); setUploadNames([]); setUploadTags([]); }}
-                            disabled={uploading}
-                            className="border-gray-300"
-                        >
-                            Cancelar
-                        </Button>
-                        <Button onClick={handleConfirmUpload} disabled={uploading}>
-                            {uploading ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <Upload className="h-4 w-4 mr-2" />
-                            )}
-                            Subir {pendingFiles.length > 1 ? `(${pendingFiles.length})` : ''}
-                        </Button>
-                    </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                {uploadSummary.error > 1 && !isUploadActive && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleRetryAllFailed}
+                                        className="border-gray-300"
+                                    >
+                                        <RotateCcw className="h-4 w-4 mr-2" />
+                                        Reintentar fallidos ({uploadSummary.error})
+                                    </Button>
+                                )}
+                                <Button
+                                    variant={isUploadActive ? 'outline' : 'default'}
+                                    onClick={handleCloseUploadDialog}
+                                    disabled={isUploadActive}
+                                    className={isUploadActive ? 'border-gray-300' : ''}
+                                >
+                                    {isUploadActive ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Subiendo...
+                                        </>
+                                    ) : (
+                                        'Cerrar'
+                                    )}
+                                </Button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-gray-900">
+                                    {pendingFiles.length === 1 ? 'Nombrar archivo' : `Nombrar ${pendingFiles.length} archivos`}
+                                </DialogTitle>
+                                <DialogDescription className="text-gray-500">
+                                    Asigna un nombre a cada archivo antes de subirlo.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3 max-h-80 overflow-y-auto">
+                                {pendingFiles.map((file, i) => (
+                                    <div key={i} className="flex items-center gap-3">
+                                        {file.type.startsWith('video/') ? (
+                                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center shrink-0">
+                                                <Film className="h-5 w-5 text-gray-400" />
+                                            </div>
+                                        ) : (
+                                            <img
+                                                src={URL.createObjectURL(file)}
+                                                alt=""
+                                                className="w-12 h-12 object-cover rounded border border-gray-200 shrink-0"
+                                            />
+                                        )}
+                                        <div className="flex-1 space-y-1">
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    value={uploadNames[i] || ''}
+                                                    onChange={(e) => {
+                                                        const newNames = [...uploadNames];
+                                                        newNames[i] = e.target.value;
+                                                        setUploadNames(newNames);
+                                                    }}
+                                                    placeholder="Nombre del archivo"
+                                                    className="h-8 text-sm bg-white border-gray-300 flex-1"
+                                                    autoFocus={i === 0}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && pendingFiles.length === 1) handleConfirmUpload();
+                                                    }}
+                                                />
+                                                <select
+                                                    value={uploadTags[i] || 'OTRO'}
+                                                    onChange={(e) => {
+                                                        const newTags = [...uploadTags];
+                                                        newTags[i] = e.target.value as TagMedia;
+                                                        setUploadTags(newTags);
+                                                    }}
+                                                    className="h-8 text-xs rounded border border-gray-300 bg-white px-2 shrink-0"
+                                                >
+                                                    <option value="HIMNO">Himno</option>
+                                                    <option value="VIDEO">Video</option>
+                                                    <option value="IMAGEN">Imagen</option>
+                                                    <option value="ANUNCIO">Anuncio</option>
+                                                    <option value="OTRO">Otro</option>
+                                                </select>
+                                            </div>
+                                            <p className="text-[10px] text-gray-400">{file.name}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => { setPendingFiles([]); setUploadNames([]); setUploadTags([]); }}
+                                    className="border-gray-300"
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button onClick={handleConfirmUpload}>
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Subir {pendingFiles.length > 1 ? `(${pendingFiles.length})` : ''}
+                                </Button>
+                            </div>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
 
@@ -727,7 +918,7 @@ export default function MediaLibraryPage() {
                                     size="sm"
                                     onClick={async () => {
                                         try {
-                                            const res = await fetch(`${getBaseUrl()}${previewItem.url}`);
+                                            const res = await fetch(previewItem.url);
                                             const blob = await res.blob();
                                             const a = document.createElement('a');
                                             a.href = URL.createObjectURL(blob);

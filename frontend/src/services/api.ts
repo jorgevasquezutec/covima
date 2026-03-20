@@ -1490,13 +1490,21 @@ export const mediaApi = {
     return response.data;
   },
 
-  upload: async (file: File, nombre?: string, tag?: TagMedia): Promise<MediaItem> => {
+  upload: async (
+    file: File,
+    nombre?: string,
+    tag?: TagMedia,
+    onUploadProgress?: (progress: number) => void,
+  ): Promise<MediaItem> => {
     const formData = new FormData();
     formData.append('file', file);
     if (nombre) formData.append('nombre', nombre);
     if (tag) formData.append('tag', tag);
     const response = await api.post<MediaItem>('/media/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onUploadProgress
+        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded * 100) / e.total) : 0)
+        : undefined,
     });
     return response.data;
   },

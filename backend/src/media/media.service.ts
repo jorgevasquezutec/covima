@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TagMedia } from '@prisma/client';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { stat, access } from 'fs/promises';
+import { stat, access, unlink } from 'fs/promises';
 import { join } from 'path';
 
 const execFileAsync = promisify(execFile);
@@ -216,6 +216,16 @@ export class MediaService {
     return results;
   }
 
+  private async deleteFileFromDisk(url: string) {
+    try {
+      // url es algo como /uploads/media/filename.ext
+      const filePath = join(process.cwd(), url.replace(/^\//, ''));
+      await unlink(filePath);
+    } catch (err) {
+      this.logger.warn(`No se pudo eliminar archivo del disco: ${url}`, err);
+    }
+  }
+
   async delete(id: number) {
     const item = await this.prisma.mediaItem.findUnique({ where: { id } });
     if (!item) {
@@ -232,6 +242,9 @@ export class MediaService {
       this.prisma.mediaItem.delete({ where: { id } }),
     ]);
 
+    // Eliminar archivo del disco
+    await this.deleteFileFromDisk(item.url);
+
     return { deleted: true };
   }
 
@@ -240,7 +253,7 @@ export class MediaService {
 
     const items = await this.prisma.mediaItem.findMany({
       where: { id: { in: ids } },
-      select: { id: true },
+      select: { id: true, url: true },
     });
     const foundIds = items.map((i) => i.id);
 
@@ -258,6 +271,9 @@ export class MediaService {
         where: { id: { in: foundIds } },
       }),
     ]);
+
+    // Eliminar archivos del disco
+    await Promise.all(items.map((i) => this.deleteFileFromDisk(i.url)));
 
     return { deleted: foundIds.length };
   }
