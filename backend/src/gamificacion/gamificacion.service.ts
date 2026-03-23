@@ -186,7 +186,12 @@ export class GamificacionService {
         descripcion: h.descripcion,
         fecha: h.fecha,
         createdAt: h.createdAt,
-        categoria: h.configPuntaje?.categoria || 'OTRO',
+        categoria: h.configPuntaje?.categoria
+          || (h.referenciaTipo === 'asistencia' ? 'ASISTENCIA'
+            : h.referenciaTipo === 'participacion' ? 'PARTICIPACION'
+            : h.referenciaTipo === 'evento' ? 'EVENTO_ESPECIAL'
+            : h.referenciaTipo === 'insignia' ? 'LOGRO'
+            : 'OTRO'),
         tipoPuntaje: h.configPuntaje?.nombre || 'Manual',
         periodo: h.periodoRanking
           ? { id: h.periodoRanking.id, nombre: h.periodoRanking.nombre }
@@ -2565,5 +2570,104 @@ export class GamificacionService {
       totalEnNivel: usuariosDelNivel.length,
       puntos: misPuntos,
     };
+  }
+
+  async getPerfilParticipante(usuarioId: number, historialPage = 1, historialPeriodoId?: number) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { id: true, nombre: true, fotoUrl: true, createdAt: true, telefono: true, roles: { select: { rol: { select: { nombre: true } } } } },
+    });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado');
+    const usuarioConRoles = { ...usuario, roles: usuario.roles.map(r => r.rol.nombre) };
+
+    const [progreso, historial, periodos, posiciones, posicionNivel, insignias, puntosSemanales, puntosPorCategoria] =
+      await Promise.all([
+        this.getMiProgreso(usuarioId),
+        this.getMiHistorial(usuarioId, historialPeriodoId, historialPage, 15),
+        this.getMisPeriodos(usuarioId),
+        this.getMisPosicionesRanking(usuarioId),
+        this.getMiPosicionEnNivel(usuarioId),
+        this.getMisInsignias(usuarioId),
+        this.getPuntosSemanales(usuarioId),
+        this.getPuntosPorCategoria(usuarioId),
+      ]);
+
+    return { usuario: usuarioConRoles, progreso, historial, periodos, posiciones, posicionNivel, insignias, puntosSemanales, puntosPorCategoria };
+  }
+
+  async getPuntosSemanales(usuarioId: number) {
+    const perfil = await this.prisma.usuarioGamificacion.findUnique({ where: { usuarioId } });
+    if (!perfil) return [];
+
+    const hace6Meses = new Date();
+    hace6Meses.setMonth(hace6Meses.getMonth() - 6);
+
+    const puntos = await this.prisma.historialPuntos.findMany({
+      where: { usuarioGamId: perfil.id, createdAt: { gte: hace6Meses } },
+      select: { puntos: true, xp: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const porSemana = new Map<string, { puntos: number; xp: number }>();
+    for (const p of puntos) {
+      const d = new Date(p.createdAt);
+      const startOfWeek = new Date(d);
+      startOfWeek.setDate(d.getDate() - d.getDay());
+      const key = startOfWeek.toISOString().split('T')[0];
+      const current = porSemana.get(key) || { puntos: 0, xp: 0 };
+      current.puntos += p.puntos;
+      current.xp += p.xp;
+      porSemana.set(key, current);
+    }
+
+    let acumPuntos = 0, acumXp = 0;
+    return Array.from(porSemana.entries()).map(([semana, data]) => {
+      acumPuntos += data.puntos;
+      acumXp += data.xp;
+      return { semana, puntos: data.puntos, xp: data.xp, acumPuntos, acumXp };
+    });
+  }
+
+  async getPuntosPorCategoria(usuarioId: number) {
+    const perfil = await this.prisma.usuarioGamificacion.findUnique({ where: { usuarioId } });
+    if (!perfil) return [];
+
+    const historial = await this.prisma.historialPuntos.findMany({
+      where: { usuarioGamId: perfil.id },
+      select: {
+        puntos: true,
+        xp: true,
+        referenciaTipo: true,
+        configPuntaje: { select: { categoria: true } },
+      },
+    });
+
+    // Map referenciaTipo to category when configPuntaje is missing
+    const REF_TO_CAT: Record<string, string> = {
+      asistencia: 'ASISTENCIA',
+      participacion: 'PARTICIPACION',
+      evento: 'EVENTO_ESPECIAL',
+      insignia: 'LOGRO',
+      penalizacion: 'BONUS',
+    };
+
+    const porCategoria = new Map<string, { puntos: number; xp: number; cantidad: number }>();
+    for (const h of historial) {
+      const cat = h.configPuntaje?.categoria
+        || (h.referenciaTipo ? REF_TO_CAT[h.referenciaTipo] : null)
+        || 'OTRO';
+      const current = porCategoria.get(cat) || { puntos: 0, xp: 0, cantidad: 0 };
+      current.puntos += h.puntos;
+      current.xp += h.xp;
+      current.cantidad++;
+      porCategoria.set(cat, current);
+    }
+
+    return Array.from(porCategoria.entries()).map(([categoria, data]) => ({
+      categoria,
+      puntos: data.puntos,
+      xp: data.xp,
+      cantidad: data.cantidad,
+    }));
   }
 }

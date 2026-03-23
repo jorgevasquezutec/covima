@@ -67,6 +67,22 @@ export class GamificacionController {
     return this.gamificacionService.compararParticipantes(ids);
   }
 
+  // Perfil completo de un participante (admin/lider)
+  @Get('admin/perfil-participante/:usuarioId')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'lider')
+  async getPerfilParticipante(
+    @Param('usuarioId', ParseIntPipe) usuarioId: number,
+    @Query('historialPage') historialPage?: string,
+    @Query('historialPeriodoId') historialPeriodoId?: string,
+  ) {
+    return this.gamificacionService.getPerfilParticipante(
+      usuarioId,
+      historialPage ? parseInt(historialPage) : 1,
+      historialPeriodoId ? parseInt(historialPeriodoId) : undefined,
+    );
+  }
+
   // Mi historial completo de puntos (con paginación y filtro por período)
   @Get('mi-historial')
   async getMiHistorial(

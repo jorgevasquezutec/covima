@@ -4,9 +4,10 @@ import type { RankingUsuario } from '@/types';
 
 interface RankingTop3Props {
   usuarios: RankingUsuario[];
+  onUsuarioClick?: (usuarioId: number) => void;
 }
 
-export function RankingTop3({ usuarios }: RankingTop3Props) {
+export function RankingTop3({ usuarios, onUsuarioClick }: RankingTop3Props) {
   const top3 = usuarios.slice(0, 3);
 
   // Reordenar para mostrar: 2do - 1ro - 3ro
@@ -43,7 +44,7 @@ export function RankingTop3({ usuarios }: RankingTop3Props) {
   return (
     <div className="flex justify-center items-end gap-2 sm:gap-4 py-4 sm:py-6">
       {ordenados.map((usuario) => (
-        <div key={usuario.usuarioId} className="flex flex-col items-center flex-1 max-w-[110px] sm:max-w-[140px]">
+        <div key={usuario.usuarioId} className={`flex flex-col items-center flex-1 max-w-[110px] sm:max-w-[140px] ${onUsuarioClick ? 'cursor-pointer' : ''}`} onClick={() => onUsuarioClick?.(usuario.usuarioId)}>
           <div className="relative mb-1.5 sm:mb-2">
             <Avatar className={usuario.posicion === 1 ? 'w-14 h-14 sm:w-20 sm:h-20 ring-2 sm:ring-4 ring-yellow-400' : 'w-11 h-11 sm:w-16 sm:h-16'}>
               <AvatarImage src={usuario.fotoUrl} alt={usuario.nombre} />

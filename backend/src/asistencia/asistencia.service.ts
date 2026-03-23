@@ -2024,6 +2024,30 @@ export class AsistenciaService {
     };
   }
 
+  async getAsistenciaHeatmap(usuarioId: number) {
+    const hace6Meses = new Date();
+    hace6Meses.setMonth(hace6Meses.getMonth() - 6);
+
+    const asistencias = await this.prisma.asistencia.findMany({
+      where: { usuarioId, estado: 'confirmado', fecha: { gte: hace6Meses } },
+      select: { fecha: true, semanaInicio: true, tipo: { select: { nombre: true, label: true, color: true } } },
+      orderBy: { fecha: 'asc' },
+    });
+
+    const porFecha = new Map<string, { count: number; tipos: string[] }>();
+    for (const a of asistencias) {
+      const key = new Date(a.fecha).toISOString().split('T')[0];
+      const current = porFecha.get(key) || { count: 0, tipos: [] };
+      current.count++;
+      if (a.tipo) current.tipos.push(a.tipo.label);
+      porFecha.set(key, current);
+    }
+
+    return Array.from(porFecha.entries()).map(([fecha, data]) => ({
+      fecha, count: data.count, tipos: data.tipos,
+    }));
+  }
+
   // ==================== ROOM STATS ====================
 
   async getAsistenciasRoom(qrCode: string) {

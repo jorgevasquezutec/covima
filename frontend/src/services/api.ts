@@ -726,6 +726,7 @@ import type {
   EstadisticasSemana,
   EstadisticasMesPorSemana,
   MiAsistencia,
+  AsistenciaUsuarioResponse,
   RegistroMasivoResponse,
 } from '@/types';
 
@@ -887,6 +888,12 @@ export const asistenciaApi = {
     });
     return response.data;
   },
+
+  // [Admin] Asistencia y heatmap de un usuario
+  getAsistenciaUsuario: async (usuarioId: number): Promise<AsistenciaUsuarioResponse> => {
+    const response = await api.get<AsistenciaUsuarioResponse>(`/asistencia/admin/asistencia-usuario/${usuarioId}`);
+    return response.data;
+  },
 };
 
 // ==================== INBOX API ====================
@@ -928,6 +935,7 @@ import type {
   ActualizarNivelRequest,
   HistorialAdminResponse,
   ComparacionResponse,
+  PerfilParticipante,
 } from '@/types';
 
 export const gamificacionApi = {
@@ -1286,6 +1294,12 @@ export const gamificacionApi = {
     const response = await api.get<ComparacionResponse>('/gamificacion/comparar', {
       params: { usuarioIds: usuarioIds.join(',') },
     });
+    return response.data;
+  },
+
+  // [Admin] Perfil completo de un participante
+  getPerfilParticipante: async (usuarioId: number, params?: { historialPage?: number; historialPeriodoId?: number }): Promise<PerfilParticipante> => {
+    const response = await api.get<PerfilParticipante>(`/gamificacion/admin/perfil-participante/${usuarioId}`, { params });
     return response.data;
   },
 };

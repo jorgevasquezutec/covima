@@ -7,9 +7,10 @@ interface RankingTableProps {
   usuarios: RankingUsuario[];
   usuarioActualId?: number;
   startFrom?: number;
+  onUsuarioClick?: (usuarioId: number) => void;
 }
 
-export function RankingTable({ usuarios, usuarioActualId, startFrom = 4 }: RankingTableProps) {
+export function RankingTable({ usuarios, usuarioActualId, startFrom = 4, onUsuarioClick }: RankingTableProps) {
   const lista = startFrom > 1 ? usuarios.slice(startFrom - 1) : usuarios;
 
   if (lista.length === 0) {
@@ -27,7 +28,8 @@ export function RankingTable({ usuarios, usuarioActualId, startFrom = 4 }: Ranki
             usuario.usuarioId === usuarioActualId
               ? 'bg-primary/10 ring-1 ring-primary/30'
               : 'bg-muted/50'
-          }`}
+          } ${onUsuarioClick ? 'cursor-pointer hover:bg-muted/80 transition-colors' : ''}`}
+          onClick={() => onUsuarioClick?.(usuario.usuarioId)}
         >
           {/* Posición */}
           <div className="w-6 sm:w-8 text-center font-bold text-sm sm:text-base text-muted-foreground shrink-0">

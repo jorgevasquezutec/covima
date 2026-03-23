@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,7 @@ type TabType = 'grupos' | 'niveles';
 
 export default function RankingPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [periodoId, setPeriodoId] = useState<number | null>(null);
   const [grupoId, setGrupoId] = useState<number | null>(null);
@@ -28,6 +29,7 @@ export default function RankingPage() {
 
   // Verificar si es admin o líder
   const isAdminOrLider = user?.roles?.some(r => ['admin', 'lider'].includes(r)) || false;
+  const handleUsuarioClick = isAdminOrLider ? (usuarioId: number) => navigate(`/perfil-participante/${usuarioId}`) : undefined;
 
   // Obtener mi progreso (para saber el nivel del participante)
   const { data: miProgreso, isLoading: loadingMiProgreso } = useQuery({
@@ -425,7 +427,7 @@ export default function RankingPage() {
           {page === 1 && (
             <Card>
               <CardContent className="pt-4 sm:pt-6 pb-4 px-3 sm:px-6">
-                <RankingTop3 usuarios={currentRanking} />
+                <RankingTop3 usuarios={currentRanking} onUsuarioClick={handleUsuarioClick} />
               </CardContent>
             </Card>
           )}
@@ -439,6 +441,7 @@ export default function RankingPage() {
                 usuarios={page === 1 ? currentRanking.slice(3) : currentRanking}
                 usuarioActualId={user?.id}
                 startFrom={1}
+                onUsuarioClick={handleUsuarioClick}
               />
             </CardContent>
           </Card>

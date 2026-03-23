@@ -1244,3 +1244,42 @@ export interface ComparacionResponse {
   periodo: { id: number; nombre: string } | null;
 }
 
+// ==================== PERFIL PARTICIPANTE (admin) ====================
+
+export interface PuntosSemana {
+  semana: string;
+  puntos: number;
+  xp: number;
+  acumPuntos: number;
+  acumXp: number;
+}
+
+export interface AsistenciaHeatmapItem {
+  fecha: string;
+  count: number;
+  tipos: string[];
+}
+
+export interface AsistenciaUsuarioResponse extends MiAsistencia {
+  heatmap: AsistenciaHeatmapItem[];
+}
+
+export interface PerfilParticipante {
+  usuario: {
+    id: number;
+    nombre: string;
+    fotoUrl?: string;
+    createdAt: string;
+    telefono: string;
+    roles: string[];
+  };
+  progreso: MiProgreso;
+  historial: HistorialPuntosResponse;
+  periodos: ResumenPeriodo[];
+  posiciones: PosicionGrupo[];
+  posicionNivel: PosicionEnNivel | null;
+  insignias: Insignia[];
+  puntosSemanales: PuntosSemana[];
+  puntosPorCategoria: { categoria: string; puntos: number; xp: number; cantidad: number }[];
+}
+

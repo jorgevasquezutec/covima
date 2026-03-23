@@ -322,6 +322,17 @@ export class AsistenciaController {
     return this.asistenciaService.getEstadisticasMesPorSemana(mes);
   }
 
+  @Get('admin/asistencia-usuario/:usuarioId')
+  @Roles('admin', 'lider')
+  @ApiOperation({ summary: 'Obtener asistencia y heatmap de un usuario (admin)' })
+  async getAsistenciaUsuario(@Param('usuarioId', ParseIntPipe) usuarioId: number) {
+    const [recientes, heatmap] = await Promise.all([
+      this.asistenciaService.getMiAsistencia(usuarioId),
+      this.asistenciaService.getAsistenciaHeatmap(usuarioId),
+    ]);
+    return { ...recientes, heatmap };
+  }
+
   @Get('mi-asistencia')
   @ApiOperation({ summary: 'Ver mi historial de asistencia' })
   async getMiAsistencia(@Request() req: any) {
