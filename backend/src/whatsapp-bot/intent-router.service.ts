@@ -515,7 +515,7 @@ export class IntentRouterService {
         break;
 
       default:
-        await this.sendUnknownIntent(context);
+        await this.sendUnknownIntent(context, message);
     }
   }
 
@@ -690,25 +690,25 @@ export class IntentRouterService {
   /**
    * Intención desconocida
    */
-  private async sendUnknownIntent(context: ConversationContext): Promise<void> {
-    await this.whatsappService.sendInteractiveButtons(
-      context.conversationId,
-      '🤔 No entendí tu mensaje.',
+  private async sendUnknownIntent(
+    context: ConversationContext,
+    message: string,
+  ): Promise<void> {
+    // No responder al usuario, solo notificar al admin vía template
+    const result = await this.whatsappService.sendTemplateToPhone(
+      '51940393758',
+      'alerta_mensaje_no_entendido',
+      'es_PE',
       [
-        { id: 'unk_ayuda', title: 'Ver ayuda' },
-        { id: 'unk_asistencia', title: 'Marcar asistencia' },
+        context.nombreWhatsapp || context.telefono, // {{1}} nombre
+        message.slice(0, 100), // {{2}} mensaje (truncado)
       ],
     );
 
-    // Notificar al admin
-    try {
-      await this.whatsappService.sendMessageToPhone(
-        '51940393758',
-        'Admin',
-        `🤖 *Pregunta no entendida*\n\nDe: ${context.nombreWhatsapp} (${context.telefono})\nRevisa el inbox para responder.`,
+    if (!result.success) {
+      this.logger.error(
+        `Error notificando admin sobre intent desconocido: ${result.error}`,
       );
-    } catch (error) {
-      this.logger.error('Error notificando admin sobre intent desconocido', error);
     }
   }
 }
