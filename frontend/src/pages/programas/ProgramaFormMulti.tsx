@@ -14,7 +14,6 @@ import {
     arrayMove,
     SortableContext,
     sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
     horizontalListSortingStrategy,
     useSortable,
 } from '@dnd-kit/sortable';
@@ -31,9 +30,7 @@ import {
     FileText,
     Calendar,
     Save,
-    ArrowLeftRight,
     X,
-    Users,
     QrCode,
     ChevronsUpDown,
     Search,
@@ -45,19 +42,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     Command,
     CommandEmpty,
@@ -72,12 +56,10 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import UserAutocomplete from '@/components/UserAutocomplete';
 import { programasApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
-import { SortableParteItem } from './ProgramaForm';
-import { genKey } from './ProgramaForm';
-import type { ParteEnPrograma, PersonaReemplazo } from './ProgramaForm';
+import type { ParteEnPrograma } from './ProgramaForm';
+import ProgramPartes from './ProgramPartes';
 import type { Parte, UsuarioSimple, PlantillaPrograma, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, QRAsistencia, TipoAsistencia } from '@/types';
 import { asistenciaApi, tiposAsistenciaApi } from '@/services/api';
 
@@ -140,12 +122,6 @@ export default function ProgramaFormMulti() {
 
     // Step 2 state
     const [programs, setPrograms] = useState<WizardProgramData[]>([]);
-
-    // Replace persona dialog
-    const [replaceState, setReplaceState] = useState<{
-        programKey: string;
-        persona: PersonaReemplazo;
-    } | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -281,291 +257,6 @@ export default function ProgramaFormMulti() {
                 return arrayMove(prev, oldIndex, newIndex);
             });
         }
-    };
-
-    const handleDragEnd = (programKey: string) => (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
-            updateProgram(programKey, (prog) => {
-                const oldIndex = prog.partes.findIndex(i => i.id === active.id);
-                const newIndex = prog.partes.findIndex(i => i.id === over.id);
-                return { ...prog, partes: arrayMove(prog.partes, oldIndex, newIndex) };
-            });
-        }
-    };
-
-    const handleAddParte = (programKey: string, parteId: number) => {
-        const parte = todasLasPartes.find(p => p.id === parteId);
-        if (!parte) return;
-
-        updateProgram(programKey, (prog) => {
-            if (prog.partes.some(p => p.parteId === parteId)) {
-                toast.error('Esta parte ya está en el programa');
-                return prog;
-            }
-            return {
-                ...prog,
-                partes: [
-                    ...prog.partes,
-                    {
-                        id: `${programKey}-parte-${parte.id}`,
-                        parteId: parte.id,
-                        parte,
-                        usuarioIds: [],
-                        nombresLibres: [],
-                        links: [],
-                        fotos: [],
-                    },
-                ],
-            };
-        });
-    };
-
-    const handleRemoveParte = (programKey: string, parteId: number) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.filter(p => p.parteId !== parteId),
-        }));
-    };
-
-    const handleUpdateUsuarios = (programKey: string, parteId: number, usuarioId: number, action: 'add' | 'remove') => {
-        updateProgram(programKey, (prog) => {
-            const currentParte = prog.partes.find(p => p.parteId === parteId);
-            if (!currentParte) return prog;
-
-            let newPartes = prog.partes.map(p => {
-                if (p.parteId === parteId) {
-                    if (action === 'add' && !p.usuarioIds.includes(usuarioId)) {
-                        return { ...p, usuarioIds: [...p.usuarioIds, usuarioId] };
-                    } else if (action === 'remove') {
-                        return { ...p, usuarioIds: p.usuarioIds.filter(id => id !== usuarioId) };
-                    }
-                }
-                return p;
-            });
-
-            // Auto-assignment: Bienvenida -> Oración Inicial/Final
-            if (currentParte.parte.nombre === 'Bienvenida') {
-                const bienvenida = newPartes.find(p => p.parte.nombre === 'Bienvenida');
-                const bienvenidaUsuarios = bienvenida?.usuarioIds || [];
-                newPartes = newPartes.map(p => {
-                    if (p.parte.nombre === 'Oración Inicial') {
-                        return { ...p, usuarioIds: bienvenidaUsuarios.length >= 1 ? [bienvenidaUsuarios[0]] : [] };
-                    }
-                    if (p.parte.nombre === 'Oración Final') {
-                        return { ...p, usuarioIds: bienvenidaUsuarios.length >= 2 ? [bienvenidaUsuarios[1]] : [] };
-                    }
-                    return p;
-                });
-            }
-
-            // Auto-assignment: Espacio de Cantos -> Himno Final
-            if (currentParte.parte.nombre === 'Espacio de Cantos') {
-                const cantos = newPartes.find(p => p.parte.nombre === 'Espacio de Cantos');
-                const cantosUsuarios = cantos?.usuarioIds || [];
-                newPartes = newPartes.map(p => {
-                    if (p.parte.nombre === 'Himno Final') {
-                        return { ...p, usuarioIds: [...cantosUsuarios] };
-                    }
-                    return p;
-                });
-            }
-
-            return { ...prog, partes: newPartes };
-        });
-    };
-
-    const handleAddLink = (programKey: string, parteId: number) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId
-                    ? { ...p, links: [...p.links, { _key: genKey(), nombre: '', url: '' }] }
-                    : p
-            ),
-        }));
-    };
-
-    const handleUpdateLink = (programKey: string, parteId: number, index: number, field: 'nombre' | 'url', value: string) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p => {
-                if (p.parteId === parteId) {
-                    const newLinks = [...p.links];
-                    newLinks[index] = { ...newLinks[index], [field]: value };
-                    return { ...p, links: newLinks };
-                }
-                return p;
-            }),
-        }));
-    };
-
-    const handleRemoveLink = (programKey: string, parteId: number, index: number) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId
-                    ? { ...p, links: p.links.filter((_, i) => i !== index) }
-                    : p
-            ),
-        }));
-    };
-
-    const handleReorderLinks = (programKey: string, parteId: number, fromIndex: number, toIndex: number) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId
-                    ? { ...p, links: arrayMove(p.links, fromIndex, toIndex) }
-                    : p
-            ),
-        }));
-    };
-
-    const handleAddFreeText = (programKey: string, parteId: number, nombre: string) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId && !p.nombresLibres.includes(nombre)
-                    ? { ...p, nombresLibres: [...p.nombresLibres, nombre] }
-                    : p
-            ),
-        }));
-    };
-
-    const handleRemoveFreeText = (programKey: string, parteId: number, nombre: string) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId
-                    ? { ...p, nombresLibres: p.nombresLibres.filter(n => n !== nombre) }
-                    : p
-            ),
-        }));
-    };
-
-    const handleAddFoto = async (programKey: string, parteId: number, file: File) => {
-        try {
-            const result = await programasApi.uploadFotoPrograma(file);
-            updateProgram(programKey, (prog) => ({
-                ...prog,
-                partes: prog.partes.map(p =>
-                    p.parteId === parteId
-                        ? { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url, mediaItemId: result.mediaItemId }] }
-                        : p
-                ),
-            }));
-        } catch {
-            toast.error('Error al subir la foto');
-        }
-    };
-
-    const handlePickFromLibrary = (programKey: string, parteId: number, item: { url: string; nombre?: string; mediaItemId: number }) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId
-                    ? { ...p, fotos: [...p.fotos, { _key: genKey(), url: item.url, nombre: item.nombre, mediaItemId: item.mediaItemId }] }
-                    : p
-            ),
-        }));
-    };
-
-    const handleUpdateFoto = (programKey: string, parteId: number, index: number, nombre: string) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p => {
-                if (p.parteId === parteId) {
-                    const newFotos = [...p.fotos];
-                    newFotos[index] = { ...newFotos[index], nombre };
-                    return { ...p, fotos: newFotos };
-                }
-                return p;
-            }),
-        }));
-    };
-
-    const handleRemoveFoto = (programKey: string, parteId: number, index: number) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId
-                    ? { ...p, fotos: p.fotos.filter((_, i) => i !== index) }
-                    : p
-            ),
-        }));
-    };
-
-    const handleReorderFotos = (programKey: string, parteId: number, fromIndex: number, toIndex: number) => {
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p =>
-                p.parteId === parteId
-                    ? { ...p, fotos: arrayMove(p.fotos, fromIndex, toIndex) }
-                    : p
-            ),
-        }));
-    };
-
-    // Replace persona in a single program column
-    const contarApariciones = (programKey: string, persona: PersonaReemplazo): number => {
-        const prog = programs.find(p => p.key === programKey);
-        if (!prog) return 0;
-        return prog.partes.filter(p => {
-            if (persona.tipo === 'usuario') return p.usuarioIds.includes(persona.id);
-            return p.nombresLibres.includes(persona.nombre);
-        }).length;
-    };
-
-    const handleReemplazarConUsuario = (usuarioId: number) => {
-        if (!replaceState) return;
-        const { programKey, persona } = replaceState;
-
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p => {
-                if (persona.tipo === 'usuario') {
-                    if (!p.usuarioIds.includes(persona.id)) return p;
-                    const sinAnterior = p.usuarioIds.filter(id => id !== persona.id);
-                    const nuevos = sinAnterior.includes(usuarioId) ? sinAnterior : [...sinAnterior, usuarioId];
-                    return { ...p, usuarioIds: nuevos };
-                } else {
-                    if (!p.nombresLibres.includes(persona.nombre)) return p;
-                    const sinAnterior = p.nombresLibres.filter(n => n !== persona.nombre);
-                    const nuevosUsuarios = p.usuarioIds.includes(usuarioId) ? p.usuarioIds : [...p.usuarioIds, usuarioId];
-                    return { ...p, nombresLibres: sinAnterior, usuarioIds: nuevosUsuarios };
-                }
-            }),
-        }));
-
-        const usuario = usuarios.find(u => u.id === usuarioId);
-        toast.success(`Reemplazado con ${usuario?.nombre || 'usuario'} en todas las partes`);
-        setReplaceState(null);
-    };
-
-    const handleReemplazarConTexto = (nuevoNombre: string) => {
-        if (!replaceState) return;
-        const { programKey, persona } = replaceState;
-
-        updateProgram(programKey, (prog) => ({
-            ...prog,
-            partes: prog.partes.map(p => {
-                if (persona.tipo === 'usuario') {
-                    if (!p.usuarioIds.includes(persona.id)) return p;
-                    const sinAnterior = p.usuarioIds.filter(id => id !== persona.id);
-                    const nuevosLibres = p.nombresLibres.includes(nuevoNombre) ? p.nombresLibres : [...p.nombresLibres, nuevoNombre];
-                    return { ...p, usuarioIds: sinAnterior, nombresLibres: nuevosLibres };
-                } else {
-                    if (!p.nombresLibres.includes(persona.nombre)) return p;
-                    const sinAnterior = p.nombresLibres.filter(n => n !== persona.nombre);
-                    const nuevos = sinAnterior.includes(nuevoNombre) ? sinAnterior : [...sinAnterior, nuevoNombre];
-                    return { ...p, nombresLibres: nuevos };
-                }
-            }),
-        }));
-
-        toast.success(`Reemplazado con "${nuevoNombre}" en todas las partes`);
-        setReplaceState(null);
     };
 
     // --- Submit ---
@@ -942,12 +633,7 @@ export default function ProgramaFormMulti() {
                                 ? 'grid grid-cols-1 lg:grid-cols-3 gap-4'
                                 : 'flex gap-4'
                 } style={programs.length > 3 ? { minWidth: `${programs.length * 500}px` } : undefined}>
-                    {programs.map((prog) => {
-                        const availablePartes = todasLasPartes.filter(
-                            (p: Parte) => !prog.partes.some(ep => ep.parteId === p.id)
-                        );
-
-                        return (
+                    {programs.map((prog) => (
                             <SortableProgramColumn key={prog.key} id={prog.key}>
                               {({ listeners, attributes }) => (
                             <div
@@ -1172,120 +858,25 @@ export default function ProgramaFormMulti() {
 
                                 {/* Parts list with independent vertical scroll */}
                                 <div
-                                    className="overflow-y-auto p-4 space-y-3"
+                                    className="overflow-y-auto p-4"
                                     style={{ maxHeight: 'calc(100vh - 280px)' }}
                                 >
-                                    {/* Add part button */}
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm font-medium text-gray-700">
-                                            {prog.partes.length} parte{prog.partes.length !== 1 ? 's' : ''}
-                                        </span>
-                                        {availablePartes.length > 0 && (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="outline" size="sm" className="border-gray-300 hover:bg-gray-50 h-7 text-xs">
-                                                        <Plus className="h-3 w-3 mr-1" />
-                                                        Agregar
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="bg-white border-gray-200 w-56 max-h-60 overflow-y-auto">
-                                                    {availablePartes.map((parte: Parte) => (
-                                                        <DropdownMenuItem
-                                                            key={parte.id}
-                                                            onClick={() => handleAddParte(prog.key, parte.id)}
-                                                            className="cursor-pointer"
-                                                        >
-                                                            {parte.nombre}
-                                                        </DropdownMenuItem>
-                                                    ))}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        )}
-                                    </div>
-
-                                    <DndContext
-                                        sensors={sensors}
-                                        collisionDetection={closestCenter}
-                                        onDragEnd={handleDragEnd(prog.key)}
-                                    >
-                                        <SortableContext
-                                            items={prog.partes.map(p => p.id)}
-                                            strategy={verticalListSortingStrategy}
-                                        >
-                                            <div className="space-y-3">
-                                                {prog.partes.map((item) => (
-                                                    <SortableParteItem
-                                                        key={item.id}
-                                                        item={item}
-                                                        usuarios={usuarios}
-                                                        onRemove={() => handleRemoveParte(prog.key, item.parteId)}
-                                                        onUpdateUsuarios={(usuarioId, action) => handleUpdateUsuarios(prog.key, item.parteId, usuarioId, action)}
-                                                        onAddFreeText={(nombre) => handleAddFreeText(prog.key, item.parteId, nombre)}
-                                                        onRemoveFreeText={(nombre) => handleRemoveFreeText(prog.key, item.parteId, nombre)}
-                                                        onReplacePersona={(persona) => setReplaceState({ programKey: prog.key, persona })}
-                                                        onAddLink={() => handleAddLink(prog.key, item.parteId)}
-                                                        onUpdateLink={(index, field, value) => handleUpdateLink(prog.key, item.parteId, index, field, value)}
-                                                        onRemoveLink={(index) => handleRemoveLink(prog.key, item.parteId, index)}
-                                                        onReorderLinks={(from, to) => handleReorderLinks(prog.key, item.parteId, from, to)}
-                                                        onAddFoto={(file) => handleAddFoto(prog.key, item.parteId, file)}
-                                                        onUpdateFoto={(index, nombre) => handleUpdateFoto(prog.key, item.parteId, index, nombre)}
-                                                        onRemoveFoto={(index) => handleRemoveFoto(prog.key, item.parteId, index)}
-                                                        onReorderFotos={(from, to) => handleReorderFotos(prog.key, item.parteId, from, to)}
-                                                        onPickFromLibrary={(mediaItem) => handlePickFromLibrary(prog.key, item.parteId, mediaItem)}
-                                                        fetchSearch={(q) => programasApi.getUsuarios(q)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </SortableContext>
-                                    </DndContext>
-
-                                    {prog.partes.length === 0 && (
-                                        <div className="text-center py-8 text-gray-400">
-                                            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                            <p className="text-sm">Sin partes</p>
-                                            <p className="text-xs">Agrega partes con el botón de arriba</p>
-                                        </div>
-                                    )}
+                                    <ProgramPartes
+                                        partes={prog.partes}
+                                        todasLasPartes={todasLasPartes}
+                                        usuarios={usuarios}
+                                        onPartesChange={(newPartes) => updateProgram(prog.key, p => ({ ...p, partes: newPartes }))}
+                                        compact
+                                    />
                                 </div>
                             </div>
                               )}
                             </SortableProgramColumn>
-                        );
-                    })}
+                        ))}
                 </div>
                 </SortableContext>
               </DndContext>
             </div>
-
-            {/* Replace persona dialog */}
-            <Dialog open={!!replaceState} onOpenChange={(open) => { if (!open) setReplaceState(null); }}>
-                <DialogContent className="bg-white sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-gray-900">
-                            <ArrowLeftRight className="h-5 w-5 text-blue-600" />
-                            Reemplazar persona
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-500">
-                            Reemplazar a <span className="font-semibold text-gray-700">{replaceState?.persona?.nombre}</span> en{' '}
-                            <span className="font-semibold text-gray-700">
-                                {replaceState ? contarApariciones(replaceState.programKey, replaceState.persona) : 0} parte(s)
-                            </span>{' '}
-                            del programa.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 pt-2">
-                        <Label className="text-gray-700 text-sm">Seleccionar reemplazo</Label>
-                        <UserAutocomplete
-                            usuarios={usuarios}
-                            selectedIds={replaceState?.persona?.tipo === 'usuario' ? [replaceState.persona.id] : []}
-                            onSelect={handleReemplazarConUsuario}
-                            onAddFreeText={handleReemplazarConTexto}
-                            placeholder="Buscar reemplazo..."
-                            fetchSearch={(q) => programasApi.getUsuarios(q)}
-                        />
-                    </div>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

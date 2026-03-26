@@ -1763,6 +1763,7 @@ export class ProgramasService {
     esFija?: boolean;
     esObligatoria?: boolean;
     textoFijo?: string;
+    permitirMultiples?: boolean;
     puntos?: number;
     xp?: number;
   }) {
@@ -1783,6 +1784,7 @@ export class ProgramasService {
         esFija: data.esFija,
         esObligatoria: data.esObligatoria,
         textoFijo: data.textoFijo,
+        permitirMultiples: data.permitirMultiples,
         puntos: data.puntos,
         xp: data.xp,
       },
@@ -1799,6 +1801,7 @@ export class ProgramasService {
       esObligatoria?: boolean;
       textoFijo?: string;
       activo?: boolean;
+      permitirMultiples?: boolean;
       puntos?: number;
       xp?: number;
     },

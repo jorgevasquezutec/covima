@@ -119,6 +119,10 @@ model Usuario {
   // === RELACIONES CALENDARIO ===
   actividadesCreadas      Actividad[] @relation("ActividadesCreadaPor")
 
+  // === RELACIONES ROLES DE SERVICIO ===
+  coordinadorRoles        TipoRolServicio[] @relation("CoordinadorRolServicio")
+  miembrosRolServicio     MiembroRolServicio[]
+
   @@map("usuarios")
 }
 
@@ -147,6 +151,7 @@ model Parte {
   textoFijo     String?     @map("texto_fijo") @db.VarChar(100)
   activo        Boolean     @default(true)
   permiteFotos  Boolean     @default(false) @map("permite_fotos") // true = se pueden subir fotos en esta parte
+  permitirMultiples Boolean  @default(false) @map("permitir_multiples") // true = puede aparecer más de una vez en un programa
   // Gamificación - puntos por participar en esta parte
   puntos        Int         @default(0) // Puntos por participar
   xp            Int         @default(0) // XP por participar
@@ -229,7 +234,6 @@ model ProgramaParte {
   programa    Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
   parte       Parte    @relation(fields: [parteId], references: [id])
 
-  @@unique([programaId, parteId])
   @@map("programa_partes")
 }
 
@@ -929,4 +933,84 @@ model Interesado {
   @@index([instructorId])
   @@index([estado])
   @@map("interesados")
+}
+
+// ==================== ROLES DE SERVICIO ====================
+
+enum EstadoTurno {
+  PROGRAMADO
+  COMPLETADO
+  CANCELADO
+}
+
+model TipoRolServicio {
+  id                Int       @id @default(autoincrement())
+  nombre            String    @unique @db.VarChar(100)
+  descripcion       String?   @db.Text
+  icono             String?   @db.VarChar(10)
+  color             String?   @db.VarChar(20)
+  personasPorTurno  Int       @default(1) @map("personas_por_turno")
+  opcionesTexto     String?   @map("opciones_texto") @db.Text
+  coordinadorId     Int?      @map("coordinador_id")
+  activo            Boolean   @default(true)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  coordinador       Usuario?  @relation("CoordinadorRolServicio", fields: [coordinadorId], references: [id])
+  miembros          MiembroRolServicio[]
+  turnos            TurnoRolServicio[]
+
+  @@map("tipos_rol_servicio")
+}
+
+model MiembroRolServicio {
+  id          Int       @id @default(autoincrement())
+  tipoRolId   Int       @map("tipo_rol_id")
+  usuarioId   Int?      @map("usuario_id")
+  nombreLibre String?   @map("nombre_libre") @db.VarChar(100)
+  orden       Int       @default(0)
+  activo      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  tipoRol     TipoRolServicio @relation(fields: [tipoRolId], references: [id], onDelete: Cascade)
+  usuario     Usuario?        @relation(fields: [usuarioId], references: [id])
+  asignaciones AsignacionTurno[]
+
+  @@unique([tipoRolId, usuarioId])
+  @@map("miembros_rol_servicio")
+}
+
+model TurnoRolServicio {
+  id              Int          @id @default(autoincrement())
+  tipoRolId       Int          @map("tipo_rol_id")
+  semana          DateTime     @db.Date
+  estado          EstadoTurno  @default(PROGRAMADO)
+  notas           String?      @db.Text
+  completadoAt    DateTime?    @map("completado_at")
+  completadoPorId Int?         @map("completado_por_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  tipoRol         TipoRolServicio @relation(fields: [tipoRolId], references: [id], onDelete: Cascade)
+  asignaciones    AsignacionTurno[]
+
+  @@unique([tipoRolId, semana])
+  @@map("turnos_rol_servicio")
+}
+
+model AsignacionTurno {
+  id           Int       @id @default(autoincrement())
+  turnoId      Int       @map("turno_id")
+  miembroId    Int       @map("miembro_id")
+  orden        Int       @default(1)
+  notificado   Boolean   @default(false)
+  notificadoAt DateTime? @map("notificado_at")
+  errorNotif   String?   @map("error_notif") @db.VarChar(500)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  turno        TurnoRolServicio   @relation(fields: [turnoId], references: [id], onDelete: Cascade)
+  miembro      MiembroRolServicio @relation(fields: [miembroId], references: [id])
+
+  @@unique([turnoId, miembroId])
+  @@map("asignaciones_turno")
 }

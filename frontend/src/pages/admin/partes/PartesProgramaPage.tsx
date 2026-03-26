@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { LayoutList, Plus, Edit2, Trash2, Star, Lock, MoreVertical, Camera } from 'lucide-react';
+import { LayoutList, Plus, Edit2, Trash2, Star, Lock, MoreVertical, Camera, Copy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,7 @@ export default function PartesProgramaPage() {
     esObligatoria: false,
     textoFijo: '',
     permiteFotos: false,
+    permitirMultiples: false,
     puntos: 0,
     xp: 0,
   });
@@ -110,6 +111,7 @@ export default function PartesProgramaPage() {
       esObligatoria: parte.esObligatoria,
       textoFijo: parte.textoFijo || '',
       permiteFotos: parte.permiteFotos || false,
+      permitirMultiples: parte.permitirMultiples || false,
       puntos: parte.puntos,
       xp: parte.xp,
     });
@@ -215,6 +217,9 @@ export default function PartesProgramaPage() {
                           )}
                           {parte.permiteFotos && (
                             <Camera className="w-3 h-3 text-blue-500 shrink-0" />
+                          )}
+                          {parte.permitirMultiples && (
+                            <Copy className="w-3 h-3 text-purple-500 shrink-0" />
                           )}
                         </div>
                         {parte.esFija && parte.textoFijo && (
@@ -391,6 +396,17 @@ export default function PartesProgramaPage() {
                 <Switch
                   checked={formData.permiteFotos}
                   onCheckedChange={(checked) => setFormData({ ...formData, permiteFotos: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Permitir múltiples</Label>
+                  <p className="text-xs text-muted-foreground">Puede aparecer más de una vez en un programa</p>
+                </div>
+                <Switch
+                  checked={formData.permitirMultiples}
+                  onCheckedChange={(checked) => setFormData({ ...formData, permitirMultiples: checked })}
                 />
               </div>
             </div>

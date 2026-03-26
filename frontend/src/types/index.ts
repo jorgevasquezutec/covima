@@ -120,6 +120,7 @@ export interface Parte {
   textoFijo?: string;
   activo: boolean;
   permiteFotos?: boolean;
+  permitirMultiples?: boolean;
   icono?: string;
   categoria?: string;
   // Gamificación
@@ -135,6 +136,7 @@ export interface CreateParteRequest {
   esObligatoria?: boolean;
   textoFijo?: string;
   permiteFotos?: boolean;
+  permitirMultiples?: boolean;
   puntos?: number;
   xp?: number;
 }
@@ -148,6 +150,7 @@ export interface UpdateParteRequest {
   textoFijo?: string;
   activo?: boolean;
   permiteFotos?: boolean;
+  permitirMultiples?: boolean;
   puntos?: number;
   xp?: number;
 }
@@ -1281,5 +1284,89 @@ export interface PerfilParticipante {
   insignias: Insignia[];
   puntosSemanales: PuntosSemana[];
   puntosPorCategoria: { categoria: string; puntos: number; xp: number; cantidad: number }[];
+}
+
+// ==================== ROLES DE SERVICIO ====================
+
+export type EstadoTurno = 'PROGRAMADO' | 'COMPLETADO' | 'CANCELADO';
+
+export interface TipoRolServicio {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+  personasPorTurno: number;
+  opcionesTexto?: string;
+  coordinadorId?: number;
+  coordinador?: { id: number; nombre: string } | null;
+  activo: boolean;
+  createdAt: string;
+  _count?: { miembros: number; turnos: number };
+}
+
+export interface MiembroRolServicio {
+  id: number;
+  tipoRolId: number;
+  usuarioId?: number;
+  nombreLibre?: string;
+  orden: number;
+  activo: boolean;
+  usuario?: { id: number; nombre: string; codigoPais: string; telefono: string } | null;
+}
+
+export interface AsignacionTurno {
+  id: number;
+  turnoId: number;
+  miembroId: number;
+  orden: number;
+  notificado: boolean;
+  notificadoAt?: string;
+  errorNotif?: string;
+  miembro: MiembroRolServicio;
+}
+
+export interface TurnoRolServicio {
+  id: number;
+  tipoRolId: number;
+  semana: string;
+  estado: EstadoTurno;
+  notas?: string;
+  completadoAt?: string;
+  completadoPorId?: number;
+  createdAt: string;
+  tipoRol?: {
+    id: number;
+    nombre: string;
+    icono?: string;
+    color?: string;
+    opcionesTexto?: string;
+    coordinador?: { id: number; nombre: string } | null;
+  };
+  asignaciones: AsignacionTurno[];
+}
+
+export interface CreateTipoRolRequest {
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  color?: string;
+  personasPorTurno?: number;
+  opcionesTexto?: string;
+  coordinadorId?: number;
+}
+
+export interface UpdateTipoRolRequest extends Partial<CreateTipoRolRequest> {
+  activo?: boolean;
+}
+
+export interface GenerarTurnosRequest {
+  fechaDesde?: string;
+  fechaHasta: string;
+}
+
+export interface UpdateTurnoRequest {
+  miembroIds?: number[];
+  notas?: string;
 }
 

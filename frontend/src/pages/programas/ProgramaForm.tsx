@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import {
     DndContext,
     closestCenter,
-    KeyboardSensor,
     PointerSensor,
     useSensor,
     useSensors,
@@ -14,7 +13,6 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import {
     arrayMove,
     SortableContext,
-    sortableKeyboardCoordinates,
     useSortable,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
@@ -54,20 +52,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     Command,
     CommandEmpty,
@@ -83,11 +68,12 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import UserAutocomplete from '@/components/UserAutocomplete';
-import { programasApi, asistenciaApi, tiposAsistenciaApi, mediaApi } from '@/services/api';
+import { programasApi, asistenciaApi, tiposAsistenciaApi } from '@/services/api';
 import { DatePickerString } from '@/components/ui/date-picker';
 import type { Parte, UsuarioSimple, ParteOrdenDto, AsignacionDto, LinkDto, FotoDto, PlantillaPrograma, QRAsistencia, TipoAsistencia, OBSTheme } from '@/types';
 import { DEFAULT_OBS_THEME } from '@/lib/obs-scene-export';
 import MediaPickerDialog from '@/components/MediaPickerDialog';
+import ProgramPartes from './ProgramPartes';
 
 // Tipo para identificar a quién se va a reemplazar
 export type PersonaReemplazo =
@@ -800,15 +786,6 @@ export default function ProgramaForm() {
     const [qrComboOpen, setQrComboOpen] = useState(false);
     const [obsTheme, setObsTheme] = useState<OBSTheme>({ ...DEFAULT_OBS_THEME });
 
-    // Replace persona state
-    const [personaAReemplazar, setPersonaAReemplazar] = useState<PersonaReemplazo | null>(null);
-
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
 
     useEffect(() => {
         loadInitialData();
@@ -865,7 +842,7 @@ export default function ProgramaForm() {
 
                         const fotos = programaData.fotos.filter(f => f.parte.id === pp.parteId);
                         programaPartes.push({
-                            id: `parte-${pp.parteId}`,
+                            id: `parte-${pp.parteId}-${pp.id}`,
                             parteId: pp.parteId,
                             parte: pp.parte,
                             usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
@@ -883,7 +860,7 @@ export default function ProgramaForm() {
 
                         if (asigs.length > 0 || links.length > 0 || fotos.length > 0) {
                             programaPartes.push({
-                                id: `parte-${parte.id}`,
+                                id: `parte-${parte.id}-${Date.now()}-${parte.orden}`,
                                 parteId: parte.id,
                                 parte,
                                 usuarioIds: asigs.filter(a => a.usuario).map(a => a.usuario!.id),
@@ -943,7 +920,7 @@ export default function ProgramaForm() {
                 // Find the full parte data
                 const parteCompleta = partesDisponibles.find(p => p.id === pp.parteId) || pp.parte;
                 return {
-                    id: `parte-${pp.parteId}`,
+                    id: `parte-${pp.parteId}-${pp.orden}`,
                     parteId: pp.parteId,
                     parte: parteCompleta,
                     usuarioIds: [],
@@ -968,459 +945,6 @@ export default function ProgramaForm() {
             setObsTheme({ ...DEFAULT_OBS_THEME });
         }
         setShowTemplateSelector(false);
-    };
-
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        if (over && active.id !== over.id) {
-            setPartesEnPrograma((items) => {
-                const oldIndex = items.findIndex((i) => i.id === active.id);
-                const newIndex = items.findIndex((i) => i.id === over.id);
-                return arrayMove(items, oldIndex, newIndex);
-            });
-        }
-    };
-
-    const handleAddParte = (parteId: number) => {
-        const parte = todasLasPartes.find((p: Parte) => p.id === parteId);
-        if (!parte) return;
-
-        // Check if already added
-        if (partesEnPrograma.some(p => p.parteId === parteId)) {
-            toast.error('Esta parte ya está en el programa');
-            return;
-        }
-
-        setPartesEnPrograma(prev => [
-            ...prev,
-            {
-                id: `parte-${parte.id}`,
-                parteId: parte.id,
-                parte,
-                usuarioIds: [],
-                nombresLibres: [],
-                links: [],
-                fotos: [],
-            },
-        ]);
-    };
-
-    const handleRemoveParte = (parteId: number) => {
-        setPartesEnPrograma(prev => prev.filter(p => p.parteId !== parteId));
-    };
-
-    // Helper function to find a part by name
-    const findParteByName = (partes: ParteEnPrograma[], name: string) => {
-        return partes.find(p => p.parte.nombre === name);
-    };
-
-    const handleUpdateUsuarios = (parteId: number, usuarioId: number, action: 'add' | 'remove') => {
-        setPartesEnPrograma(prev => {
-            // Find the current part being modified
-            const currentParte = prev.find(p => p.parteId === parteId);
-            if (!currentParte) return prev;
-
-            let newPartes = prev.map(p => {
-                if (p.parteId === parteId) {
-                    if (action === 'add' && !p.usuarioIds.includes(usuarioId)) {
-                        return { ...p, usuarioIds: [...p.usuarioIds, usuarioId] };
-                    } else if (action === 'remove') {
-                        return { ...p, usuarioIds: p.usuarioIds.filter(id => id !== usuarioId) };
-                    }
-                }
-                return p;
-            });
-
-            // Auto-assignment logic for BIENVENIDA
-            if (currentParte.parte.nombre === 'Bienvenida') {
-                const bienvenidaParte = findParteByName(newPartes, 'Bienvenida');
-                const bienvenidaUsuarios = bienvenidaParte?.usuarioIds || [];
-
-                // Sincronizar Oración Inicial con la primera persona de Bienvenida
-                newPartes = newPartes.map(p => {
-                    if (p.parte.nombre === 'Oración Inicial') {
-                        if (bienvenidaUsuarios.length >= 1) {
-                            return { ...p, usuarioIds: [bienvenidaUsuarios[0]] };
-                        } else {
-                            return { ...p, usuarioIds: [] };
-                        }
-                    }
-                    return p;
-                });
-
-                // Sincronizar Oración Final con la segunda persona de Bienvenida
-                newPartes = newPartes.map(p => {
-                    if (p.parte.nombre === 'Oración Final') {
-                        if (bienvenidaUsuarios.length >= 2) {
-                            return { ...p, usuarioIds: [bienvenidaUsuarios[1]] };
-                        } else {
-                            return { ...p, usuarioIds: [] };
-                        }
-                    }
-                    return p;
-                });
-            }
-
-            // Auto-assignment logic for ESPACIO DE CANTOS -> HIMNO FINAL
-            if (currentParte.parte.nombre === 'Espacio de Cantos') {
-                const cantosParte = findParteByName(newPartes, 'Espacio de Cantos');
-                const cantosUsuarios = cantosParte?.usuarioIds || [];
-
-                // Sincronizar Himno Final con todos los usuarios de Espacio de Cantos
-                newPartes = newPartes.map(p => {
-                    if (p.parte.nombre === 'Himno Final') {
-                        return { ...p, usuarioIds: [...cantosUsuarios] };
-                    }
-                    return p;
-                });
-            }
-
-            return newPartes;
-        });
-    };
-
-    const handleAddLink = (parteId: number) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return { ...p, links: [...p.links, { _key: genKey(), nombre: '', url: '' }] };
-                }
-                return p;
-            })
-        );
-    };
-
-    const handleUpdateLink = (parteId: number, index: number, field: 'nombre' | 'url', value: string) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    const newLinks = [...p.links];
-                    newLinks[index] = { ...newLinks[index], [field]: value };
-                    return { ...p, links: newLinks };
-                }
-                return p;
-            })
-        );
-
-        // Auto-match YouTube URL to existing media
-        if (field === 'url' && value) {
-            try {
-                const u = new URL(value);
-                if (u.hostname.includes('youtube.com') || u.hostname === 'youtu.be') {
-                    mediaApi.findByYoutubeUrl(value).then(existing => {
-                        if (existing) {
-                            setPartesEnPrograma(prev =>
-                                prev.map(p => {
-                                    if (p.parteId === parteId) {
-                                        const newLinks = [...p.links];
-                                        if (newLinks[index] && !newLinks[index].mediaItemId) {
-                                            newLinks[index] = { ...newLinks[index], mediaItemId: existing.id, mediaUrl: existing.url };
-                                        }
-                                        return { ...p, links: newLinks };
-                                    }
-                                    return p;
-                                })
-                            );
-                            toast.success(`Video encontrado en biblioteca: ${existing.nombre || 'YouTube'}`);
-                        }
-                    }).catch(() => {});
-                }
-            } catch {}
-        }
-    };
-
-    const handleReorderLinks = (parteId: number, fromIndex: number, toIndex: number) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return { ...p, links: arrayMove(p.links, fromIndex, toIndex) };
-                }
-                return p;
-            })
-        );
-    };
-
-    const handleRemoveLink = (parteId: number, index: number) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return { ...p, links: p.links.filter((_, i) => i !== index) };
-                }
-                return p;
-            })
-        );
-    };
-
-    const handleAddFoto = async (parteId: number, file: File) => {
-        try {
-            const result = await programasApi.uploadFotoPrograma(file);
-            setPartesEnPrograma(prev =>
-                prev.map(p => {
-                    if (p.parteId === parteId) {
-                        return { ...p, fotos: [...p.fotos, { _key: genKey(), url: result.url, mediaItemId: result.mediaItemId }] };
-                    }
-                    return p;
-                })
-            );
-        } catch {
-            toast.error('Error al subir la foto');
-        }
-    };
-
-    const handlePickFromLibrary = (parteId: number, item: { url: string; nombre?: string; mediaItemId: number }) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return { ...p, fotos: [...p.fotos, { _key: genKey(), url: item.url, nombre: item.nombre, mediaItemId: item.mediaItemId }] };
-                }
-                return p;
-            })
-        );
-    };
-
-    const [downloadingLink, setDownloadingLink] = useState<string | null>(null);
-    const [batchDownloading, setBatchDownloading] = useState<number | null>(null);
-
-    const handleDownloadYouTube = async (parteId: number, linkIndex: number) => {
-        const parte = partesEnPrograma.find(p => p.parteId === parteId);
-        if (!parte) return;
-        const link = parte.links[linkIndex];
-        if (!link?.url) return;
-
-        const downloadKey = `${parteId}-${linkIndex}`;
-        setDownloadingLink(downloadKey);
-        try {
-            const mediaItem = await mediaApi.downloadYouTube(
-                link.url,
-                link.nombre || undefined,
-                (link as any).id, // link.id from backend if editing
-            );
-            setPartesEnPrograma(prev =>
-                prev.map(p => {
-                    if (p.parteId === parteId) {
-                        const newLinks = [...p.links];
-                        newLinks[linkIndex] = { ...newLinks[linkIndex], mediaItemId: mediaItem.id, mediaUrl: mediaItem.url };
-                        return { ...p, links: newLinks };
-                    }
-                    return p;
-                })
-            );
-            toast.success(`Video descargado: ${mediaItem.nombre || 'YouTube'}`);
-        } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Error al descargar el video');
-        } finally {
-            setDownloadingLink(null);
-        }
-    };
-
-    const handleAssociateMediaToLink = (parteId: number, linkIndex: number, mediaItem: { id: number; url: string; nombre?: string }) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    const newLinks = [...p.links];
-                    newLinks[linkIndex] = { ...newLinks[linkIndex], mediaItemId: mediaItem.id, mediaUrl: mediaItem.url };
-                    return { ...p, links: newLinks };
-                }
-                return p;
-            })
-        );
-        toast.success(`Video importado: ${mediaItem.nombre || 'Biblioteca'}`);
-    };
-
-    const [libraryPickerParteId, setLibraryPickerParteId] = useState<number | null>(null);
-
-    const handleAddLinkFromLibrary = (parteId: number) => {
-        setLibraryPickerParteId(parteId);
-    };
-
-    const handleLibraryPickerSelect = (parteId: number, selected: { mediaItemId: number; url: string; nombre?: string }) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return {
-                        ...p,
-                        links: [...p.links, {
-                            _key: genKey(),
-                            nombre: selected.nombre || 'Video',
-                            url: '',
-                            mediaItemId: selected.mediaItemId,
-                            mediaUrl: selected.url,
-                            mediaName: selected.nombre,
-                        }],
-                    };
-                }
-                return p;
-            })
-        );
-        setLibraryPickerParteId(null);
-        toast.success(`Video agregado: ${selected.nombre || 'Biblioteca'}`);
-    };
-
-    const handleDownloadBatch = async (parteId: number) => {
-        const parte = partesEnPrograma.find(p => p.parteId === parteId);
-        if (!parte) return;
-
-        const isYouTube = (url: string) => {
-            try { const u = new URL(url); return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'; } catch { return false; }
-        };
-        const pendingLinks = parte.links
-            .map((l, i) => ({ ...l, originalIndex: i }))
-            .filter(l => !l.mediaItemId && isYouTube(l.url));
-
-        if (pendingLinks.length === 0) return;
-
-        setBatchDownloading(parteId);
-        try {
-            const results = await mediaApi.downloadYouTubeBatch(
-                pendingLinks.map(l => ({ url: l.url, nombre: l.nombre || undefined }))
-            );
-            setPartesEnPrograma(prev =>
-                prev.map(p => {
-                    if (p.parteId === parteId) {
-                        const newLinks = [...p.links];
-                        results.forEach((result, i) => {
-                            if (result.mediaItem) {
-                                const idx = pendingLinks[i].originalIndex;
-                                newLinks[idx] = { ...newLinks[idx], mediaItemId: result.mediaItem.id, mediaUrl: result.mediaItem.url };
-                            }
-                        });
-                        return { ...p, links: newLinks };
-                    }
-                    return p;
-                })
-            );
-            const downloaded = results.filter(r => r.mediaItem && !r.skipped).length;
-            const skipped = results.filter(r => r.skipped).length;
-            const errors = results.filter(r => r.error).length;
-            let msg = `${downloaded} video(s) descargado(s)`;
-            if (skipped > 0) msg += `, ${skipped} ya existían`;
-            if (errors > 0) msg += `, ${errors} error(es)`;
-            toast.success(msg);
-        } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Error al descargar videos');
-        } finally {
-            setBatchDownloading(null);
-        }
-    };
-
-    const handleUpdateFoto = (parteId: number, index: number, nombre: string) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    const newFotos = [...p.fotos];
-                    newFotos[index] = { ...newFotos[index], nombre };
-                    return { ...p, fotos: newFotos };
-                }
-                return p;
-            })
-        );
-    };
-
-    const handleRemoveFoto = (parteId: number, index: number) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return { ...p, fotos: p.fotos.filter((_, i) => i !== index) };
-                }
-                return p;
-            })
-        );
-    };
-
-    const handleReorderFotos = (parteId: number, fromIndex: number, toIndex: number) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return { ...p, fotos: arrayMove(p.fotos, fromIndex, toIndex) };
-                }
-                return p;
-            })
-        );
-    };
-
-    const handleAddFreeText = (parteId: number, nombre: string) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId && !p.nombresLibres.includes(nombre)) {
-                    return { ...p, nombresLibres: [...p.nombresLibres, nombre] };
-                }
-                return p;
-            })
-        );
-    };
-
-    const handleRemoveFreeText = (parteId: number, nombre: string) => {
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (p.parteId === parteId) {
-                    return { ...p, nombresLibres: p.nombresLibres.filter(n => n !== nombre) };
-                }
-                return p;
-            })
-        );
-    };
-
-    // Count how many parts a person appears in
-    const contarApariciones = (persona: PersonaReemplazo): number => {
-        return partesEnPrograma.filter(p => {
-            if (persona.tipo === 'usuario') return p.usuarioIds.includes(persona.id);
-            return p.nombresLibres.includes(persona.nombre);
-        }).length;
-    };
-
-    // Replace a person across all parts with a registered user
-    const handleReemplazarConUsuario = (usuarioId: number) => {
-        if (!personaAReemplazar) return;
-
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (personaAReemplazar.tipo === 'usuario') {
-                    if (!p.usuarioIds.includes(personaAReemplazar.id)) return p;
-                    // Remove old user, add new (avoid duplicates)
-                    const sinAnterior = p.usuarioIds.filter(id => id !== personaAReemplazar.id);
-                    const nuevos = sinAnterior.includes(usuarioId) ? sinAnterior : [...sinAnterior, usuarioId];
-                    return { ...p, usuarioIds: nuevos };
-                } else {
-                    if (!p.nombresLibres.includes(personaAReemplazar.nombre)) return p;
-                    // Remove free text, add user (avoid duplicates)
-                    const sinAnterior = p.nombresLibres.filter(n => n !== personaAReemplazar.nombre);
-                    const nuevosUsuarios = p.usuarioIds.includes(usuarioId) ? p.usuarioIds : [...p.usuarioIds, usuarioId];
-                    return { ...p, nombresLibres: sinAnterior, usuarioIds: nuevosUsuarios };
-                }
-            })
-        );
-
-        const usuario = usuarios.find(u => u.id === usuarioId);
-        toast.success(`Reemplazado con ${usuario?.nombre || 'usuario'} en todas las partes`);
-        setPersonaAReemplazar(null);
-    };
-
-    // Replace a person across all parts with free text
-    const handleReemplazarConTexto = (nuevoNombre: string) => {
-        if (!personaAReemplazar) return;
-
-        setPartesEnPrograma(prev =>
-            prev.map(p => {
-                if (personaAReemplazar.tipo === 'usuario') {
-                    if (!p.usuarioIds.includes(personaAReemplazar.id)) return p;
-                    // Remove user, add free text (avoid duplicates)
-                    const sinAnterior = p.usuarioIds.filter(id => id !== personaAReemplazar.id);
-                    const nuevosLibres = p.nombresLibres.includes(nuevoNombre) ? p.nombresLibres : [...p.nombresLibres, nuevoNombre];
-                    return { ...p, usuarioIds: sinAnterior, nombresLibres: nuevosLibres };
-                } else {
-                    if (!p.nombresLibres.includes(personaAReemplazar.nombre)) return p;
-                    // Replace free text name (avoid duplicates)
-                    const sinAnterior = p.nombresLibres.filter(n => n !== personaAReemplazar.nombre);
-                    const nuevos = sinAnterior.includes(nuevoNombre) ? sinAnterior : [...sinAnterior, nuevoNombre];
-                    return { ...p, nombresLibres: nuevos };
-                }
-            })
-        );
-
-        toast.success(`Reemplazado con "${nuevoNombre}" en todas las partes`);
-        setPersonaAReemplazar(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -1514,11 +1038,6 @@ export default function ProgramaForm() {
             setSaving(false);
         }
     };
-
-    // Get available parts (not already in program)
-    const availablePartes = todasLasPartes.filter(
-        (p: Parte) => !partesEnPrograma.some(ep => ep.parteId === p.id)
-    );
 
     if (loading) {
         return (
@@ -1914,195 +1433,13 @@ export default function ProgramaForm() {
             </Card>
 
             {/* Partes del programa */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Partes del Programa</h2>
-                        <p className="text-sm text-gray-500">
-                            Arrastra las partes para reordenarlas. Puedes eliminar cualquier parte.
-                        </p>
-                    </div>
-
-                    {/* Add Part Button */}
-                    {availablePartes.length > 0 && (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Agregar Parte
-                                    <ChevronDown className="h-4 w-4 ml-2" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white border-gray-200 w-56">
-                                {availablePartes.map((parte: Parte) => (
-                                    <DropdownMenuItem
-                                        key={parte.id}
-                                        onClick={() => handleAddParte(parte.id)}
-                                        className="cursor-pointer"
-                                    >
-                                        {parte.nombre}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    )}
-                </div>
-
-                {/* Global batch download button */}
-                {(() => {
-                    const isYouTube = (url: string) => {
-                        try { const u = new URL(url); return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'; } catch { return false; }
-                    };
-                    const allPendingYt = partesEnPrograma.flatMap(p =>
-                        p.links.filter(l => !l.mediaItemId && isYouTube(l.url))
-                    );
-                    return allPendingYt.length > 0 ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                                // Collect ALL pending YouTube links across all partes into one batch call
-                                const allItems: { url: string; nombre?: string; parteId: number; linkIndex: number }[] = [];
-                                for (const p of partesEnPrograma) {
-                                    p.links.forEach((l, i) => {
-                                        if (!l.mediaItemId && isYouTube(l.url)) {
-                                            allItems.push({ url: l.url, nombre: l.nombre || undefined, parteId: p.parteId, linkIndex: i });
-                                        }
-                                    });
-                                }
-                                if (allItems.length === 0) return;
-                                setBatchDownloading(-1);
-                                try {
-                                    const results = await mediaApi.downloadYouTubeBatch(
-                                        allItems.map(it => ({ url: it.url, nombre: it.nombre }))
-                                    );
-                                    setPartesEnPrograma(prev => {
-                                        const next = prev.map(p => ({ ...p, links: [...p.links] }));
-                                        results.forEach((result, i) => {
-                                            if (result.mediaItem) {
-                                                const meta = allItems[i];
-                                                const parte = next.find(p => p.parteId === meta.parteId);
-                                                if (parte) {
-                                                    parte.links[meta.linkIndex] = {
-                                                        ...parte.links[meta.linkIndex],
-                                                        mediaItemId: result.mediaItem.id,
-                                                        mediaUrl: result.mediaItem.url,
-                                                    };
-                                                }
-                                            }
-                                        });
-                                        return next;
-                                    });
-                                    const downloaded = results.filter(r => r.mediaItem && !r.skipped).length;
-                                    const skipped = results.filter(r => r.skipped).length;
-                                    const errors = results.filter(r => r.error).length;
-                                    let msg = `${downloaded} video(s) descargado(s)`;
-                                    if (skipped > 0) msg += `, ${skipped} ya existían`;
-                                    if (errors > 0) msg += `, ${errors} error(es)`;
-                                    toast.success(msg);
-                                } catch (err: any) {
-                                    toast.error(err?.response?.data?.message || 'Error al descargar videos');
-                                } finally {
-                                    setBatchDownloading(null);
-                                }
-                            }}
-                            disabled={batchDownloading !== null}
-                            className="border-purple-300 hover:bg-purple-50 text-purple-700"
-                        >
-                            {batchDownloading !== null ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <CloudDownload className="h-4 w-4 mr-2" />
-                            )}
-                            {batchDownloading !== null ? 'Descargando...' : `Descargar todos los videos (${allPendingYt.length})`}
-                        </Button>
-                    ) : null;
-                })()}
-
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                >
-                    <SortableContext
-                        items={partesEnPrograma.map(p => p.id)}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        <div className="grid gap-4">
-                            {partesEnPrograma.map((item) => (
-                                <SortableParteItem
-                                    key={item.id}
-                                    item={item}
-                                    usuarios={usuarios}
-                                    programaId={isEditing ? parseInt(id!) : undefined}
-                                    onRemove={() => handleRemoveParte(item.parteId)}
-                                    onUpdateUsuarios={(usuarioId, action) => handleUpdateUsuarios(item.parteId, usuarioId, action)}
-                                    onAddFreeText={(nombre) => handleAddFreeText(item.parteId, nombre)}
-                                    onRemoveFreeText={(nombre) => handleRemoveFreeText(item.parteId, nombre)}
-                                    onReplacePersona={(persona) => setPersonaAReemplazar(persona)}
-                                    onAddLink={() => handleAddLink(item.parteId)}
-                                    onAddLinkFromLibrary={() => handleAddLinkFromLibrary(item.parteId)}
-                                    onUpdateLink={(index, field, value) => handleUpdateLink(item.parteId, index, field, value)}
-                                    onRemoveLink={(index) => handleRemoveLink(item.parteId, index)}
-                                    onReorderLinks={(from, to) => handleReorderLinks(item.parteId, from, to)}
-                                    onAddFoto={(file) => handleAddFoto(item.parteId, file)}
-                                    onUpdateFoto={(index, nombre) => handleUpdateFoto(item.parteId, index, nombre)}
-                                    onRemoveFoto={(index) => handleRemoveFoto(item.parteId, index)}
-                                    onReorderFotos={(from, to) => handleReorderFotos(item.parteId, from, to)}
-                                    onPickFromLibrary={(mediaItem) => handlePickFromLibrary(item.parteId, mediaItem)}
-                                    onDownloadYouTube={(linkIndex) => handleDownloadYouTube(item.parteId, linkIndex)}
-                                    onAssociateMedia={(linkIndex, mediaItem) => handleAssociateMediaToLink(item.parteId, linkIndex, mediaItem)}
-                                    onDownloadBatch={() => handleDownloadBatch(item.parteId)}
-                                    downloadingLinkKey={downloadingLink}
-                                    batchDownloading={batchDownloading === item.parteId}
-                                    fetchSearch={(q) => programasApi.getUsuarios(q)}
-                                />
-                            ))}
-                        </div>
-                    </SortableContext>
-                </DndContext>
-            </div>
-
-
-            {/* Dialog de biblioteca para agregar link */}
-            {libraryPickerParteId !== null && (
-                <MediaPickerDialog
-                    open={true}
-                    onOpenChange={(open) => { if (!open) setLibraryPickerParteId(null); }}
-                    onSelect={(selected) => handleLibraryPickerSelect(libraryPickerParteId, selected)}
-                />
-            )}
-
-            {/* Dialog de reemplazo */}
-            <Dialog open={!!personaAReemplazar} onOpenChange={(open) => { if (!open) setPersonaAReemplazar(null); }}>
-                <DialogContent className="bg-white sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-gray-900">
-                            <ArrowLeftRight className="h-5 w-5 text-blue-600" />
-                            Reemplazar persona
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-500">
-                            Reemplazar a <span className="font-semibold text-gray-700">{personaAReemplazar?.nombre}</span> en{' '}
-                            <span className="font-semibold text-gray-700">
-                                {personaAReemplazar ? contarApariciones(personaAReemplazar) : 0} parte(s)
-                            </span>{' '}
-                            del programa.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 pt-2">
-                        <Label className="text-gray-700 text-sm">Seleccionar reemplazo</Label>
-                        <UserAutocomplete
-                            usuarios={usuarios}
-                            selectedIds={personaAReemplazar?.tipo === 'usuario' ? [personaAReemplazar.id] : []}
-                            onSelect={handleReemplazarConUsuario}
-                            onAddFreeText={handleReemplazarConTexto}
-                            placeholder="Buscar reemplazo..."
-                            fetchSearch={(q) => programasApi.getUsuarios(q)}
-                        />
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <ProgramPartes
+                partes={partesEnPrograma}
+                todasLasPartes={todasLasPartes}
+                usuarios={usuarios}
+                programaId={isEditing ? parseInt(id!) : undefined}
+                onPartesChange={setPartesEnPrograma}
+            />
         </form>
     );
 }
