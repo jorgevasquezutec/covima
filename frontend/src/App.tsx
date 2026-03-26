@@ -29,6 +29,7 @@ import { CalendarioAdminPage } from '@/pages/calendario';
 import RegistroVisitasPage from '@/pages/visitas/RegistroVisitasPage';
 import RegistroPuertaPage from '@/pages/puerta/RegistroPuertaPage';
 import MediaLibraryPage from '@/pages/media/MediaLibraryPage';
+import RolesServicioPage from '@/pages/admin/roles-servicio/RolesServicioPage';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -349,6 +350,17 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <MediaLibraryPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Roles de Servicio */}
+        <Route
+          path="/admin/roles-servicio"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RolesServicioPage />
               </MainLayout>
             </ProtectedRoute>
           }

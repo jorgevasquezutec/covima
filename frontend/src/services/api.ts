@@ -1577,5 +1577,97 @@ export const mediaApi = {
   },
 };
 
+// ==================== ROLES DE SERVICIO ====================
+
+import type {
+  TipoRolServicio,
+  MiembroRolServicio,
+  TurnoRolServicio,
+  CreateTipoRolRequest,
+  UpdateTipoRolRequest,
+  GenerarTurnosRequest,
+  UpdateTurnoRequest,
+} from '@/types';
+
+export const rolesServicioApi = {
+  // Tipos
+  getTipos: async (): Promise<TipoRolServicio[]> => {
+    const response = await api.get<TipoRolServicio[]>('/roles-servicio/tipos');
+    return response.data;
+  },
+
+  createTipo: async (data: CreateTipoRolRequest): Promise<TipoRolServicio> => {
+    const response = await api.post<TipoRolServicio>('/roles-servicio/tipos', data);
+    return response.data;
+  },
+
+  updateTipo: async (id: number, data: UpdateTipoRolRequest): Promise<TipoRolServicio> => {
+    const response = await api.put<TipoRolServicio>(`/roles-servicio/tipos/${id}`, data);
+    return response.data;
+  },
+
+  deleteTipo: async (id: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/roles-servicio/tipos/${id}`);
+    return response.data;
+  },
+
+  // Miembros
+  getMiembros: async (tipoRolId: number): Promise<MiembroRolServicio[]> => {
+    const response = await api.get<MiembroRolServicio[]>(`/roles-servicio/tipos/${tipoRolId}/miembros`);
+    return response.data;
+  },
+
+  agregarMiembros: async (tipoRolId: number, miembros: { usuarioId?: number; nombreLibre?: string }[]): Promise<MiembroRolServicio[]> => {
+    const response = await api.post<MiembroRolServicio[]>(`/roles-servicio/tipos/${tipoRolId}/miembros`, { miembros });
+    return response.data;
+  },
+
+  removeMiembro: async (miembroId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/roles-servicio/miembros/${miembroId}`);
+    return response.data;
+  },
+
+  reorderMiembros: async (tipoRolId: number, orden: number[]): Promise<MiembroRolServicio[]> => {
+    const response = await api.post<MiembroRolServicio[]>(`/roles-servicio/tipos/${tipoRolId}/miembros/reorder`, { orden });
+    return response.data;
+  },
+
+  // Turnos
+  getTurnos: async (tipoRolId: number, params?: { desde?: string; hasta?: string }): Promise<TurnoRolServicio[]> => {
+    const response = await api.get<TurnoRolServicio[]>(`/roles-servicio/tipos/${tipoRolId}/turnos`, { params });
+    return response.data;
+  },
+
+  createTurno: async (tipoRolId: number, data: { semana: string; miembroIds: number[]; notas?: string }): Promise<TurnoRolServicio> => {
+    const response = await api.post<TurnoRolServicio>(`/roles-servicio/tipos/${tipoRolId}/turnos`, data);
+    return response.data;
+  },
+
+  generarRotacion: async (tipoRolId: number, data: GenerarTurnosRequest): Promise<{ turnosCreados: number; turnos: TurnoRolServicio[] }> => {
+    const response = await api.post(`/roles-servicio/tipos/${tipoRolId}/generar`, data);
+    return response.data;
+  },
+
+  updateTurno: async (turnoId: number, data: UpdateTurnoRequest): Promise<TurnoRolServicio> => {
+    const response = await api.put<TurnoRolServicio>(`/roles-servicio/turnos/${turnoId}`, data);
+    return response.data;
+  },
+
+  completarTurno: async (turnoId: number): Promise<{ message: string; puntosAsignados: number }> => {
+    const response = await api.put(`/roles-servicio/turnos/${turnoId}/completar`);
+    return response.data;
+  },
+
+  eliminarTurno: async (turnoId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/roles-servicio/turnos/${turnoId}`);
+    return response.data;
+  },
+
+  notificarTurno: async (turnoId: number): Promise<{ totalNotificados: number; totalErrores: number; resultados: any[] }> => {
+    const response = await api.post(`/roles-servicio/turnos/${turnoId}/notificar`);
+    return response.data;
+  },
+};
+
 export default api;
 

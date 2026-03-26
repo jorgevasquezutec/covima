@@ -78,6 +78,7 @@ const navSections: NavSection[] = [
       { label: 'Historial Puntos', icon: History, href: '/admin/gamificacion/historial' },
       { label: 'Comparar', icon: Scale, href: '/comparar' },
       { label: 'Seguimiento', icon: UserSearch, href: '/seguimiento' },
+      { label: 'Roles Servicio', icon: ClipboardList, href: '/admin/roles-servicio', roles: ['admin', 'lider'] },
       { label: 'Inbox', icon: Inbox, href: '/inbox' },
     ],
   },

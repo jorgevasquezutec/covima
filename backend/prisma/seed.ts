@@ -362,6 +362,8 @@ async function main() {
     { codigo: 'estudiante_50_progreso', nombre: 'Estudiante 50% Progreso', categoria: CategoriaAccion.BONUS, puntos: 10, xp: 15 },
     { codigo: 'curso_completado', nombre: 'Curso Completado', categoria: CategoriaAccion.BONUS, puntos: 25, xp: 40 },
     { codigo: 'bautismo_registrado', nombre: 'Bautismo Registrado', categoria: CategoriaAccion.BONUS, puntos: 50, xp: 100 },
+    // Roles de Servicio
+    { codigo: 'rol_servicio_completado', nombre: 'Rol de servicio completado', categoria: CategoriaAccion.EVENTO_ESPECIAL, puntos: 15, xp: 20 },
   ];
 
   for (const puntaje of puntajes) {
