@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { RotateCcw, Download, ArrowLeft, Save, Play, X, Image, Undo2, Palette, ChevronDown, Lock, Unlock, Move, Eye, EyeOff } from 'lucide-react';
+import { RotateCcw, Download, ArrowLeft, Save, Play, X, Image, Undo2, Palette, ChevronDown, Lock, Unlock, Move, Eye, EyeOff, ListStart, SkipForward } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   DEFAULT_OBS_THEME,
@@ -456,11 +457,10 @@ export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] 
     for (const link of scene.links) {
       const url = link.url || '';
       if (link.mediaUrl) {
-        const mediaFullUrl = getServerUrl(link.mediaUrl);
         tabs.push({
           label: link.nombre || 'Video',
           type: 'media',
-          content: mediaFullUrl,
+          content: link.mediaUrl,
         });
       } else if (!url) {
         // No URL and no media — skip
@@ -500,11 +500,11 @@ export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] 
 
   if (scene.fotos) {
     scene.fotos.forEach((foto, i) => {
-      const url = getServerUrl(foto.url);
+      const isVideoFile = /\.(mp4|webm|mov)$/i.test(foto.url);
       tabs.push({
         label: foto.nombre || `Foto ${i + 1}`,
-        type: 'foto',
-        content: url,
+        type: isVideoFile ? 'media' : 'foto',
+        content: foto.url,
       });
     });
   }
@@ -540,7 +540,7 @@ export default function OBSThemeEditor({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeSource, setActiveSource] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [presentationMode, setPresentationMode] = useState(false);
+  const [presentationMode, setPresentationMode] = useState<number | null>(null);
   const [globalOpen, setGlobalOpen] = useState(true);
   const [sceneOpen, setSceneOpen] = useState(true);
   const [editLayoutMode, setEditLayoutMode] = useState(false);
@@ -769,7 +769,7 @@ export default function OBSThemeEditor({
 
   // Keyboard
   useEffect(() => {
-    if (presentationMode) return;
+    if (presentationMode !== null) return;
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'ArrowLeft') {
@@ -857,16 +857,44 @@ export default function OBSThemeEditor({
             <Move className="h-4 w-4 mr-1.5" />
             {editLayoutMode ? 'Salir Layout' : 'Editar Layout'}
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800"
-            onClick={() => setPresentationMode(true)}
-          >
-            <Play className="h-4 w-4 mr-1.5" />
-            Presentar
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800"
+              >
+                <Play className="h-4 w-4 mr-1.5" />
+                Presentar
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-neutral-900 border-neutral-700">
+              <DropdownMenuItem
+                className="text-neutral-200 focus:bg-neutral-800 focus:text-white"
+                onClick={() => setPresentationMode(0)}
+              >
+                <ListStart className="h-4 w-4 mr-2" />
+                Desde el inicio
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-neutral-200 focus:bg-neutral-800 focus:text-white"
+                onClick={() => {
+                  let startIdx = 0;
+                  for (let i = 0; i < safeIndex; i++) {
+                    const resolved = resolveSceneTheme(theme, scenes[i].parteId);
+                    startIdx += buildSourceTabs(scenes[i], resolved).length;
+                  }
+                  startIdx += safeSourceIndex;
+                  setPresentationMode(startIdx);
+                }}
+              >
+                <SkipForward className="h-4 w-4 mr-2" />
+                Desde aquí
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {onExport && (
             <Button
               type="button"
@@ -1366,11 +1394,12 @@ export default function OBSThemeEditor({
       </div>
 
       {/* Presentation Mode */}
-      {presentationMode && (
+      {presentationMode !== null && (
         <PresentationMode
           scenes={scenes}
           theme={theme}
-          onExit={() => setPresentationMode(false)}
+          startIndex={presentationMode}
+          onExit={() => setPresentationMode(null)}
         />
       )}
     </div>

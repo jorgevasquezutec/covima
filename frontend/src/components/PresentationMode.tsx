@@ -8,6 +8,7 @@ import type { OBSThemeWithOverrides } from '@/types';
 interface PresentationModeProps {
   scenes: SceneData[];
   theme: OBSThemeWithOverrides;
+  startIndex?: number;
   onExit: () => void;
 }
 
@@ -18,7 +19,7 @@ interface FlatSlide {
   source: SourceTab;
 }
 
-export default function PresentationMode({ scenes, theme, onExit }: PresentationModeProps) {
+export default function PresentationMode({ scenes, theme, startIndex = 0, onExit }: PresentationModeProps) {
   // Flatten all sources into a linear sequence
   const flatSlides = useMemo<FlatSlide[]>(() => {
     const slides: FlatSlide[] = [];
@@ -37,7 +38,7 @@ export default function PresentationMode({ scenes, theme, onExit }: Presentation
     return slides;
   }, [scenes, theme]);
 
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(startIndex);
   const [hudVisible, setHudVisible] = useState(true);
   const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -170,7 +171,16 @@ export default function PresentationMode({ scenes, theme, onExit }: Presentation
     >
       {/* Content */}
       <div ref={previewRef} className="relative w-full h-full">
-        {current.source.type === 'foto' ? (
+        {current.source.type === 'media' ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <video
+              src={current.source.content}
+              controls
+              autoPlay
+              className="max-w-full max-h-full"
+            />
+          </div>
+        ) : current.source.type === 'foto' ? (
           <img
             src={current.source.content}
             alt={current.source.label}
