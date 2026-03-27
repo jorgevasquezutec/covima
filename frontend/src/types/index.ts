@@ -303,6 +303,7 @@ export interface ProgramaParte {
 export interface ProgramaAsignacion {
   id: number;
   parte: Parte;
+  programaParteId?: number | null;
   usuario: {
     id: number;
     nombre: string;
@@ -318,6 +319,7 @@ export interface ProgramaAsignacion {
 export interface ProgramaLink {
   id: number;
   parte: Parte;
+  programaParteId?: number | null;
   nombre: string;
   url?: string | null;
   orden: number;
@@ -328,6 +330,7 @@ export interface ProgramaLink {
 export interface ProgramaFoto {
   id: number;
   parte: Parte;
+  programaParteId?: number | null;
   url: string;
   nombre?: string;
   orden: number;
@@ -374,12 +377,14 @@ export interface ParteOrdenDto {
 
 export interface AsignacionDto {
   parteId: number;
+  parteIndex?: number;
   usuarioIds?: number[];
   nombresLibres?: string[];
 }
 
 export interface LinkDto {
   parteId: number;
+  parteIndex?: number;
   nombre: string;
   url?: string;
   mediaItemId?: number;
@@ -387,6 +392,7 @@ export interface LinkDto {
 
 export interface FotoDto {
   parteId: number;
+  parteIndex?: number;
   url: string;
   nombre?: string;
   mediaItemId?: number;

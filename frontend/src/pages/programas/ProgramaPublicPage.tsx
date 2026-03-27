@@ -104,9 +104,9 @@ export default function ProgramaPublicPage() {
     }
   >();
 
-  // Inicializar con partes del programa
+  // Inicializar con partes del programa (usar pp.id como key para soportar partes duplicadas)
   for (const pp of programa.partes) {
-    parteMap.set(pp.parte.id, {
+    parteMap.set(pp.id, {
       nombre: pp.parte.nombre,
       orden: pp.orden,
       esFija: pp.parte.esFija,
@@ -117,9 +117,10 @@ export default function ProgramaPublicPage() {
     });
   }
 
-  // Agregar asignaciones
+  // Agregar asignaciones (por programaParteId, fallback a parte.id para legacy)
   for (const asig of programa.asignaciones) {
-    const p = parteMap.get(asig.parte.id);
+    const key = asig.programaParteId ?? asig.parte.id;
+    const p = parteMap.get(key);
     if (p) {
       const nombre = asig.usuario?.nombre || asig.nombreLibre || 'Sin asignar';
       p.asignados.push(nombre);
@@ -128,7 +129,8 @@ export default function ProgramaPublicPage() {
 
   // Agregar links
   for (const link of programa.links) {
-    const p = parteMap.get(link.parte.id);
+    const key = link.programaParteId ?? link.parte.id;
+    const p = parteMap.get(key);
     if (p) {
       p.links.push({ nombre: link.nombre, url: link.url });
     }
@@ -136,7 +138,8 @@ export default function ProgramaPublicPage() {
 
   // Agregar fotos
   for (const foto of programa.fotos) {
-    const p = parteMap.get(foto.parte.id);
+    const key = foto.programaParteId ?? foto.parte.id;
+    const p = parteMap.get(key);
     if (p) {
       p.fotos.push({ url: foto.url, nombre: foto.nombre });
     }

@@ -836,10 +836,16 @@ export default function ProgramaForm() {
                 // Add parts from programa.partes (saved order)
                 if (programaData.partes && programaData.partes.length > 0) {
                     for (const pp of programaData.partes) {
-                        const asigs = programaData.asignaciones.filter(a => a.parte.id === pp.parteId);
-                        const links = programaData.links.filter(l => l.parte.id === pp.parteId);
-
-                        const fotos = programaData.fotos.filter(f => f.parte.id === pp.parteId);
+                        // Filter by programaParteId (exact instance) with fallback to parteId (legacy)
+                        const asigs = programaData.asignaciones.filter(a =>
+                            a.programaParteId ? a.programaParteId === pp.id : a.parte.id === pp.parteId
+                        );
+                        const links = programaData.links.filter(l =>
+                            l.programaParteId ? l.programaParteId === pp.id : l.parte.id === pp.parteId
+                        );
+                        const fotos = programaData.fotos.filter(f =>
+                            f.programaParteId ? f.programaParteId === pp.id : f.parte.id === pp.parteId
+                        );
                         programaPartes.push({
                             id: `parte-${pp.parteId}-${pp.id}`,
                             parteId: pp.parteId,
@@ -968,6 +974,7 @@ export default function ProgramaForm() {
                 .filter(p => p.usuarioIds.length > 0 || p.nombresLibres.length > 0)
                 .map(p => ({
                     parteId: p.parteId,
+                    parteIndex: partesEnPrograma.indexOf(p),
                     usuarioIds: p.usuarioIds.length > 0 ? p.usuarioIds : undefined,
                     nombresLibres: p.nombresLibres.length > 0 ? p.nombresLibres : undefined,
                 }));
@@ -980,6 +987,7 @@ export default function ProgramaForm() {
                         .filter(l => l.nombre && (l.url || l.mediaItemId))
                         .map(l => ({
                             parteId: p.parteId,
+                            parteIndex: partesEnPrograma.indexOf(p),
                             nombre: l.nombre,
                             url: l.url || undefined,
                             mediaItemId: l.mediaItemId ?? undefined,
@@ -992,6 +1000,7 @@ export default function ProgramaForm() {
                 .flatMap(p =>
                     p.fotos.map(f => ({
                         parteId: p.parteId,
+                        parteIndex: partesEnPrograma.indexOf(p),
                         url: f.url,
                         nombre: f.nombre,
                         mediaItemId: f.mediaItemId,

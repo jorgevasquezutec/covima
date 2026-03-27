@@ -13,9 +13,8 @@ function buildScenes(programa: Programa): SceneData[] {
   const sorted = [...programa.partes].sort((a, b) => a.orden - b.orden);
 
   return sorted.map((pp) => {
-    const parteId = pp.parteId;
     const links = programa.links
-      .filter((l) => l.parte.id === parteId && (l.url || l.mediaItemId))
+      .filter((l) => (l.programaParteId ? l.programaParteId === pp.id : l.parte.id === pp.parteId) && (l.url || l.mediaItemId))
       .sort((a, b) => a.orden - b.orden)
       .map((l) => ({
         nombre: l.nombre,
@@ -24,7 +23,7 @@ function buildScenes(programa: Programa): SceneData[] {
       }));
 
     const fotos = programa.fotos
-      .filter((f) => f.parte.id === parteId && f.url)
+      .filter((f) => (f.programaParteId ? f.programaParteId === pp.id : f.parte.id === pp.parteId) && f.url)
       .sort((a, b) => a.orden - b.orden)
       .map((f) => ({ url: f.url, nombre: f.nombre }));
 
@@ -94,10 +93,10 @@ export default function PreviewOBSPage() {
         parteId: pp.parteId,
         participantes: [],
         links: programa.links
-          .filter((l) => l.parte.id === pp.parteId)
+          .filter((l) => l.programaParteId ? l.programaParteId === pp.id : l.parte.id === pp.parteId)
           .map((l) => ({ nombre: l.nombre, url: l.url, mediaUrl: l.mediaItem?.url ?? null })),
         fotos: programa.fotos
-          .filter((f) => f.parte.id === pp.parteId)
+          .filter((f) => f.programaParteId ? f.programaParteId === pp.id : f.parte.id === pp.parteId)
           .map((f) => ({ url: f.url, nombre: f.nombre })),
       }));
 

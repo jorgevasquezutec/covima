@@ -19,6 +19,14 @@ export class AsignacionDto {
   parteId: number;
 
   @ApiPropertyOptional({
+    example: 0,
+    description: 'Índice de la parte en el array de partes del programa',
+  })
+  @IsOptional()
+  @IsInt()
+  parteIndex?: number;
+
+  @ApiPropertyOptional({
     example: [1, 2],
     description: 'IDs de usuarios asignados',
   })
@@ -42,6 +50,14 @@ export class LinkDto {
   @IsInt()
   parteId: number;
 
+  @ApiPropertyOptional({
+    example: 0,
+    description: 'Índice de la parte en el array de partes del programa',
+  })
+  @IsOptional()
+  @IsInt()
+  parteIndex?: number;
+
   @ApiProperty({ example: 'Himno Adventista 366' })
   @IsString()
   nombre: string;
@@ -63,6 +79,14 @@ export class FotoDto {
   @ApiProperty({ example: 1, description: 'ID de la parte' })
   @IsInt()
   parteId: number;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: 'Índice de la parte en el array de partes del programa',
+  })
+  @IsOptional()
+  @IsInt()
+  parteIndex?: number;
 
   @ApiProperty({ example: '/uploads/programas/programa-1234.jpg' })
   @IsString()

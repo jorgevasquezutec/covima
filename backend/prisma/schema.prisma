@@ -233,64 +233,73 @@ model ProgramaParte {
 
   programa    Programa @relation(fields: [programaId], references: [id], onDelete: Cascade)
   parte       Parte    @relation(fields: [parteId], references: [id])
+  asignaciones ProgramaAsignacion[]
+  links        ProgramaLink[]
+  fotos        ProgramaFoto[]
 
   @@map("programa_partes")
 }
 
 model ProgramaAsignacion {
-  id           Int       @id @default(autoincrement())
-  programaId   Int       @map("programa_id")
-  parteId      Int       @map("parte_id")
-  usuarioId    Int?      @map("usuario_id")    // Opcional - null si es nombre libre
-  nombreLibre  String?   @map("nombre_libre") @db.VarChar(100) // Nombre cuando no hay usuario registrado
-  orden        Int       @default(1)
-  notificado   Boolean   @default(false)
-  notificadoAt DateTime? @map("notificado_at")
-  confirmado   Boolean   @default(false)
-  confirmadoAt DateTime? @map("confirmado_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id               Int       @id @default(autoincrement())
+  programaId       Int       @map("programa_id")
+  parteId          Int       @map("parte_id")
+  programaParteId  Int?      @map("programa_parte_id")
+  usuarioId        Int?      @map("usuario_id")    // Opcional - null si es nombre libre
+  nombreLibre      String?   @map("nombre_libre") @db.VarChar(100) // Nombre cuando no hay usuario registrado
+  orden            Int       @default(1)
+  notificado       Boolean   @default(false)
+  notificadoAt     DateTime? @map("notificado_at")
+  confirmado       Boolean   @default(false)
+  confirmadoAt     DateTime? @map("confirmado_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
-  programa     Programa  @relation(fields: [programaId], references: [id], onDelete: Cascade)
-  parte        Parte     @relation(fields: [parteId], references: [id])
-  usuario      Usuario?  @relation(fields: [usuarioId], references: [id])
+  programa         Programa       @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte            Parte          @relation(fields: [parteId], references: [id])
+  programaParte    ProgramaParte? @relation(fields: [programaParteId], references: [id], onDelete: Cascade)
+  usuario          Usuario?       @relation(fields: [usuarioId], references: [id])
 
   @@map("programa_asignaciones")
 }
 
 model ProgramaLink {
-  id          Int      @id @default(autoincrement())
-  programaId  Int      @map("programa_id")
-  parteId     Int      @map("parte_id")
-  nombre      String   @db.VarChar(200)
-  url         String?
-  orden       Int      @default(1)
-  agregadoPor Int?     @map("agregado_por")
-  mediaItemId Int?     @map("media_item_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  programaId      Int      @map("programa_id")
+  parteId         Int      @map("parte_id")
+  programaParteId Int?     @map("programa_parte_id")
+  nombre          String   @db.VarChar(200)
+  url             String?
+  orden           Int      @default(1)
+  agregadoPor     Int?     @map("agregado_por")
+  mediaItemId     Int?     @map("media_item_id")
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  programa    Programa   @relation(fields: [programaId], references: [id], onDelete: Cascade)
-  parte       Parte      @relation(fields: [parteId], references: [id])
-  agregador   Usuario?   @relation(fields: [agregadoPor], references: [id])
-  mediaItem   MediaItem? @relation(fields: [mediaItemId], references: [id])
+  programa      Programa       @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte         Parte          @relation(fields: [parteId], references: [id])
+  programaParte ProgramaParte? @relation(fields: [programaParteId], references: [id], onDelete: Cascade)
+  agregador     Usuario?       @relation(fields: [agregadoPor], references: [id])
+  mediaItem     MediaItem?     @relation(fields: [mediaItemId], references: [id])
 
   @@map("programa_links")
 }
 
 model ProgramaFoto {
-  id          Int      @id @default(autoincrement())
-  programaId  Int      @map("programa_id")
-  parteId     Int      @map("parte_id")
-  url         String   @db.VarChar(500)
-  nombre      String?  @db.VarChar(200)
-  orden       Int      @default(1)
-  agregadoPor Int?     @map("agregado_por")
-  mediaItemId Int?     @map("media_item_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  programaId      Int      @map("programa_id")
+  parteId         Int      @map("parte_id")
+  programaParteId Int?     @map("programa_parte_id")
+  url             String   @db.VarChar(500)
+  nombre          String?  @db.VarChar(200)
+  orden           Int      @default(1)
+  agregadoPor     Int?     @map("agregado_por")
+  mediaItemId     Int?     @map("media_item_id")
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  programa    Programa   @relation(fields: [programaId], references: [id], onDelete: Cascade)
-  parte       Parte      @relation(fields: [parteId], references: [id])
-  agregador   Usuario?   @relation(fields: [agregadoPor], references: [id])
-  mediaItem   MediaItem? @relation(fields: [mediaItemId], references: [id])
+  programa      Programa       @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parte         Parte          @relation(fields: [parteId], references: [id])
+  programaParte ProgramaParte? @relation(fields: [programaParteId], references: [id], onDelete: Cascade)
+  agregador     Usuario?       @relation(fields: [agregadoPor], references: [id])
+  mediaItem     MediaItem?     @relation(fields: [mediaItemId], references: [id])
 
   @@map("programa_fotos")
 }

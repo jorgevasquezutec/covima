@@ -201,6 +201,16 @@ async function main() {
   // Crear tipos de asistencia predefinidos
   const tiposAsistencia = [
     {
+      nombre: 'general',
+      label: 'Asistencia General',
+      descripcion: 'Registro de asistencia general para cualquier evento o programa',
+      icono: 'ClipboardCheck',
+      color: '#6B7280',
+      soloPresencia: true,
+      orden: 0,
+      campos: [],
+    },
+    {
       nombre: 'escuela_sabatica',
       label: 'Escuela Sabática',
       descripcion: 'Registro de asistencia a Escuela Sabática',

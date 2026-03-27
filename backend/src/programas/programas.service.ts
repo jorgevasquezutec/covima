@@ -229,22 +229,29 @@ export class ProgramasService {
       },
     });
 
-    // Agregar partes del programa con su orden
+    // Agregar partes del programa con su orden y guardar mapeo index → programaParteId
+    const parteIndexToId = new Map<number, number>();
     if (dto.partes && dto.partes.length > 0) {
-      for (const parte of dto.partes) {
-        await prismaClient.programaParte.create({
+      for (let i = 0; i < dto.partes.length; i++) {
+        const parte = dto.partes[i];
+        const pp = await prismaClient.programaParte.create({
           data: {
             programaId: programa.id,
             parteId: parte.parteId,
             orden: parte.orden,
           },
         });
+        parteIndexToId.set(i, pp.id);
       }
     }
 
     // Agregar asignaciones si se proporcionan
     if (dto.asignaciones && dto.asignaciones.length > 0) {
       for (const asig of dto.asignaciones) {
+        const programaParteId =
+          asig.parteIndex != null
+            ? parteIndexToId.get(asig.parteIndex) ?? null
+            : null;
         let orden = 1;
         // Procesar usuarios registrados
         if (asig.usuarioIds && asig.usuarioIds.length > 0) {
@@ -253,6 +260,7 @@ export class ProgramasService {
               data: {
                 programaId: programa.id,
                 parteId: asig.parteId,
+                programaParteId,
                 usuarioId,
                 orden: orden++,
               },
@@ -266,6 +274,7 @@ export class ProgramasService {
               data: {
                 programaId: programa.id,
                 parteId: asig.parteId,
+                programaParteId,
                 nombreLibre,
                 orden: orden++,
               },
@@ -285,10 +294,15 @@ export class ProgramasService {
           orden = 1;
           currentParteId = link.parteId;
         }
+        const programaParteId =
+          link.parteIndex != null
+            ? parteIndexToId.get(link.parteIndex) ?? null
+            : null;
         await prismaClient.programaLink.create({
           data: {
             programaId: programa.id,
             parteId: link.parteId,
+            programaParteId,
             nombre: link.nombre,
             url: link.url || null,
             mediaItemId: link.mediaItemId || null,
@@ -308,10 +322,15 @@ export class ProgramasService {
           orden = 1;
           currentParteId = foto.parteId;
         }
+        const programaParteId =
+          foto.parteIndex != null
+            ? parteIndexToId.get(foto.parteIndex) ?? null
+            : null;
         await prismaClient.programaFoto.create({
           data: {
             programaId: programa.id,
             parteId: foto.parteId,
+            programaParteId,
             url: foto.url,
             nombre: foto.nombre || null,
             mediaItemId: foto.mediaItemId || null,
@@ -388,20 +407,23 @@ export class ProgramasService {
       },
     });
 
-    // Si se proporcionan partes, reemplazar las existentes
+    // Si se proporcionan partes, reemplazar las existentes y guardar mapeo index → id
+    const parteIndexToId = new Map<number, number>();
     if (dto.partes) {
       await this.prisma.programaParte.deleteMany({
         where: { programaId: id },
       });
 
-      for (const parte of dto.partes) {
-        await this.prisma.programaParte.create({
+      for (let i = 0; i < dto.partes.length; i++) {
+        const parte = dto.partes[i];
+        const pp = await this.prisma.programaParte.create({
           data: {
             programaId: id,
             parteId: parte.parteId,
             orden: parte.orden,
           },
         });
+        parteIndexToId.set(i, pp.id);
       }
     }
 
@@ -412,6 +434,10 @@ export class ProgramasService {
       });
 
       for (const asig of dto.asignaciones) {
+        const programaParteId =
+          asig.parteIndex != null
+            ? parteIndexToId.get(asig.parteIndex) ?? null
+            : null;
         let orden = 1;
         // Procesar usuarios registrados
         if (asig.usuarioIds && asig.usuarioIds.length > 0) {
@@ -420,6 +446,7 @@ export class ProgramasService {
               data: {
                 programaId: id,
                 parteId: asig.parteId,
+                programaParteId,
                 usuarioId,
                 orden: orden++,
               },
@@ -433,6 +460,7 @@ export class ProgramasService {
               data: {
                 programaId: id,
                 parteId: asig.parteId,
+                programaParteId,
                 nombreLibre,
                 orden: orden++,
               },
@@ -456,10 +484,15 @@ export class ProgramasService {
           orden = 1;
           currentParteId = link.parteId;
         }
+        const programaParteId =
+          link.parteIndex != null
+            ? parteIndexToId.get(link.parteIndex) ?? null
+            : null;
         await this.prisma.programaLink.create({
           data: {
             programaId: id,
             parteId: link.parteId,
+            programaParteId,
             nombre: link.nombre,
             url: link.url || null,
             mediaItemId: link.mediaItemId || null,
@@ -483,10 +516,15 @@ export class ProgramasService {
           orden = 1;
           currentParteId = foto.parteId;
         }
+        const programaParteId =
+          foto.parteIndex != null
+            ? parteIndexToId.get(foto.parteIndex) ?? null
+            : null;
         await this.prisma.programaFoto.create({
           data: {
             programaId: id,
             parteId: foto.parteId,
+            programaParteId,
             url: foto.url,
             nombre: foto.nombre || null,
             mediaItemId: foto.mediaItemId || null,
@@ -1844,24 +1882,41 @@ export class ProgramasService {
     const diaSemana = fecha.toLocaleDateString('es-PE', { weekday: 'long' });
     let texto = `Programa Maranatha Adoración el ${diaSemana} *${fechaFormateada}*:\n\n`;
 
-    // Agrupar asignaciones y links por parte
+    // Agrupar asignaciones y links por programaParteId (o parteId como fallback)
+    const asignacionesPorProgramaParte = new Map<number, any[]>();
+    const linksPorProgramaParte = new Map<number, any[]>();
+    // Fallback maps for legacy data (no programaParteId)
     const asignacionesPorParte = new Map<number, any[]>();
     const linksPorParte = new Map<number, any[]>();
 
     for (const asig of programa.asignaciones) {
-      const parteId = asig.parte.id;
-      if (!asignacionesPorParte.has(parteId)) {
-        asignacionesPorParte.set(parteId, []);
+      if (asig.programaParteId) {
+        if (!asignacionesPorProgramaParte.has(asig.programaParteId)) {
+          asignacionesPorProgramaParte.set(asig.programaParteId, []);
+        }
+        asignacionesPorProgramaParte.get(asig.programaParteId)!.push(asig);
+      } else {
+        const parteId = asig.parte.id;
+        if (!asignacionesPorParte.has(parteId)) {
+          asignacionesPorParte.set(parteId, []);
+        }
+        asignacionesPorParte.get(parteId)!.push(asig);
       }
-      asignacionesPorParte.get(parteId)!.push(asig);
     }
 
     for (const link of programa.links) {
-      const parteId = link.parte.id;
-      if (!linksPorParte.has(parteId)) {
-        linksPorParte.set(parteId, []);
+      if (link.programaParteId) {
+        if (!linksPorProgramaParte.has(link.programaParteId)) {
+          linksPorProgramaParte.set(link.programaParteId, []);
+        }
+        linksPorProgramaParte.get(link.programaParteId)!.push(link);
+      } else {
+        const parteId = link.parte.id;
+        if (!linksPorParte.has(parteId)) {
+          linksPorParte.set(parteId, []);
+        }
+        linksPorParte.get(parteId)!.push(link);
       }
-      linksPorParte.get(parteId)!.push(link);
     }
 
     // Obtener partes del programa en orden
@@ -1895,8 +1950,15 @@ export class ProgramasService {
       // Usar el orden guardado en programa_partes
       for (const pp of partesDelPrograma) {
         const parte = pp.parte;
-        const asignaciones = asignacionesPorParte.get(parte.id) || [];
-        const links = linksPorParte.get(parte.id) || [];
+        // Use programaParteId-based maps first, fallback to parteId-based
+        const asignaciones =
+          asignacionesPorProgramaParte.get(pp.id) ||
+          asignacionesPorParte.get(parte.id) ||
+          [];
+        const links =
+          linksPorProgramaParte.get(pp.id) ||
+          linksPorParte.get(parte.id) ||
+          [];
 
         const parteVisitas = parte.nombre.toLowerCase().includes('bienvenida')
           ? visitas
@@ -2195,24 +2257,40 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
    * Genera el texto del programa para incluir en las notificaciones
    */
   private async generarTextoParaNotificacion(programa: any): Promise<string> {
-    // Agrupar asignaciones y links por parte
+    // Agrupar asignaciones y links por programaParteId (o parteId como fallback)
+    const asignacionesPorProgramaParte = new Map<number, any[]>();
+    const linksPorProgramaParte = new Map<number, any[]>();
     const asignacionesPorParte = new Map<number, any[]>();
     const linksPorParte = new Map<number, any[]>();
 
     for (const asig of programa.asignaciones) {
-      const parteId = asig.parte.id;
-      if (!asignacionesPorParte.has(parteId)) {
-        asignacionesPorParte.set(parteId, []);
+      if (asig.programaParteId) {
+        if (!asignacionesPorProgramaParte.has(asig.programaParteId)) {
+          asignacionesPorProgramaParte.set(asig.programaParteId, []);
+        }
+        asignacionesPorProgramaParte.get(asig.programaParteId)!.push(asig);
+      } else {
+        const parteId = asig.parte.id;
+        if (!asignacionesPorParte.has(parteId)) {
+          asignacionesPorParte.set(parteId, []);
+        }
+        asignacionesPorParte.get(parteId)!.push(asig);
       }
-      asignacionesPorParte.get(parteId)!.push(asig);
     }
 
     for (const link of programa.links) {
-      const parteId = link.parte.id;
-      if (!linksPorParte.has(parteId)) {
-        linksPorParte.set(parteId, []);
+      if (link.programaParteId) {
+        if (!linksPorProgramaParte.has(link.programaParteId)) {
+          linksPorProgramaParte.set(link.programaParteId, []);
+        }
+        linksPorProgramaParte.get(link.programaParteId)!.push(link);
+      } else {
+        const parteId = link.parte.id;
+        if (!linksPorParte.has(parteId)) {
+          linksPorParte.set(parteId, []);
+        }
+        linksPorParte.get(parteId)!.push(link);
       }
-      linksPorParte.get(parteId)!.push(link);
     }
 
     let texto = '';
@@ -2220,8 +2298,14 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
     // Usar el orden guardado en programa_partes
     for (const pp of programa.partes) {
       const parte = pp.parte;
-      const asignaciones = asignacionesPorParte.get(parte.id) || [];
-      const links = linksPorParte.get(parte.id) || [];
+      const asignaciones =
+        asignacionesPorProgramaParte.get(pp.id) ||
+        asignacionesPorParte.get(parte.id) ||
+        [];
+      const links =
+        linksPorProgramaParte.get(pp.id) ||
+        linksPorParte.get(parte.id) ||
+        [];
 
       texto += this.formatearParteParaWhatsapp(parte, asignaciones, links);
     }
@@ -2469,6 +2553,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         programa.asignaciones?.map((a: any) => ({
           id: a.id,
           parteId: a.parteId,
+          programaParteId: a.programaParteId ?? null,
           parte: a.parte,
           usuario: a.usuario,
           nombreLibre: a.nombreLibre,
@@ -2480,6 +2565,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         programa.links?.map((l: any) => ({
           id: l.id,
           parteId: l.parteId,
+          programaParteId: l.programaParteId ?? null,
           parte: l.parte,
           nombre: l.nombre,
           url: l.url,
@@ -2491,6 +2577,7 @@ _Responde "ver programa ${codigo}" para ver el programa actualizado._
         programa.fotos?.map((f: any) => ({
           id: f.id,
           parteId: f.parteId,
+          programaParteId: f.programaParteId ?? null,
           parte: f.parte,
           url: f.url,
           nombre: f.nombre,
