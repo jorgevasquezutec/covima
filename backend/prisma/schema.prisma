@@ -377,6 +377,13 @@ model QRAsistencia {
   horaFin         DateTime     @default(dbgenerated("'12:00:00'::time")) @map("hora_fin") @db.Time()
   margenTemprana  Int          @default(15) @map("margen_temprana") // Minutos antes de horaInicio = temprana
   margenTardia    Int          @default(30) @map("margen_tardia") // Minutos después de horaInicio = tardía
+  // Override de puntos por programa (null = usar ConfiguracionPuntaje global)
+  puntosTemprana  Int?         @map("puntos_temprana")
+  puntosNormal    Int?         @map("puntos_normal")
+  puntosTardia    Int?         @map("puntos_tardia")
+  xpTemprana      Int?         @map("xp_temprana")
+  xpNormal        Int?         @map("xp_normal")
+  xpTardia        Int?         @map("xp_tardia")
   createdBy       Int?         @map("created_by")
   createdAt       DateTime     @default(now()) @map("created_at")
 

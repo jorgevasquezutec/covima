@@ -524,6 +524,13 @@ export interface QRAsistencia {
   creador?: UsuarioSimple;
   programaId?: number | null;
   totalAsistencias: number;
+  // Override de puntos por programa
+  puntosTemprana?: number | null;
+  puntosNormal?: number | null;
+  puntosTardia?: number | null;
+  xpTemprana?: number | null;
+  xpNormal?: number | null;
+  xpTardia?: number | null;
   createdAt: string;
 }
 

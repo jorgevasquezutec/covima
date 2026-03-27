@@ -687,12 +687,19 @@ export class GamificacionService {
     margenTemprana: number = 15, // minutos antes de horaInicio = temprana
     margenTardia: number = 30, // minutos después de horaInicio = tardía
     tipoOverride?: 'temprana' | 'normal' | 'tardia',
+    qrPuntosOverride?: {
+      puntosTemprana?: number | null;
+      puntosNormal?: number | null;
+      puntosTardia?: number | null;
+      xpTemprana?: number | null;
+      xpNormal?: number | null;
+      xpTardia?: number | null;
+    },
   ): Promise<AsignarPuntosResult> {
-    let codigoPuntaje: string;
+    let tipoAsistencia: 'temprana' | 'normal' | 'tardia';
 
     if (tipoOverride) {
-      // Override manual: el admin/líder forzó el tipo
-      codigoPuntaje = `asistencia_${tipoOverride}`;
+      tipoAsistencia = tipoOverride;
     } else {
       // Extraer solo hora y minutos para comparar
       const registroMinutos =
@@ -705,26 +712,115 @@ export class GamificacionService {
 
       // Determinar tipo de asistencia basado en hora y márgenes
       if (registroMinutos < inicioMinutos) {
-        codigoPuntaje = 'asistencia_temprana';
+        tipoAsistencia = 'temprana';
       } else if (registroMinutos <= limiteTardiaMin) {
-        codigoPuntaje = 'asistencia_normal';
+        tipoAsistencia = 'normal';
       } else {
-        codigoPuntaje = 'asistencia_tardia';
+        tipoAsistencia = 'tardia';
       }
     }
 
-    // Asignar puntos base
-    const resultado = await this.asignarPuntos(
-      usuarioId,
-      codigoPuntaje,
-      asistenciaId,
-      'asistencia',
-    );
+    // Verificar si el QR tiene puntos override para este tipo
+    const puntosMap = {
+      temprana: { puntos: qrPuntosOverride?.puntosTemprana, xp: qrPuntosOverride?.xpTemprana },
+      normal: { puntos: qrPuntosOverride?.puntosNormal, xp: qrPuntosOverride?.xpNormal },
+      tardia: { puntos: qrPuntosOverride?.puntosTardia, xp: qrPuntosOverride?.xpTardia },
+    };
+    const override = puntosMap[tipoAsistencia];
+
+    let resultado: AsignarPuntosResult;
+    if (override?.puntos != null || override?.xp != null) {
+      // Usar puntos del QR (override por programa)
+      resultado = await this.asignarPuntosDirectos(
+        usuarioId,
+        override.puntos ?? 0,
+        override.xp ?? 0,
+        `asistencia_${tipoAsistencia}`,
+        asistenciaId,
+        'asistencia',
+      );
+    } else {
+      // Fallback: usar ConfiguracionPuntaje global
+      resultado = await this.asignarPuntos(
+        usuarioId,
+        `asistencia_${tipoAsistencia}`,
+        asistenciaId,
+        'asistencia',
+      );
+    }
 
     // Actualizar contador de asistencias y racha
     await this.actualizarRachaYAsistencias(usuarioId);
 
     return resultado;
+  }
+
+  /**
+   * Asignar puntos directos (sin buscar ConfiguracionPuntaje)
+   */
+  private async asignarPuntosDirectos(
+    usuarioId: number,
+    puntos: number,
+    xp: number,
+    descripcion: string,
+    referenciaId?: number,
+    referenciaTipo?: string,
+  ): Promise<AsignarPuntosResult> {
+    const periodoActivo = await this.getPeriodoActivo();
+    if (!periodoActivo) {
+      throw new BadRequestException(
+        'No hay un período de ranking activo. Crea uno primero.',
+      );
+    }
+
+    const perfil = await this.getOrCreatePerfil(usuarioId);
+    const now = new Date();
+
+    await this.prisma.historialPuntos.create({
+      data: {
+        usuarioGamId: perfil.id,
+        periodoRankingId: periodoActivo.id,
+        puntos,
+        xp,
+        descripcion,
+        referenciaId,
+        referenciaTipo,
+        fecha: now,
+      },
+    });
+
+    const perfilActualizado = await this.prisma.usuarioGamificacion.update({
+      where: { id: perfil.id },
+      data: {
+        puntosTotal: { increment: puntos },
+        puntosTrimestre: { increment: puntos },
+        xpTotal: { increment: xp },
+      },
+      include: { nivel: true },
+    });
+
+    const nuevoNivel = await this.calcularYActualizarNivel(
+      perfilActualizado.id,
+      perfilActualizado.xpTotal,
+    );
+
+    const insigniasDesbloqueadas = await this.verificarInsignias(perfil.id);
+
+    if (nuevoNivel !== null) {
+      this.asistenciaGateway.emitLevelUp(usuarioId, {
+        nivel: nuevoNivel,
+        insignias: insigniasDesbloqueadas,
+      });
+    }
+
+    return {
+      puntosAsignados: puntos,
+      xpAsignado: xp,
+      nuevoNivel: nuevoNivel !== null,
+      nivelActual: nuevoNivel || perfilActualizado.nivel,
+      insigniasDesbloqueadas,
+      rachaActual: perfilActualizado.rachaActual,
+    };
   }
 
   // Asignar puntos por participación en una parte del programa

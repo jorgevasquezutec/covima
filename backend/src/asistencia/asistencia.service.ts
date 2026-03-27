@@ -840,6 +840,7 @@ export class AsistenciaService {
             margenTemprana,
             margenTardia,
             dto.tipoAsistenciaManual,
+            qr,
           );
       } catch (error) {
         console.error('Error asignando puntos de gamificación:', error);
@@ -989,19 +990,18 @@ export class AsistenciaService {
     let gamificacionResult: AsignarPuntosResult | null = null;
     if (usuarioId) {
       try {
-        // Mapear tipo manual a código de puntaje
-        const codigoPuntaje = {
-          temprana: 'asistencia_temprana',
-          normal: 'asistencia_normal',
-          tardia: 'asistencia_tardia',
-        }[dto.tipoAsistenciaManual];
-
-        gamificacionResult = await this.gamificacionService.asignarPuntos(
-          usuarioId,
-          codigoPuntaje,
-          asistencia.id,
-          'asistencia',
-        );
+        const horaInicio = qr.horaInicio || new Date('1970-01-01T09:00:00');
+        gamificacionResult =
+          await this.gamificacionService.asignarPuntosPorAsistencia(
+            usuarioId,
+            asistencia.id,
+            asistencia.createdAt,
+            horaInicio,
+            qr.margenTemprana ?? 15,
+            qr.margenTardia ?? 30,
+            dto.tipoAsistenciaManual,
+            qr,
+          );
 
         // Actualizar contador de asistencias, fecha de última asistencia y recalcular racha
         const perfil = await this.prisma.usuarioGamificacion.findUnique({
@@ -1194,6 +1194,7 @@ export class AsistenciaService {
             margenTemp,
             margenTard,
             dto.tipoAsistenciaManual,
+            qr,
           );
         } catch (error) {
           console.error(
@@ -1342,11 +1343,16 @@ export class AsistenciaService {
 
         // Asignar puntos y recalcular racha
         try {
-          await this.gamificacionService.asignarPuntos(
+          const horaInicio = qr.horaInicio || new Date('1970-01-01T09:00:00');
+          await this.gamificacionService.asignarPuntosPorAsistencia(
             usuarioId,
-            codigoPuntaje,
             asistencia.id,
-            'asistencia',
+            asistencia.createdAt,
+            horaInicio,
+            qr.margenTemprana ?? 15,
+            qr.margenTardia ?? 30,
+            dto.tipoAsistenciaManual,
+            qr,
           );
 
           // Recalcular racha
@@ -1559,6 +1565,12 @@ export class AsistenciaService {
             horaFin: true,
             margenTemprana: true,
             margenTardia: true,
+            puntosTemprana: true,
+            puntosNormal: true,
+            puntosTardia: true,
+            xpTemprana: true,
+            xpNormal: true,
+            xpTardia: true,
           },
         },
       },
@@ -1608,6 +1620,15 @@ export class AsistenciaService {
             horaInicio,
             margenTemprana,
             margenTardia,
+            undefined,
+            asistencia.qr ? {
+              puntosTemprana: asistencia.qr.puntosTemprana,
+              puntosNormal: asistencia.qr.puntosNormal,
+              puntosTardia: asistencia.qr.puntosTardia,
+              xpTemprana: asistencia.qr.xpTemprana,
+              xpNormal: asistencia.qr.xpNormal,
+              xpTardia: asistencia.qr.xpTardia,
+            } : undefined,
           );
       } catch (error) {
         // Log error but don't fail the confirmation
@@ -1647,6 +1668,12 @@ export class AsistenciaService {
             horaFin: true,
             margenTemprana: true,
             margenTardia: true,
+            puntosTemprana: true,
+            puntosNormal: true,
+            puntosTardia: true,
+            xpTemprana: true,
+            xpNormal: true,
+            xpTardia: true,
           },
         },
       },
@@ -1681,6 +1708,15 @@ export class AsistenciaService {
               horaInicio,
               margenTemprana,
               margenTardia,
+              undefined,
+              asistencia.qr ? {
+                puntosTemprana: asistencia.qr.puntosTemprana,
+                puntosNormal: asistencia.qr.puntosNormal,
+                puntosTardia: asistencia.qr.puntosTardia,
+                xpTemprana: asistencia.qr.xpTemprana,
+                xpNormal: asistencia.qr.xpNormal,
+                xpTardia: asistencia.qr.xpTardia,
+              } : undefined,
             );
           } catch (error) {
             console.error(

@@ -191,6 +191,37 @@ export class CreateProgramaDto {
   @IsOptional()
   @IsObject()
   obsTheme?: object;
+
+  // Override de puntos por programa (para el QR de asistencia)
+  @ApiPropertyOptional({ description: 'Puntos por asistencia temprana' })
+  @IsOptional()
+  @IsInt()
+  puntosTemprana?: number;
+
+  @ApiPropertyOptional({ description: 'Puntos por asistencia normal' })
+  @IsOptional()
+  @IsInt()
+  puntosNormal?: number;
+
+  @ApiPropertyOptional({ description: 'Puntos por asistencia tardía' })
+  @IsOptional()
+  @IsInt()
+  puntosTardia?: number;
+
+  @ApiPropertyOptional({ description: 'XP por asistencia temprana' })
+  @IsOptional()
+  @IsInt()
+  xpTemprana?: number;
+
+  @ApiPropertyOptional({ description: 'XP por asistencia normal' })
+  @IsOptional()
+  @IsInt()
+  xpNormal?: number;
+
+  @ApiPropertyOptional({ description: 'XP por asistencia tardía' })
+  @IsOptional()
+  @IsInt()
+  xpTardia?: number;
 }
 
 export class CreateProgramaBatchDto {

@@ -75,6 +75,12 @@ interface WizardProgramData {
     partes: ParteEnPrograma[];
     qrAsistenciaId?: number;
     tipoAsistenciaId?: number;
+    puntosTemprana?: number;
+    puntosNormal?: number;
+    puntosTardia?: number;
+    xpTemprana?: number;
+    xpNormal?: number;
+    xpTardia?: number;
 }
 
 // Template selection item
@@ -324,6 +330,12 @@ export default function ProgramaFormMulti() {
                     fotos,
                     qrAsistenciaId: prog.qrAsistenciaId || undefined,
                     tipoAsistenciaId: !prog.qrAsistenciaId && prog.tipoAsistenciaId ? prog.tipoAsistenciaId : undefined,
+                    puntosTemprana: prog.puntosTemprana,
+                    puntosNormal: prog.puntosNormal,
+                    puntosTardia: prog.puntosTardia,
+                    xpTemprana: prog.xpTemprana,
+                    xpNormal: prog.xpNormal,
+                    xpTardia: prog.xpTardia,
                 };
             });
 
@@ -850,6 +862,50 @@ export default function ProgramaFormMulti() {
                                                             </Command>
                                                         </PopoverContent>
                                                     </Popover>
+                                                </div>
+                                            )}
+
+                                            {/* Personalizar puntaje */}
+                                            {(prog.qrAsistenciaId || prog.tipoAsistenciaId) && (
+                                                <div className="mt-2">
+                                                    <button
+                                                        type="button"
+                                                        className="text-xs text-blue-600 hover:text-blue-800"
+                                                        onClick={() => updateProgram(prog.key, (p) => ({
+                                                            ...p,
+                                                            _showPuntos: !(p as any)._showPuntos,
+                                                        } as any))}
+                                                    >
+                                                        Personalizar puntaje
+                                                    </button>
+                                                    {(prog as any)._showPuntos && (
+                                                        <div className="grid grid-cols-3 gap-2 mt-2 p-2 rounded border border-gray-200 bg-gray-50">
+                                                            <div className="space-y-1">
+                                                                <Label className="text-[10px] text-gray-500">Temprana</Label>
+                                                                <Input type="number" placeholder="Pts" className="h-7 text-xs" min={0}
+                                                                    value={prog.puntosTemprana ?? ''}
+                                                                    onChange={(e) => updateProgram(prog.key, (p) => ({ ...p, puntosTemprana: e.target.value ? Number(e.target.value) : undefined }))}
+                                                                    onFocus={(e) => e.target.select()}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <Label className="text-[10px] text-gray-500">Normal</Label>
+                                                                <Input type="number" placeholder="Pts" className="h-7 text-xs" min={0}
+                                                                    value={prog.puntosNormal ?? ''}
+                                                                    onChange={(e) => updateProgram(prog.key, (p) => ({ ...p, puntosNormal: e.target.value ? Number(e.target.value) : undefined }))}
+                                                                    onFocus={(e) => e.target.select()}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <Label className="text-[10px] text-gray-500">Tardía</Label>
+                                                                <Input type="number" placeholder="Pts" className="h-7 text-xs" min={0}
+                                                                    value={prog.puntosTardia ?? ''}
+                                                                    onChange={(e) => updateProgram(prog.key, (p) => ({ ...p, puntosTardia: e.target.value ? Number(e.target.value) : undefined }))}
+                                                                    onFocus={(e) => e.target.select()}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

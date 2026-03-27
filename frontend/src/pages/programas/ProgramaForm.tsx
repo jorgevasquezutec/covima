@@ -783,6 +783,11 @@ export default function ProgramaForm() {
     const [selectedTipoId, setSelectedTipoId] = useState<number | null>(null);
     const [qrAsistenciaData, setQrAsistenciaData] = useState<QRAsistencia | null>(null);
     const [qrComboOpen, setQrComboOpen] = useState(false);
+    const [puntosOverride, setPuntosOverride] = useState<{
+        puntosTemprana?: number; puntosNormal?: number; puntosTardia?: number;
+        xpTemprana?: number; xpNormal?: number; xpTardia?: number;
+    }>({});
+    const [showPuntosOverride, setShowPuntosOverride] = useState(false);
     const [obsTheme, setObsTheme] = useState<OBSTheme>({ ...DEFAULT_OBS_THEME });
 
 
@@ -822,6 +827,18 @@ export default function ProgramaForm() {
                 if (programaData.qrAsistencia) {
                     setQrAsistenciaData(programaData.qrAsistencia);
                     setSelectedQrId(programaData.qrAsistencia.id);
+                    const qr = programaData.qrAsistencia;
+                    if (qr.puntosTemprana != null || qr.puntosNormal != null || qr.puntosTardia != null) {
+                        setPuntosOverride({
+                            puntosTemprana: qr.puntosTemprana ?? undefined,
+                            puntosNormal: qr.puntosNormal ?? undefined,
+                            puntosTardia: qr.puntosTardia ?? undefined,
+                            xpTemprana: qr.xpTemprana ?? undefined,
+                            xpNormal: qr.xpNormal ?? undefined,
+                            xpTardia: qr.xpTardia ?? undefined,
+                        });
+                        setShowPuntosOverride(true);
+                    }
                 }
 
                 // QRs disponibles: activos sin programa vinculado, o el QR del programa actual
@@ -1020,6 +1037,7 @@ export default function ProgramaForm() {
                     obsTheme,
                     qrAsistenciaId: selectedQrId || null,
                     tipoAsistenciaId: !selectedQrId && selectedTipoId ? selectedTipoId : undefined,
+                    ...(showPuntosOverride ? puntosOverride : {}),
                 });
                 toast.success('Programa actualizado');
             } else {
@@ -1035,6 +1053,7 @@ export default function ProgramaForm() {
                     obsTheme,
                     qrAsistenciaId: selectedQrId || undefined,
                     tipoAsistenciaId: !selectedQrId && selectedTipoId ? selectedTipoId : undefined,
+                    ...(showPuntosOverride ? puntosOverride : {}),
                 });
                 toast.success('Programa creado');
             }
@@ -1425,6 +1444,96 @@ export default function ProgramaForm() {
                                     </Popover>
                                 </div>
                             )}
+
+                            {/* Personalizar puntaje de asistencia */}
+                            {(selectedQrId || selectedTipoId) && (
+                            <div className="md:col-span-2 lg:col-span-4 space-y-3">
+                                <button
+                                    type="button"
+                                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                    onClick={() => setShowPuntosOverride(!showPuntosOverride)}
+                                >
+                                    <ChevronDown className={`h-4 w-4 transition-transform ${showPuntosOverride ? 'rotate-180' : ''}`} />
+                                    Personalizar puntaje de asistencia
+                                </button>
+                                {showPuntosOverride && (
+                                    <div className="grid grid-cols-3 gap-4 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-gray-500">Temprana</Label>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Pts"
+                                                    value={puntosOverride.puntosTemprana ?? ''}
+                                                    onChange={(e) => setPuntosOverride(prev => ({ ...prev, puntosTemprana: e.target.value ? Number(e.target.value) : undefined }))}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="h-8 text-sm"
+                                                    min={0}
+                                                />
+                                                <Input
+                                                    type="number"
+                                                    placeholder="XP"
+                                                    value={puntosOverride.xpTemprana ?? ''}
+                                                    onChange={(e) => setPuntosOverride(prev => ({ ...prev, xpTemprana: e.target.value ? Number(e.target.value) : undefined }))}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="h-8 text-sm"
+                                                    min={0}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-gray-500">Normal</Label>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Pts"
+                                                    value={puntosOverride.puntosNormal ?? ''}
+                                                    onChange={(e) => setPuntosOverride(prev => ({ ...prev, puntosNormal: e.target.value ? Number(e.target.value) : undefined }))}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="h-8 text-sm"
+                                                    min={0}
+                                                />
+                                                <Input
+                                                    type="number"
+                                                    placeholder="XP"
+                                                    value={puntosOverride.xpNormal ?? ''}
+                                                    onChange={(e) => setPuntosOverride(prev => ({ ...prev, xpNormal: e.target.value ? Number(e.target.value) : undefined }))}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="h-8 text-sm"
+                                                    min={0}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-gray-500">Tardía</Label>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Pts"
+                                                    value={puntosOverride.puntosTardia ?? ''}
+                                                    onChange={(e) => setPuntosOverride(prev => ({ ...prev, puntosTardia: e.target.value ? Number(e.target.value) : undefined }))}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="h-8 text-sm"
+                                                    min={0}
+                                                />
+                                                <Input
+                                                    type="number"
+                                                    placeholder="XP"
+                                                    value={puntosOverride.xpTardia ?? ''}
+                                                    onChange={(e) => setPuntosOverride(prev => ({ ...prev, xpTardia: e.target.value ? Number(e.target.value) : undefined }))}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="h-8 text-sm"
+                                                    min={0}
+                                                />
+                                            </div>
+                                        </div>
+                                        <p className="col-span-3 text-xs text-gray-400">
+                                            Deja vacío para usar los valores globales de configuración
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         </div>
                     )}
                     {isEditing && codigo && (

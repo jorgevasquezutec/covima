@@ -487,6 +487,8 @@ export class AsistenciaHandler {
               qr.horaInicio,
               margenTemprana,
               margenTardia,
+              undefined,
+              qr,
             );
           this.logger.log(
             `Puntos asignados a usuario ${usuarioObjetivo.id}: ${gamificacionResult?.puntosAsignados || 0}`,

@@ -376,6 +376,12 @@ export class ProgramasService {
           horaInicio: horaInicioQR,
           horaFin: horaFinQR,
           createdBy: createdBy,
+          puntosTemprana: dto.puntosTemprana,
+          puntosNormal: dto.puntosNormal,
+          puntosTardia: dto.puntosTardia,
+          xpTemprana: dto.xpTemprana,
+          xpNormal: dto.xpNormal,
+          xpTardia: dto.xpTardia,
         },
       });
     }
@@ -590,6 +596,12 @@ export class ProgramasService {
             urlGenerada: `/asistencia/${codigoQR}`,
             horaInicio: horaInicioQR,
             horaFin: horaFinQR,
+            puntosTemprana: dto.puntosTemprana,
+            puntosNormal: dto.puntosNormal,
+            puntosTardia: dto.puntosTardia,
+            xpTemprana: dto.xpTemprana,
+            xpNormal: dto.xpNormal,
+            xpTardia: dto.xpTardia,
           },
         });
       } else if (existingQR) {
