@@ -62,6 +62,9 @@ export default function PerfilParticipantePage() {
     queryFn: () => gamificacionApi.getPeriodos(true),
   });
 
+  // Heatmap state (must be before early returns to respect Rules of Hooks)
+  const [selectedDay, setSelectedDay] = useState<{ key: string; date: Date; count: number; tipos: string[] } | null>(null);
+
   if (isLoading) {
     return (
       <div className="p-3 sm:p-4 space-y-4">
@@ -154,9 +157,6 @@ export default function PerfilParticipantePage() {
   const pieData = puntosPorCategoria
     .filter(c => c.puntos > 0)
     .map(c => ({ name: CAT_LABELS[c.categoria] || c.categoria, value: c.puntos }));
-
-  // Heatmap state
-  const [selectedDay, setSelectedDay] = useState<{ key: string; date: Date; count: number; tipos: string[] } | null>(null);
 
   // Heatmap helper
   const renderHeatmap = () => {

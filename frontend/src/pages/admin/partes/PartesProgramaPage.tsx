@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -21,89 +20,31 @@ import {
 import { programasApi } from '@/services/api';
 import type { Parte, CreateParteRequest } from '@/types';
 import { toast } from 'sonner';
+import { useCrudDialog } from '@/hooks/useCrudDialog';
+import { useCrudMutations } from '@/hooks/useCrudMutations';
+
+const initialFormData: CreateParteRequest = {
+  nombre: '',
+  descripcion: '',
+  orden: 1,
+  esFija: false,
+  esObligatoria: false,
+  textoFijo: '',
+  permiteFotos: false,
+  permitirMultiples: false,
+  puntos: 0,
+  xp: 0,
+};
 
 export default function PartesProgramaPage() {
-  const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [parteToDelete, setParteToDelete] = useState<Parte | null>(null);
-  const [editingParte, setEditingParte] = useState<Parte | null>(null);
-  const [formData, setFormData] = useState<CreateParteRequest>({
-    nombre: '',
-    descripcion: '',
-    orden: 1,
-    esFija: false,
-    esObligatoria: false,
-    textoFijo: '',
-    permiteFotos: false,
-    permitirMultiples: false,
-    puntos: 0,
-    xp: 0,
-  });
-
   const { data: partes, isLoading } = useQuery({
     queryKey: ['partes-all'],
     queryFn: programasApi.getAllPartes,
   });
 
-  const crearMutation = useMutation({
-    mutationFn: programasApi.createParte,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['partes-all'] });
-      toast.success('Parte creada exitosamente');
-      handleCloseModal();
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al crear parte');
-    },
-  });
-
-  const actualizarMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Parte> }) =>
-      programasApi.updateParte(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['partes-all'] });
-      toast.success('Parte actualizada');
-      handleCloseModal();
-    },
-    onError: () => {
-      toast.error('Error al actualizar parte');
-    },
-  });
-
-  const eliminarMutation = useMutation({
-    mutationFn: programasApi.deleteParte,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['partes-all'] });
-      toast.success('Parte desactivada');
-      setDeleteDialogOpen(false);
-      setParteToDelete(null);
-    },
-    onError: () => {
-      toast.error('Error al eliminar parte');
-    },
-  });
-
-  const handleOpenCreate = () => {
-    setEditingParte(null);
-    const maxOrden = partes?.reduce((max, p) => Math.max(max, p.orden), 0) || 0;
-    setFormData({
-      nombre: '',
-      descripcion: '',
-      orden: maxOrden + 1,
-      esFija: false,
-      esObligatoria: false,
-      textoFijo: '',
-      permiteFotos: false,
-      puntos: 0,
-      xp: 0,
-    });
-    setModalOpen(true);
-  };
-
-  const handleOpenEdit = (parte: Parte) => {
-    setEditingParte(parte);
-    setFormData({
+  const dialog = useCrudDialog<CreateParteRequest>({
+    initialFormData,
+    mapItemToForm: (parte: Parte) => ({
       nombre: parte.nombre,
       descripcion: parte.descripcion || '',
       orden: parte.orden,
@@ -114,46 +55,50 @@ export default function PartesProgramaPage() {
       permitirMultiples: parte.permitirMultiples || false,
       puntos: parte.puntos,
       xp: parte.xp,
-    });
-    setModalOpen(true);
-  };
+    }),
+  });
 
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setEditingParte(null);
+  const { createMutation, updateMutation, deleteMutation } = useCrudMutations<CreateParteRequest, Partial<Parte>>({
+    createFn: programasApi.createParte,
+    updateFn: programasApi.updateParte,
+    deleteFn: programasApi.deleteParte,
+    queryKeys: ['partes-all'],
+    onSuccess: dialog.closeModal,
+    entityName: 'Parte',
+  });
+
+  const handleOpenCreate = () => {
+    const maxOrden = partes?.reduce((max, p) => Math.max(max, p.orden), 0) || 0;
+    dialog.openCreate({ orden: maxOrden + 1 });
   };
 
   const handleSubmit = () => {
-    if (!formData.nombre) {
+    if (!dialog.formData.nombre) {
       toast.error('El nombre es requerido');
       return;
     }
 
-    if (editingParte) {
-      actualizarMutation.mutate({
-        id: editingParte.id,
-        data: formData,
+    if (dialog.editingItem) {
+      updateMutation!.mutate({
+        id: dialog.editingItem.id,
+        data: dialog.formData,
       });
     } else {
-      crearMutation.mutate(formData);
+      createMutation!.mutate(dialog.formData);
     }
   };
 
   const handleToggleActivo = (parte: Parte) => {
-    actualizarMutation.mutate({
+    updateMutation!.mutate({
       id: parte.id,
       data: { activo: !parte.activo },
     });
   };
 
-  const handleDelete = (parte: Parte) => {
-    setParteToDelete(parte);
-    setDeleteDialogOpen(true);
-  };
-
   const confirmDelete = () => {
-    if (parteToDelete) {
-      eliminarMutation.mutate(parteToDelete.id);
+    if (dialog.itemToDelete) {
+      deleteMutation!.mutate(dialog.itemToDelete.id);
+      dialog.closeDelete();
     }
   };
 
@@ -261,14 +206,14 @@ export default function PartesProgramaPage() {
                   <TableCell className="pr-2 sm:pr-4">
                     {/* Desktop */}
                     <div className="hidden sm:flex gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleOpenEdit(parte)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => dialog.openEdit(parte)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8"
-                        onClick={() => handleDelete(parte)}
+                        onClick={() => dialog.openDelete(parte)}
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </Button>
@@ -282,10 +227,10 @@ export default function PartesProgramaPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleOpenEdit(parte)}>
+                          <DropdownMenuItem onClick={() => dialog.openEdit(parte)}>
                             <Edit2 className="h-4 w-4 mr-2" />Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(parte)} className="text-red-600">
+                          <DropdownMenuItem onClick={() => dialog.openDelete(parte)} className="text-red-600">
                             <Trash2 className="h-4 w-4 mr-2" />Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -307,17 +252,17 @@ export default function PartesProgramaPage() {
       </Card>
 
       {/* Modal Crear/Editar */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={dialog.modalOpen} onOpenChange={dialog.setModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingParte ? 'Editar Parte' : 'Nueva Parte'}</DialogTitle>
+            <DialogTitle>{dialog.editingItem ? 'Editar Parte' : 'Nueva Parte'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Nombre *</Label>
               <Input
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                value={dialog.formData.nombre}
+                onChange={(e) => dialog.setFormData({ ...dialog.formData, nombre: e.target.value })}
                 placeholder="ej: Tema Central"
               />
             </div>
@@ -325,8 +270,8 @@ export default function PartesProgramaPage() {
             <div className="space-y-2">
               <Label>Descripción</Label>
               <Textarea
-                value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                value={dialog.formData.descripcion}
+                onChange={(e) => dialog.setFormData({ ...dialog.formData, descripcion: e.target.value })}
                 placeholder="Descripción de la parte..."
                 rows={2}
               />
@@ -337,8 +282,8 @@ export default function PartesProgramaPage() {
                 <Label>Orden</Label>
                 <Input
                   type="number"
-                  value={formData.orden}
-                  onChange={(e) => setFormData({ ...formData, orden: Number(e.target.value) })}
+                  value={dialog.formData.orden}
+                  onChange={(e) => dialog.setFormData({ ...dialog.formData, orden: Number(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   min={1}
                 />
@@ -347,8 +292,8 @@ export default function PartesProgramaPage() {
                 <Label>Puntos</Label>
                 <Input
                   type="number"
-                  value={formData.puntos}
-                  onChange={(e) => setFormData({ ...formData, puntos: Number(e.target.value) })}
+                  value={dialog.formData.puntos}
+                  onChange={(e) => dialog.setFormData({ ...dialog.formData, puntos: Number(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   min={0}
                 />
@@ -357,8 +302,8 @@ export default function PartesProgramaPage() {
                 <Label>XP</Label>
                 <Input
                   type="number"
-                  value={formData.xp}
-                  onChange={(e) => setFormData({ ...formData, xp: Number(e.target.value) })}
+                  value={dialog.formData.xp}
+                  onChange={(e) => dialog.setFormData({ ...dialog.formData, xp: Number(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   min={0}
                 />
@@ -372,8 +317,8 @@ export default function PartesProgramaPage() {
                   <p className="text-xs text-muted-foreground">Siempre aparece en nuevos programas</p>
                 </div>
                 <Switch
-                  checked={formData.esObligatoria}
-                  onCheckedChange={(checked) => setFormData({ ...formData, esObligatoria: checked })}
+                  checked={dialog.formData.esObligatoria}
+                  onCheckedChange={(checked) => dialog.setFormData({ ...dialog.formData, esObligatoria: checked })}
                 />
               </div>
 
@@ -383,8 +328,8 @@ export default function PartesProgramaPage() {
                   <p className="text-xs text-muted-foreground">Tiene texto fijo (ej: himno)</p>
                 </div>
                 <Switch
-                  checked={formData.esFija}
-                  onCheckedChange={(checked) => setFormData({ ...formData, esFija: checked })}
+                  checked={dialog.formData.esFija}
+                  onCheckedChange={(checked) => dialog.setFormData({ ...dialog.formData, esFija: checked })}
                 />
               </div>
 
@@ -394,8 +339,8 @@ export default function PartesProgramaPage() {
                   <p className="text-xs text-muted-foreground">Se pueden subir fotos y videos en esta parte</p>
                 </div>
                 <Switch
-                  checked={formData.permiteFotos}
-                  onCheckedChange={(checked) => setFormData({ ...formData, permiteFotos: checked })}
+                  checked={dialog.formData.permiteFotos}
+                  onCheckedChange={(checked) => dialog.setFormData({ ...dialog.formData, permiteFotos: checked })}
                 />
               </div>
 
@@ -405,44 +350,44 @@ export default function PartesProgramaPage() {
                   <p className="text-xs text-muted-foreground">Puede aparecer más de una vez en un programa</p>
                 </div>
                 <Switch
-                  checked={formData.permitirMultiples}
-                  onCheckedChange={(checked) => setFormData({ ...formData, permitirMultiples: checked })}
+                  checked={dialog.formData.permitirMultiples}
+                  onCheckedChange={(checked) => dialog.setFormData({ ...dialog.formData, permitirMultiples: checked })}
                 />
               </div>
             </div>
 
-            {formData.esFija && (
+            {dialog.formData.esFija && (
               <div className="space-y-2">
                 <Label>Texto fijo</Label>
                 <Input
-                  value={formData.textoFijo}
-                  onChange={(e) => setFormData({ ...formData, textoFijo: e.target.value })}
+                  value={dialog.formData.textoFijo}
+                  onChange={(e) => dialog.setFormData({ ...dialog.formData, textoFijo: e.target.value })}
                   placeholder="ej: Himno Adventista #XXX"
                 />
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseModal}>
+            <Button variant="outline" onClick={dialog.closeModal}>
               Cancelar
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={crearMutation.isPending || actualizarMutation.isPending}
+              disabled={createMutation!.isPending || updateMutation!.isPending}
             >
-              {editingParte ? 'Guardar' : 'Crear'}
+              {dialog.editingItem ? 'Guardar' : 'Crear'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Alert Dialog Eliminar */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={dialog.deleteDialogOpen} onOpenChange={dialog.setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Desactivar parte?</AlertDialogTitle>
             <AlertDialogDescription>
-              La parte "{parteToDelete?.nombre}" será desactivada y no aparecerá en la lista de
+              La parte "{dialog.itemToDelete?.nombre}" será desactivada y no aparecerá en la lista de
               partes disponibles para los programas.
             </AlertDialogDescription>
           </AlertDialogHeader>

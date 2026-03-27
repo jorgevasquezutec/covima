@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +42,8 @@ import {
 import { gamificacionApi } from '@/services/api';
 import type { NivelBiblico, ActualizarNivelRequest } from '@/types';
 import { toast } from 'sonner';
+import { useCrudDialog } from '@/hooks/useCrudDialog';
+import { useCrudMutations } from '@/hooks/useCrudMutations';
 
 const ICONOS_SUGERIDOS = ['📖', '🙏', '🎵', '💡', '🏆', '👑', '🦁', '🕊️', '✨', '⭐', '🔥', '💎', '🌟', '👼'];
 const COLORES_SUGERIDOS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#EF4444', '#06B6D4', '#6366F1', '#14B8A6', '#F97316'];
@@ -72,60 +73,36 @@ const initialFormData: FormData = {
 
 export default function NivelesPage() {
   const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [nivelToDelete, setNivelToDelete] = useState<NivelBiblico | null>(null);
-  const [nivelToEdit, setNivelToEdit] = useState<NivelBiblico | null>(null);
-  const [formData, setFormData] = useState<FormData>(initialFormData);
 
   const { data: niveles, isLoading } = useQuery({
     queryKey: ['niveles-admin'],
     queryFn: () => gamificacionApi.getNiveles(true),
   });
 
-  const crearMutation = useMutation({
-    mutationFn: gamificacionApi.crearNivel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['niveles-admin'] });
-      queryClient.invalidateQueries({ queryKey: ['niveles'] });
-      setModalOpen(false);
-      resetForm();
-      toast.success('Nivel creado correctamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al crear nivel');
-    },
+  const dialog = useCrudDialog<FormData>({
+    initialFormData,
+    mapItemToForm: (nivel: NivelBiblico) => ({
+      numero: nivel.numero,
+      nombre: nivel.nombre,
+      descripcion: nivel.descripcion || '',
+      icono: nivel.icono || '📖',
+      color: nivel.color || '#3B82F6',
+    }),
   });
 
-  const actualizarMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: ActualizarNivelRequest }) =>
-      gamificacionApi.actualizarNivel(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['niveles-admin'] });
-      queryClient.invalidateQueries({ queryKey: ['niveles'] });
-      setModalOpen(false);
-      resetForm();
-      toast.success('Nivel actualizado correctamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al actualizar nivel');
-    },
+  const { createMutation, updateMutation, deleteMutation } = useCrudMutations<
+    { numero: number; nombre: string; descripcion?: string; icono?: string; color?: string },
+    ActualizarNivelRequest
+  >({
+    createFn: gamificacionApi.crearNivel,
+    updateFn: gamificacionApi.actualizarNivel,
+    deleteFn: gamificacionApi.eliminarNivel,
+    queryKeys: ['niveles-admin', 'niveles'],
+    onSuccess: dialog.closeModal,
+    entityName: 'Nivel',
   });
 
-  const eliminarMutation = useMutation({
-    mutationFn: gamificacionApi.eliminarNivel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['niveles-admin'] });
-      queryClient.invalidateQueries({ queryKey: ['niveles'] });
-      setDeleteDialogOpen(false);
-      setNivelToDelete(null);
-      toast.success('Nivel eliminado correctamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al eliminar nivel');
-    },
-  });
-
+  // Extra mutations not covered by useCrudMutations
   const toggleActivoMutation = useMutation({
     mutationFn: ({ id, activo }: { id: number; activo: boolean }) =>
       gamificacionApi.actualizarNivel(id, { activo }),
@@ -150,64 +127,41 @@ export default function NivelesPage() {
     },
   });
 
-  const resetForm = () => {
-    setFormData(initialFormData);
-    setNivelToEdit(null);
-  };
-
   const handleOpenCreate = () => {
-    resetForm();
-    // Sugerir el siguiente número
     if (niveles && niveles.length > 0) {
       const maxNumero = Math.max(...niveles.map((n) => n.numero));
-      setFormData((prev) => ({ ...prev, numero: maxNumero + 1 }));
+      dialog.openCreate({ numero: maxNumero + 1 });
+    } else {
+      dialog.openCreate();
     }
-    setModalOpen(true);
-  };
-
-  const handleOpenEdit = (nivel: NivelBiblico) => {
-    setNivelToEdit(nivel);
-    setFormData({
-      numero: nivel.numero,
-      nombre: nivel.nombre,
-      descripcion: nivel.descripcion || '',
-      icono: nivel.icono || '📖',
-      color: nivel.color || '#3B82F6',
-    });
-    setModalOpen(true);
   };
 
   const handleSubmit = () => {
-    if (!formData.nombre.trim()) {
+    if (!dialog.formData.nombre.trim()) {
       toast.error('El nombre es requerido');
       return;
     }
 
-    if (nivelToEdit) {
-      actualizarMutation.mutate({
-        id: nivelToEdit.id,
+    if (dialog.editingItem) {
+      updateMutation!.mutate({
+        id: dialog.editingItem.id,
         data: {
-          numero: formData.numero,
-          nombre: formData.nombre,
-          descripcion: formData.descripcion || undefined,
-          icono: formData.icono || undefined,
-          color: formData.color || undefined,
+          numero: dialog.formData.numero,
+          nombre: dialog.formData.nombre,
+          descripcion: dialog.formData.descripcion || undefined,
+          icono: dialog.formData.icono || undefined,
+          color: dialog.formData.color || undefined,
         },
       });
     } else {
-      crearMutation.mutate({
-        numero: formData.numero,
-        nombre: formData.nombre,
-        descripcion: formData.descripcion || undefined,
-        icono: formData.icono || undefined,
-        color: formData.color || undefined,
+      createMutation!.mutate({
+        numero: dialog.formData.numero,
+        nombre: dialog.formData.nombre,
+        descripcion: dialog.formData.descripcion || undefined,
+        icono: dialog.formData.icono || undefined,
+        color: dialog.formData.color || undefined,
       });
     }
-  };
-
-  const handleDelete = (nivel: NivelBiblico) => {
-    setNivelToDelete(nivel);
-    setDeleteDialogOpen(true);
   };
 
   if (isLoading) {
@@ -220,7 +174,7 @@ export default function NivelesPage() {
   }
 
   const nivelesSorted = niveles ? [...niveles].sort((a, b) => a.numero - b.numero) : [];
-  const xpCalculado = calcularXpParaNivel(formData.numero);
+  const xpCalculado = calcularXpParaNivel(dialog.formData.numero);
 
   return (
     <div className="p-4 space-y-6">
@@ -375,14 +329,14 @@ export default function NivelesPage() {
                   <TableCell className="pr-2 sm:pr-4">
                     {/* Desktop */}
                     <div className="hidden sm:flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(nivel)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => dialog.openEdit(nivel)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => handleDelete(nivel)}
+                        onClick={() => dialog.openDelete(nivel)}
                         disabled={(nivel._count?.usuariosEnNivel || 0) > 0}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -397,11 +351,11 @@ export default function NivelesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleOpenEdit(nivel)}>
+                          <DropdownMenuItem onClick={() => dialog.openEdit(nivel)}>
                             <Edit2 className="h-4 w-4 mr-2" />Editar
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDelete(nivel)}
+                            onClick={() => dialog.openDelete(nivel)}
                             disabled={(nivel._count?.usuariosEnNivel || 0) > 0}
                             className="text-red-600"
                           >
@@ -430,11 +384,11 @@ export default function NivelesPage() {
       </Card>
 
       {/* Modal de crear/editar */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={dialog.modalOpen} onOpenChange={dialog.setModalOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {nivelToEdit ? 'Editar Nivel' : 'Nuevo Nivel'}
+              {dialog.editingItem ? 'Editar Nivel' : 'Nuevo Nivel'}
             </DialogTitle>
           </DialogHeader>
 
@@ -443,14 +397,14 @@ export default function NivelesPage() {
             <div className="flex justify-center">
               <div
                 className="flex flex-col items-center p-4 rounded-xl"
-                style={{ backgroundColor: `${formData.color}15` }}
+                style={{ backgroundColor: `${dialog.formData.color}15` }}
               >
-                <span className="text-4xl">{formData.icono}</span>
-                <span className="font-semibold mt-2" style={{ color: formData.color }}>
-                  {formData.nombre || 'Nombre'}
+                <span className="text-4xl">{dialog.formData.icono}</span>
+                <span className="font-semibold mt-2" style={{ color: dialog.formData.color }}>
+                  {dialog.formData.nombre || 'Nombre'}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  Nivel {formData.numero}
+                  Nivel {dialog.formData.numero}
                 </span>
                 <Badge variant="secondary" className="mt-2 gap-1">
                   <Zap className="w-3 h-3" />
@@ -464,9 +418,9 @@ export default function NivelesPage() {
               <Input
                 type="number"
                 min={1}
-                value={formData.numero}
+                value={dialog.formData.numero}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, numero: parseInt(e.target.value) || 1 }))
+                  dialog.setFormData((prev) => ({ ...prev, numero: parseInt(e.target.value) || 1 }))
                 }
                 onFocus={(e) => e.target.select()}
               />
@@ -478,8 +432,8 @@ export default function NivelesPage() {
             <div className="space-y-2">
               <Label>Nombre del Nivel</Label>
               <Input
-                value={formData.nombre}
-                onChange={(e) => setFormData((prev) => ({ ...prev, nombre: e.target.value }))}
+                value={dialog.formData.nombre}
+                onChange={(e) => dialog.setFormData((prev) => ({ ...prev, nombre: e.target.value }))}
                 placeholder="Ej: Discípulo, Creyente, Pastor..."
               />
             </div>
@@ -487,8 +441,8 @@ export default function NivelesPage() {
             <div className="space-y-2">
               <Label>Descripción (opcional)</Label>
               <Textarea
-                value={formData.descripcion}
-                onChange={(e) => setFormData((prev) => ({ ...prev, descripcion: e.target.value }))}
+                value={dialog.formData.descripcion}
+                onChange={(e) => dialog.setFormData((prev) => ({ ...prev, descripcion: e.target.value }))}
                 placeholder="Descripción breve del nivel..."
                 rows={2}
               />
@@ -501,9 +455,9 @@ export default function NivelesPage() {
                   <button
                     key={icono}
                     type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, icono }))}
+                    onClick={() => dialog.setFormData((prev) => ({ ...prev, icono }))}
                     className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
-                      formData.icono === icono
+                      dialog.formData.icono === icono
                         ? 'bg-primary/20 ring-2 ring-primary'
                         : 'bg-muted hover:bg-muted/80'
                     }`}
@@ -521,17 +475,17 @@ export default function NivelesPage() {
                   <button
                     key={color}
                     type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, color }))}
+                    onClick={() => dialog.setFormData((prev) => ({ ...prev, color }))}
                     className={`w-8 h-8 rounded-full transition-all ${
-                      formData.color === color ? 'ring-2 ring-offset-2 ring-primary' : ''
+                      dialog.formData.color === color ? 'ring-2 ring-offset-2 ring-primary' : ''
                     }`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
                 <input
                   type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
+                  value={dialog.formData.color}
+                  onChange={(e) => dialog.setFormData((prev) => ({ ...prev, color: e.target.value }))}
                   className="w-8 h-8 rounded-full cursor-pointer"
                 />
               </div>
@@ -541,16 +495,16 @@ export default function NivelesPage() {
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button
               onClick={handleSubmit}
-              disabled={crearMutation.isPending || actualizarMutation.isPending}
+              disabled={createMutation!.isPending || updateMutation!.isPending}
               className="w-full sm:w-auto"
             >
-              {crearMutation.isPending || actualizarMutation.isPending
+              {createMutation!.isPending || updateMutation!.isPending
                 ? 'Guardando...'
-                : nivelToEdit
+                : dialog.editingItem
                   ? 'Actualizar'
                   : 'Crear'}
             </Button>
-            <Button variant="outline" onClick={() => setModalOpen(false)} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={() => dialog.setModalOpen(false)} className="w-full sm:w-auto">
               Cancelar
             </Button>
           </DialogFooter>
@@ -558,22 +512,22 @@ export default function NivelesPage() {
       </Dialog>
 
       {/* Dialog de confirmación de eliminación */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={dialog.deleteDialogOpen} onOpenChange={dialog.setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar nivel?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará el nivel "{nivelToDelete?.nombre}" permanentemente.
+              Esta acción eliminará el nivel "{dialog.itemToDelete?.nombre}" permanentemente.
               Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => nivelToDelete && eliminarMutation.mutate(nivelToDelete.id)}
+              onClick={() => dialog.itemToDelete && deleteMutation!.mutate(dialog.itemToDelete.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {eliminarMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+              {deleteMutation!.isPending ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
