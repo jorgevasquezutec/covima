@@ -9,6 +9,7 @@ import {
 import { RedisService } from '../../redis/redis.service';
 import { ConversationContext } from '../dto';
 import { getTodayAsUTC, getInicioSemana } from '../../common/utils';
+import { normalizarTelefono } from '../utils/telefono.utils';
 
 interface AsistenciaFlowData {
   codigoQR: string;
@@ -40,24 +41,9 @@ export class AsistenciaHandler {
   ) {}
 
   /**
-   * Iniciar flujo de registro de asistencia
+   * Buscar QR en la base de datos con fallback de formato antiguo (con guión)
    */
-  async handle(
-    context: ConversationContext,
-    entities: Record<string, any>,
-    message: string,
-  ): Promise<void> {
-    const codigoQR = entities.codigoQR as string;
-
-    if (!codigoQR) {
-      await this.whatsappService.sendMessage(context.conversationId, {
-        content: '⚠️ No detecté un código QR válido. El formato es: JAXXXXXXXX',
-      });
-      return;
-    }
-
-    // Buscar QR en la base de datos
-    // Intentar primero sin guión (nuevo formato), luego con guión (formato antiguo)
+  private async findQRConFallback(codigoQR: string) {
     let qr = await this.prisma.qRAsistencia.findUnique({
       where: { codigo: codigoQR },
       include: {
@@ -89,6 +75,29 @@ export class AsistenciaHandler {
         },
       });
     }
+
+    return qr;
+  }
+
+  /**
+   * Iniciar flujo de registro de asistencia
+   */
+  async handle(
+    context: ConversationContext,
+    entities: Record<string, any>,
+    message: string,
+  ): Promise<void> {
+    const codigoQR = entities.codigoQR as string;
+
+    if (!codigoQR) {
+      await this.whatsappService.sendMessage(context.conversationId, {
+        content: '⚠️ No detecté un código QR válido. El formato es: JAXXXXXXXX',
+      });
+      return;
+    }
+
+    // Buscar QR en la base de datos (con fallback de formato antiguo)
+    const qr = await this.findQRConFallback(codigoQR);
 
     if (!qr) {
       await this.whatsappService.sendMessage(context.conversationId, {
@@ -221,39 +230,8 @@ export class AsistenciaHandler {
       return;
     }
 
-    // Buscar QR en la base de datos
-    // Intentar primero sin guión (nuevo formato), luego con guión (formato antiguo)
-    let qr = await this.prisma.qRAsistencia.findUnique({
-      where: { codigo: codigoQR },
-      include: {
-        tipoAsistencia: {
-          include: {
-            campos: {
-              where: { activo: true },
-              orderBy: { orden: 'asc' },
-            },
-          },
-        },
-      },
-    });
-
-    // Si no encuentra, intentar con formato antiguo (con guión)
-    if (!qr && codigoQR.startsWith('JA') && codigoQR.length === 10) {
-      const codigoConGuion = `JA-${codigoQR.slice(2)}`;
-      qr = await this.prisma.qRAsistencia.findUnique({
-        where: { codigo: codigoConGuion },
-        include: {
-          tipoAsistencia: {
-            include: {
-              campos: {
-                where: { activo: true },
-                orderBy: { orden: 'asc' },
-              },
-            },
-          },
-        },
-      });
-    }
+    // Buscar QR en la base de datos (con fallback de formato antiguo)
+    const qr = await this.findQRConFallback(codigoQR);
 
     if (!qr) {
       await this.whatsappService.sendMessage(context.conversationId, {
@@ -303,7 +281,7 @@ export class AsistenciaHandler {
     let nombreRegistro = nombreUsuario || '';
 
     if (telefonoUsuario) {
-      const telefonoLimpio = telefonoUsuario.replace(/\D/g, '');
+      const telefonoLimpio = normalizarTelefono(telefonoUsuario);
       const found = await this.prisma.usuario.findFirst({
         where: {
           telefono: { endsWith: telefonoLimpio.slice(-9) },

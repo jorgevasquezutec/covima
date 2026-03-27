@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsappBotService } from '../whatsapp-bot.service';
 import { ProgramasService } from '../../programas/programas.service';
 import { ConversationContext, IntentResult } from '../dto';
+import { parseFecha, formatFecha, formatTime } from '../utils/date.utils';
 
 @Injectable()
 export class ProgramasHandler {
@@ -51,7 +52,7 @@ export class ProgramasHandler {
     message: string,
   ): Promise<void> {
     // Determinar fecha
-    const fecha = this.parseFecha(entities.fecha || message);
+    const fecha = parseFecha(entities.fecha || message);
 
     if (!fecha) {
       await this.whatsappService.sendMessage(context.conversationId, {
@@ -74,7 +75,7 @@ export class ProgramasHandler {
           .map((p) => `• ${p.codigo} - ${p.titulo}`)
           .join('\n');
         await this.whatsappService.sendMessage(context.conversationId, {
-          content: `⚠️ Ya existen ${existentes.length} programa(s) para el ${this.formatFecha(fecha)}:\n\n${listaExistentes}\n\n¿Deseas crear otro? Escribe "crear programa para el ${this.formatFecha(fecha)}" de nuevo para confirmar.`,
+          content: `⚠️ Ya existen ${existentes.length} programa(s) para el ${formatFecha(fecha)}:\n\n${listaExistentes}\n\n¿Deseas crear otro? Escribe "crear programa para el ${formatFecha(fecha)}" de nuevo para confirmar.`,
         });
         return;
       }
@@ -98,7 +99,7 @@ export class ProgramasHandler {
 
       let respuesta = `✅ *Programa creado*\n\n`;
       respuesta += `🔖 *Código:* ${programa.codigo}\n`;
-      respuesta += `📅 *Fecha:* ${this.formatFecha(fecha)}\n`;
+      respuesta += `📅 *Fecha:* ${formatFecha(fecha)}\n`;
       respuesta += `📋 *Título:* ${programa.titulo}\n`;
       respuesta += `📝 *Partes:* ${partesObligatorias.length}\n\n`;
       respuesta += `Para asignar participantes, escribe:\n`;
@@ -127,7 +128,7 @@ export class ProgramasHandler {
     const codigoMatch = message.match(
       /([A-Z]{2,3}(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6})/i,
     );
-    let fecha = this.parseFecha(entities.fecha || message);
+    let fecha = parseFecha(entities.fecha || message);
     let programa;
 
     try {
@@ -170,17 +171,17 @@ export class ProgramasHandler {
 
         if (programas.length === 0) {
           await this.whatsappService.sendMessage(context.conversationId, {
-            content: `📭 No hay programas para el ${this.formatFecha(fecha)}.\n\n¿Deseas crear uno? Escribe "crear programa para el ${this.formatFecha(fecha)}"`,
+            content: `📭 No hay programas para el ${formatFecha(fecha)}.\n\n¿Deseas crear uno? Escribe "crear programa para el ${formatFecha(fecha)}"`,
           });
           return;
         }
 
         if (programas.length > 1) {
           // Múltiples programas: listar para que el usuario elija
-          let lista = `📋 *Encontré ${programas.length} programas para el ${this.formatFecha(fecha)}:*\n\n`;
+          let lista = `📋 *Encontré ${programas.length} programas para el ${formatFecha(fecha)}:*\n\n`;
           for (const p of programas) {
             const hora = p.horaInicio
-              ? ` (${this.formatTime(p.horaInicio)})`
+              ? ` (${formatTime(p.horaInicio)})`
               : '';
             lista += `• *${p.codigo}* - ${p.titulo}${hora}\n`;
           }
@@ -211,7 +212,7 @@ export class ProgramasHandler {
 
       let respuesta = `📋 *${programa.titulo}*\n`;
       respuesta += `🔖 Código: ${programa.codigo}\n`;
-      respuesta += `📅 ${this.formatFecha(fecha)}\n`;
+      respuesta += `📅 ${formatFecha(fecha)}\n`;
       respuesta += `📊 Estado: ${programa.estado}\n\n`;
 
       // Agrupar asignaciones y links por parte
@@ -344,7 +345,7 @@ export class ProgramasHandler {
         .join('\n');
 
       await this.whatsappService.sendMessage(context.conversationId, {
-        content: `✅ *¡Asignación realizada!*\n\n🔖 *Programa:* ${programa.codigo}\n👤 ${asig?.nombre}${indicadorUsuario}\n${mensajeAsignaciones}\n📅 ${this.formatFecha(fecha)}`,
+        content: `✅ *¡Asignación realizada!*\n\n🔖 *Programa:* ${programa.codigo}\n👤 ${asig?.nombre}${indicadorUsuario}\n${mensajeAsignaciones}\n📅 ${formatFecha(fecha)}`,
       });
     } catch (error) {
       this.logger.error(`Error asignando parte: ${error.message}`);
@@ -367,7 +368,7 @@ export class ProgramasHandler {
 
       let respuesta = `✅ *Programa procesado*\n\n`;
       respuesta += `🔖 *Código:* ${resultado.codigo}\n`;
-      respuesta += `📅 Fecha: ${this.formatFecha(resultado.fecha)}\n`;
+      respuesta += `📅 Fecha: ${formatFecha(resultado.fecha)}\n`;
       respuesta += `📋 Partes actualizadas: ${resultado.partesActualizadas}\n`;
       respuesta += `👥 Asignaciones creadas: ${resultado.asignacionesCreadas}\n`;
 
@@ -415,61 +416,6 @@ export class ProgramasHandler {
   }
 
   // === Helpers ===
-
-  private parseFecha(texto: string): Date | null {
-    if (!texto) return null;
-
-    const lower = texto.toLowerCase();
-
-    // "hoy"
-    if (/\bhoy\b/i.test(lower)) {
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      return hoy;
-    }
-
-    // "mañana"
-    if (/ma[ñn]ana/i.test(lower)) {
-      const manana = new Date();
-      manana.setDate(manana.getDate() + 1);
-      manana.setHours(0, 0, 0, 0);
-      return manana;
-    }
-
-    // Fechas en formato dd/mm o dd/mm/yyyy
-    const matchFecha = texto.match(
-      /(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/,
-    );
-    if (matchFecha) {
-      const dia = parseInt(matchFecha[1], 10);
-      const mes = parseInt(matchFecha[2], 10) - 1;
-      let anio = matchFecha[3]
-        ? parseInt(matchFecha[3], 10)
-        : new Date().getFullYear();
-      if (anio < 100) anio += 2000;
-
-      const fecha = new Date(anio, mes, dia);
-      fecha.setHours(0, 0, 0, 0);
-      return fecha;
-    }
-
-    return null;
-  }
-
-  private formatFecha(fecha: Date): string {
-    return fecha.toLocaleDateString('es-PE', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
-  }
-
-  private formatTime(time: Date | null): string | null {
-    if (!time) return null;
-    const hours = time.getHours().toString().padStart(2, '0');
-    const minutes = time.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
-  }
 
   /**
    * Parsea una fecha evitando problemas de zona horaria

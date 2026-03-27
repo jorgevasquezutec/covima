@@ -25,6 +25,10 @@ import {
 } from './dto';
 import { InboxGateway } from './inbox.gateway';
 import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
+import {
+  normalizarTelefono,
+  extraerNumeroLocal,
+} from '../whatsapp-bot/utils/telefono.utils';
 
 @Injectable()
 export class InboxService {
@@ -671,7 +675,7 @@ export class InboxService {
    * Obtener o crear conversación por teléfono (usado por el bot)
    */
   async getOrCreateConversacion(telefono: string, nombreWhatsapp?: string) {
-    const telefonoLimpio = telefono.replace(/\D/g, '');
+    const telefonoLimpio = normalizarTelefono(telefono);
 
     // Buscar conversación existente
     let conversacion = await this.prisma.conversacion.findUnique({
@@ -701,7 +705,7 @@ export class InboxService {
     // Buscar usuario por teléfono para vincular
     const usuario = await this.prisma.usuario.findFirst({
       where: {
-        telefono: { endsWith: telefonoLimpio.slice(-9) },
+        telefono: { endsWith: extraerNumeroLocal(telefonoLimpio) },
       },
     });
 
@@ -747,11 +751,11 @@ export class InboxService {
   async esAdmin(
     telefono: string,
   ): Promise<{ esAdmin: boolean; usuario?: any }> {
-    const telefonoLimpio = telefono.replace(/\D/g, '');
+    const telefonoLimpio = normalizarTelefono(telefono);
 
     const usuario = await this.prisma.usuario.findFirst({
       where: {
-        telefono: { endsWith: telefonoLimpio.slice(-9) },
+        telefono: { endsWith: extraerNumeroLocal(telefonoLimpio) },
         activo: true,
       },
       include: {
@@ -807,7 +811,7 @@ export class InboxService {
    * Obtener conversación por teléfono
    */
   async getConversacionByTelefono(telefono: string) {
-    const telefonoLimpio = telefono.replace(/\D/g, '');
+    const telefonoLimpio = normalizarTelefono(telefono);
 
     const conversacion = await this.prisma.conversacion.findUnique({
       where: { telefono: telefonoLimpio },

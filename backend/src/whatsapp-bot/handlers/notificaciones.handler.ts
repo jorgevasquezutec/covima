@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsappBotService } from '../whatsapp-bot.service';
 import { ProgramasService } from '../../programas/programas.service';
 import { ConversationContext, IntentResult } from '../dto';
+import { parseFecha, formatFecha } from '../utils/date.utils';
 
 @Injectable()
 export class NotificacionesHandler {
@@ -23,7 +24,7 @@ export class NotificacionesHandler {
     message: string,
   ): Promise<void> {
     // Determinar fecha del programa o buscar el próximo
-    let fecha = this.parseFecha(intent.entities.fecha || message);
+    let fecha = parseFecha(intent.entities.fecha || message);
     let programa;
 
     try {
@@ -66,7 +67,7 @@ export class NotificacionesHandler {
       // Verificar que hay asignaciones
       if (programa.asignaciones.length === 0) {
         await this.whatsappService.sendMessage(context.conversationId, {
-          content: `⚠️ El programa del ${this.formatFecha(fecha)} no tiene participantes asignados.`,
+          content: `⚠️ El programa del ${formatFecha(fecha)} no tiene participantes asignados.`,
         });
         return;
       }
@@ -112,7 +113,7 @@ export class NotificacionesHandler {
       );
 
       // Mostrar resumen antes de enviar
-      let resumen = `📋 *Programa del ${this.formatFecha(fecha)}*\n\n`;
+      let resumen = `📋 *Programa del ${formatFecha(fecha)}*\n\n`;
       resumen += `👥 *Participantes a notificar (${participantes.size}):*\n`;
 
       for (const [, p] of participantes) {
@@ -128,7 +129,7 @@ export class NotificacionesHandler {
           contexto: {
             programaId: programa.id,
             fecha: fecha.toISOString(),
-            fechaFormateada: this.formatFecha(fecha),
+            fechaFormateada: formatFecha(fecha),
             codigo: programa.codigo,
             participantes: Array.from(participantes.entries()),
             textoGenerado: textoGenerado.texto,
@@ -279,33 +280,4 @@ export class NotificacionesHandler {
     });
   }
 
-  private parseFecha(texto: string): Date | null {
-    if (!texto) return null;
-
-    // Fechas en formato dd/mm o dd/mm/yyyy
-    const matchFecha = texto.match(
-      /(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/,
-    );
-    if (matchFecha) {
-      const dia = parseInt(matchFecha[1], 10);
-      const mes = parseInt(matchFecha[2], 10) - 1;
-      let anio = matchFecha[3]
-        ? parseInt(matchFecha[3], 10)
-        : new Date().getFullYear();
-      if (anio < 100) anio += 2000;
-      const fecha = new Date(anio, mes, dia);
-      fecha.setHours(0, 0, 0, 0);
-      return fecha;
-    }
-
-    return null;
-  }
-
-  private formatFecha(fecha: Date): string {
-    return fecha.toLocaleDateString('es-PE', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
-  }
 }

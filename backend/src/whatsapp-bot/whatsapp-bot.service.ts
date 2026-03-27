@@ -6,6 +6,7 @@ import { SendMessageDto } from './dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DireccionMensaje, EstadoMensaje } from '@prisma/client';
 import { InboxGateway } from '../inbox/inbox.gateway';
+import { normalizarTelefono } from './utils/telefono.utils';
 
 /**
  * Servicio de mensajería que envía mensajes directamente a WhatsApp API
@@ -141,7 +142,7 @@ export class WhatsappBotService {
    */
   private async sendWhatsAppMessage(to: string, message: string): Promise<any> {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
-    const normalizedTo = to.replace(/[\s+\-]/g, '');
+    const normalizedTo = normalizarTelefono(to);
 
     try {
       const response = await firstValueFrom(
@@ -257,7 +258,7 @@ export class WhatsappBotService {
     urlButtonParams?: { index: number; text: string }[],
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
-    const normalizedPhone = phoneNumber.replace(/[\s+\-]/g, '');
+    const normalizedPhone = normalizarTelefono(phoneNumber);
 
     const components: any[] = [
       {
@@ -484,7 +485,7 @@ export class WhatsappBotService {
     interactive: any,
   ): Promise<any> {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
-    const normalizedTo = to.replace(/[\s+\-]/g, '');
+    const normalizedTo = normalizarTelefono(to);
 
     try {
       const response = await firstValueFrom(

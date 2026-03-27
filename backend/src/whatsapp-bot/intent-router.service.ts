@@ -9,6 +9,10 @@ import { NotificacionesHandler } from './handlers/notificaciones.handler';
 import { ConversationContext, IntentResult } from './dto';
 import { InboxService } from '../inbox/inbox.service';
 import { DireccionMensaje, ModoConversacion } from '@prisma/client';
+import {
+  normalizarTelefono,
+  extraerNumeroLocal,
+} from './utils/telefono.utils';
 
 @Injectable()
 export class IntentRouterService {
@@ -529,12 +533,12 @@ export class IntentRouterService {
     conversacionDB: any,
   ): Promise<ConversationContext> {
     // Normalizar teléfono
-    const telefonoLimpio = telefono.replace(/\D/g, '');
+    const telefonoLimpio = normalizarTelefono(telefono);
 
     // Buscar usuario existente
     const usuario = await this.prisma.usuario.findFirst({
       where: {
-        telefono: { endsWith: telefonoLimpio.slice(-9) },
+        telefono: { endsWith: extraerNumeroLocal(telefonoLimpio) },
       },
       include: {
         roles: { include: { rol: true } },

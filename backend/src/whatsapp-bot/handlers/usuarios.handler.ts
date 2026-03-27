@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsappBotService } from '../whatsapp-bot.service';
 import { UsuariosService } from '../../usuarios/usuarios.service';
 import { ConversationContext, IntentResult } from '../dto';
+import { extraerNumeroLocal } from '../utils/telefono.utils';
 
 @Injectable()
 export class UsuariosHandler {
@@ -74,7 +75,7 @@ export class UsuariosHandler {
     }
 
     // Limpiar teléfono: remover todo excepto dígitos, luego tomar los últimos 9
-    telefono = telefono.replace(/\D/g, '').slice(-9);
+    telefono = extraerNumeroLocal(telefono);
 
     try {
       // Verificar si ya existe
