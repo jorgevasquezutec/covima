@@ -752,20 +752,20 @@ export class AsistenciaService {
     if (usuarioId && !esFueraDeHorario) {
       try {
         const horaInicio = qr.horaInicio || new Date('1970-01-01T09:00:00');
-        const margenTemprana = qr.margenTemprana ?? 15;
-        const margenTardia = qr.margenTardia ?? 30;
-
         gamificacionResult =
           await this.gamificacionService.asignarPuntosPorAsistencia(
             usuarioId,
             asistencia.id,
             asistencia.createdAt,
             horaInicio,
-            margenTemprana,
-            margenTardia,
+            qr.margenTemprana ?? 15,
+            qr.margenTardia ?? 30,
             dto.tipoAsistenciaManual,
             qr,
           );
+
+        // Recalcular racha
+        await this.recalcularRacha(usuarioId);
       } catch (error) {
         this.logger.error('Error asignando puntos de gamificación:', error);
       }
@@ -906,37 +906,8 @@ export class AsistenciaService {
             qr,
           );
 
-        // Actualizar contador de asistencias, fecha de última asistencia y recalcular racha
-        const perfil = await this.prisma.usuarioGamificacion.findUnique({
-          where: { usuarioId },
-        });
-        if (perfil) {
-          // Obtener todas las asistencias confirmadas del usuario para recalcular racha
-          const asistenciasConfirmadas = await this.prisma.asistencia.findMany({
-            where: {
-              usuarioId,
-              estado: 'confirmado',
-            },
-            orderBy: { fecha: 'desc' },
-            select: { fecha: true },
-          });
-
-          // Calcular la racha basada en semanas consecutivas
-          const { rachaActual, ultimaFecha } =
-            this.calcularRachaDesdeAsistencias(asistenciasConfirmadas);
-
-          const mejorRacha = Math.max(rachaActual, perfil.rachaMejor);
-
-          await this.prisma.usuarioGamificacion.update({
-            where: { id: perfil.id },
-            data: {
-              asistenciasTotales: { increment: 1 },
-              ultimaSemanaAsistio: ultimaFecha,
-              rachaActual,
-              rachaMejor: mejorRacha,
-            },
-          });
-        }
+        // Recalcular racha
+        await this.recalcularRacha(usuarioId);
       } catch (error) {
         this.logger.error('Error asignando puntos de gamificación:', error);
       }
@@ -951,339 +922,42 @@ export class AsistenciaService {
 
   /**
    * Registrar asistencia manual masiva (admin/lider)
-   * Registra múltiples usuarios en un QR activo
+   * Reutiliza registrarAsistenciaManual para cada usuario
    */
   async registrarAsistenciaManualMasivo(
     registradoPorId: number,
     dto: RegistrarAsistenciaMasivaDto,
   ) {
-    // Buscar el QR
-    const qr = await this.findQRByCodigoConTipo(dto.codigoQR);
-
-    if (!qr) {
-      throw new NotFoundException('Código QR no válido');
-    }
-
-    if (!qr.activo) {
-      throw new BadRequestException('Este código QR ya no está activo');
-    }
-
-    // Validar horario
-    const hoy = getTodayAsUTC();
-    const now = new Date();
-    const { dentroDeHorario } = this.validarVentanaHoraria(qr, now);
-
-    if (!dentroDeHorario) {
-      const horaInicioQR =
-        qr.horaInicio instanceof Date
-          ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
-          : 9 * 60;
-      const horaAperturaQR = horaInicioQR - (qr.margenTemprana || 0);
-      const horaAperturaDate = new Date();
-      horaAperturaDate.setHours(
-        Math.floor(horaAperturaQR / 60),
-        horaAperturaQR % 60,
-        0,
-      );
-      const horaAperturaStr = this.formatHora(horaAperturaDate);
-      const horaFinStr = this.formatHora(qr.horaFin);
-      throw new BadRequestException(
-        `Solo se puede registrar asistencia entre ${horaAperturaStr} y ${horaFinStr}`,
-      );
-    }
-
-    // Validar formulario
-    if (
-      qr.tipoAsistencia &&
-      !qr.tipoAsistencia.soloPresencia &&
-      qr.tipoAsistencia.campos.length > 0
-    ) {
-      this.validateFormularioData(
-        dto.datosFormulario,
-        qr.tipoAsistencia.campos,
-      );
-    }
-
-    const semanaInicio = getInicioSemana(hoy);
-    const resultados: Array<{
-      usuarioId: number;
-      nombre: string;
-      status: 'registrado' | 'ya_registrado' | 'error';
-      error?: string;
-    }> = [];
-
-    for (const usuarioId of dto.usuarioIds) {
-      try {
-        const usuario = await this.prisma.usuario.findUnique({
-          where: { id: usuarioId },
-        });
-        if (!usuario) {
-          resultados.push({
-            usuarioId,
-            nombre: 'Desconocido',
-            status: 'error',
-            error: 'Usuario no encontrado',
-          });
-          continue;
-        }
-
-        // Verificar duplicado
-        const orConditions = this.buildDuplicateCheckConditions(
+    return this.ejecutarRegistroMasivo(
+      dto.usuarioIds,
+      (usuarioId) =>
+        this.registrarAsistenciaManual(registradoPorId, {
+          codigoQR: dto.codigoQR,
           usuarioId,
-          usuario.telefono,
-        );
-
-        const existente = await this.prisma.asistencia.findFirst({
-          where: { qrId: qr.id, OR: orConditions },
-        });
-
-        if (existente) {
-          resultados.push({
-            usuarioId,
-            nombre: usuario.nombre,
-            status: 'ya_registrado',
-          });
-          continue;
-        }
-
-        // Crear asistencia
-        const asistencia = await this.crearAsistencia({
-          usuarioId,
-          tipoId: qr.tipoId,
-          fecha: hoy,
-          fechaEvento: qr.semanaInicio,
-          semanaInicio,
           datosFormulario: dto.datosFormulario,
-          metodoRegistro: 'manual',
-          estado: 'confirmado',
-          confirmadoPor: registradoPorId,
-          confirmadoAt: new Date(),
-          qrId: qr.id,
-        });
-
-        // Asignar puntos
-        try {
-          const horaInicio = qr.horaInicio || new Date('1970-01-01T09:00:00');
-          const margenTemp = qr.margenTemprana ?? 15;
-          const margenTard = qr.margenTardia ?? 30;
-
-          await this.gamificacionService.asignarPuntosPorAsistencia(
-            usuarioId,
-            asistencia.id,
-            asistencia.createdAt,
-            horaInicio,
-            margenTemp,
-            margenTard,
-            dto.tipoAsistenciaManual,
-            qr,
-          );
-        } catch (error) {
-          this.logger.error(
-            `Error asignando puntos a usuario ${usuarioId}:`,
-            error,
-          );
-        }
-
-        resultados.push({
-          usuarioId,
-          nombre: usuario.nombre,
-          status: 'registrado',
-        });
-      } catch (error: any) {
-        resultados.push({
-          usuarioId,
-          nombre: 'Desconocido',
-          status: 'error',
-          error: error.message || 'Error desconocido',
-        });
-      }
-    }
-
-    const registrados = resultados.filter(
-      (r) => r.status === 'registrado',
-    ).length;
-    const yaRegistrados = resultados.filter(
-      (r) => r.status === 'ya_registrado',
-    ).length;
-    const errores = resultados.filter((r) => r.status === 'error').length;
-
-    return {
-      mensaje: `${registrados} registrados, ${yaRegistrados} ya registrados, ${errores} errores`,
-      registrados,
-      yaRegistrados,
-      errores,
-      resultados,
-    };
+          tipoAsistenciaManual: dto.tipoAsistenciaManual,
+        }),
+    );
   }
 
   /**
    * Registrar asistencia histórica masiva (admin)
-   * Registra múltiples usuarios en un QR pasado/inactivo
+   * Reutiliza registrarAsistenciaHistorica para cada usuario
    */
   async registrarAsistenciaHistoricaMasivo(
     registradoPorId: number,
     dto: RegistrarAsistenciaHistoricaMasivaDto,
   ) {
-    // Buscar el QR (sin validar si está activo)
-    const qr = await this.findQRByCodigoConTipo(dto.codigoQR);
-
-    if (!qr) {
-      throw new NotFoundException('Código QR no válido');
-    }
-
-    const fechaAsistencia = qr.semanaInicio;
-
-    // Validar formulario
-    if (
-      qr.tipoAsistencia &&
-      !qr.tipoAsistencia.soloPresencia &&
-      qr.tipoAsistencia.campos.length > 0
-    ) {
-      this.validateFormularioData(
-        dto.datosFormulario,
-        qr.tipoAsistencia.campos,
-      );
-    }
-
-    const codigoPuntaje = {
-      temprana: 'asistencia_temprana',
-      normal: 'asistencia_normal',
-      tardia: 'asistencia_tardia',
-    }[dto.tipoAsistenciaManual];
-
-    const resultados: Array<{
-      usuarioId: number;
-      nombre: string;
-      status: 'registrado' | 'ya_registrado' | 'error';
-      error?: string;
-    }> = [];
-
-    for (const usuarioId of dto.usuarioIds) {
-      try {
-        const usuario = await this.prisma.usuario.findUnique({
-          where: { id: usuarioId },
-        });
-        if (!usuario) {
-          resultados.push({
-            usuarioId,
-            nombre: 'Desconocido',
-            status: 'error',
-            error: 'Usuario no encontrado',
-          });
-          continue;
-        }
-
-        // Verificar duplicado
-        const orConditions = this.buildDuplicateCheckConditions(
+    return this.ejecutarRegistroMasivo(
+      dto.usuarioIds,
+      (usuarioId) =>
+        this.registrarAsistenciaHistorica(registradoPorId, {
+          codigoQR: dto.codigoQR,
           usuarioId,
-          usuario.telefono,
-        );
-
-        const existente = await this.prisma.asistencia.findFirst({
-          where: { qrId: qr.id, OR: orConditions },
-        });
-
-        if (existente) {
-          resultados.push({
-            usuarioId,
-            nombre: usuario.nombre,
-            status: 'ya_registrado',
-          });
-          continue;
-        }
-
-        // Crear asistencia
-        const asistencia = await this.crearAsistencia({
-          usuarioId,
-          tipoId: qr.tipoId,
-          fecha: fechaAsistencia,
-          fechaEvento: qr.semanaInicio,
-          semanaInicio: fechaAsistencia,
           datosFormulario: dto.datosFormulario,
-          metodoRegistro: 'manual_historico',
-          estado: 'confirmado',
-          confirmadoPor: registradoPorId,
-          confirmadoAt: new Date(),
-          qrId: qr.id,
-        });
-
-        // Asignar puntos y recalcular racha
-        try {
-          const horaInicio = qr.horaInicio || new Date('1970-01-01T09:00:00');
-          await this.gamificacionService.asignarPuntosPorAsistencia(
-            usuarioId,
-            asistencia.id,
-            asistencia.createdAt,
-            horaInicio,
-            qr.margenTemprana ?? 15,
-            qr.margenTardia ?? 30,
-            dto.tipoAsistenciaManual,
-            qr,
-          );
-
-          // Recalcular racha
-          const perfil = await this.prisma.usuarioGamificacion.findUnique({
-            where: { usuarioId },
-          });
-          if (perfil) {
-            const asistenciasConfirmadas =
-              await this.prisma.asistencia.findMany({
-                where: { usuarioId, estado: 'confirmado' },
-                orderBy: { fecha: 'desc' },
-                select: { fecha: true },
-              });
-
-            const { rachaActual, ultimaFecha } =
-              this.calcularRachaDesdeAsistencias(asistenciasConfirmadas);
-            const mejorRacha = Math.max(rachaActual, perfil.rachaMejor);
-
-            await this.prisma.usuarioGamificacion.update({
-              where: { id: perfil.id },
-              data: {
-                asistenciasTotales: { increment: 1 },
-                ultimaSemanaAsistio: ultimaFecha,
-                rachaActual,
-                rachaMejor: mejorRacha,
-              },
-            });
-          }
-        } catch (error) {
-          this.logger.error(
-            `Error asignando puntos a usuario ${usuarioId}:`,
-            error,
-          );
-        }
-
-        resultados.push({
-          usuarioId,
-          nombre: usuario.nombre,
-          status: 'registrado',
-        });
-      } catch (error: any) {
-        resultados.push({
-          usuarioId,
-          nombre: 'Desconocido',
-          status: 'error',
-          error: error.message || 'Error desconocido',
-        });
-      }
-    }
-
-    const registrados = resultados.filter(
-      (r) => r.status === 'registrado',
-    ).length;
-    const yaRegistrados = resultados.filter(
-      (r) => r.status === 'ya_registrado',
-    ).length;
-    const errores = resultados.filter((r) => r.status === 'error').length;
-
-    return {
-      mensaje: `${registrados} registrados, ${yaRegistrados} ya registrados, ${errores} errores`,
-      registrados,
-      yaRegistrados,
-      errores,
-      resultados,
-    };
+          tipoAsistenciaManual: dto.tipoAsistenciaManual,
+        }),
+    );
   }
 
   private validateFormularioData(
@@ -2059,6 +1733,96 @@ export class AsistenciaService {
       });
     }
     return orConditions;
+  }
+
+  /**
+   * Recalcular racha de asistencia de un usuario
+   */
+  private async recalcularRacha(usuarioId: number): Promise<void> {
+    const perfil = await this.prisma.usuarioGamificacion.findUnique({
+      where: { usuarioId },
+    });
+    if (!perfil) return;
+
+    const asistenciasConfirmadas = await this.prisma.asistencia.findMany({
+      where: { usuarioId, estado: 'confirmado' },
+      orderBy: { fecha: 'desc' },
+      select: { fecha: true },
+    });
+
+    const { rachaActual, ultimaFecha } =
+      this.calcularRachaDesdeAsistencias(asistenciasConfirmadas);
+    const mejorRacha = Math.max(rachaActual, perfil.rachaMejor);
+
+    await this.prisma.usuarioGamificacion.update({
+      where: { id: perfil.id },
+      data: {
+        asistenciasTotales: { increment: 1 },
+        ultimaSemanaAsistio: ultimaFecha,
+        rachaActual,
+        rachaMejor: mejorRacha,
+      },
+    });
+  }
+
+  /**
+   * Ejecuta un registro masivo: llama a una función single para cada usuario y agrega resultados
+   */
+  private async ejecutarRegistroMasivo(
+    usuarioIds: number[],
+    registrarUno: (usuarioId: number) => Promise<any>,
+  ) {
+    const resultados: Array<{
+      usuarioId: number;
+      nombre: string;
+      status: 'registrado' | 'ya_registrado' | 'error';
+      error?: string;
+    }> = [];
+
+    for (const usuarioId of usuarioIds) {
+      try {
+        const result = await registrarUno(usuarioId);
+        resultados.push({
+          usuarioId,
+          nombre: result.usuario?.nombre || result.nombreRegistro || 'Registrado',
+          status: 'registrado',
+        });
+      } catch (error: any) {
+        const isConflict =
+          error instanceof ConflictException ||
+          error?.status === 409;
+        if (isConflict) {
+          const usuario = await this.prisma.usuario.findUnique({
+            where: { id: usuarioId },
+            select: { nombre: true },
+          });
+          resultados.push({
+            usuarioId,
+            nombre: usuario?.nombre || 'Desconocido',
+            status: 'ya_registrado',
+          });
+        } else {
+          resultados.push({
+            usuarioId,
+            nombre: 'Desconocido',
+            status: 'error',
+            error: error.message || 'Error desconocido',
+          });
+        }
+      }
+    }
+
+    const registrados = resultados.filter(r => r.status === 'registrado').length;
+    const yaRegistrados = resultados.filter(r => r.status === 'ya_registrado').length;
+    const errores = resultados.filter(r => r.status === 'error').length;
+
+    return {
+      mensaje: `${registrados} registrados, ${yaRegistrados} ya registrados, ${errores} errores`,
+      registrados,
+      yaRegistrados,
+      errores,
+      resultados,
+    };
   }
 
   /**
