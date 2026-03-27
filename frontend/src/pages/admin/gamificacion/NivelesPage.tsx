@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -14,16 +13,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EmptyState } from '@/components/EmptyState';
+import { PageSkeleton } from '@/components/PageSkeleton';
 import {
   Table,
   TableBody,
@@ -165,12 +157,7 @@ export default function NivelesPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="p-4 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   const nivelesSorted = niveles ? [...niveles].sort((a, b) => a.numero - b.numero) : [];
@@ -371,13 +358,14 @@ export default function NivelesPage() {
           </Table>
 
           {nivelesSorted.length === 0 && (
-            <div className="text-center py-12">
-              <Star className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No hay niveles configurados</p>
-              <Button className="mt-4" onClick={handleOpenCreate}>
-                <Plus className="w-4 h-4 mr-2" />
-                Crear primer nivel
-              </Button>
+            <div>
+              <EmptyState icon={Star} title="No hay niveles configurados" />
+              <div className="text-center pb-4">
+                <Button onClick={handleOpenCreate}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear primer nivel
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -512,26 +500,14 @@ export default function NivelesPage() {
       </Dialog>
 
       {/* Dialog de confirmación de eliminación */}
-      <AlertDialog open={dialog.deleteDialogOpen} onOpenChange={dialog.setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar nivel?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará el nivel "{dialog.itemToDelete?.nombre}" permanentemente.
-              Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => dialog.itemToDelete && deleteMutation!.mutate(dialog.itemToDelete.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation!.isPending ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={dialog.deleteDialogOpen}
+        onOpenChange={dialog.setDeleteDialogOpen}
+        onConfirm={() => dialog.itemToDelete && deleteMutation!.mutate(dialog.itemToDelete.id)}
+        title="¿Eliminar nivel?"
+        description={`Esta acción eliminará el nivel "${dialog.itemToDelete?.nombre}" permanentemente. Esta acción no se puede deshacer.`}
+        confirmLabel={deleteMutation!.isPending ? 'Eliminando...' : 'Eliminar'}
+      />
     </div>
   );
 }

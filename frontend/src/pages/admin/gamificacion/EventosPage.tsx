@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EmptyState } from '@/components/EmptyState';
+import { PageSkeleton } from '@/components/PageSkeleton';
 import { Calendar, Plus, Edit2, Trash2, MoreVertical } from 'lucide-react';
 import {
   DropdownMenu,
@@ -117,12 +118,7 @@ export default function EventosPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="p-4 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -249,11 +245,7 @@ export default function EventosPage() {
                 </TableRow>
               ))}
               {eventos?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={isAdmin ? 5 : 3} className="text-center py-8 text-muted-foreground">
-                    No hay eventos configurados
-                  </TableCell>
-                </TableRow>
+                <EmptyState colSpan={isAdmin ? 5 : 3} title="No hay eventos configurados" />
               )}
             </TableBody>
           </Table>
@@ -416,26 +408,14 @@ export default function EventosPage() {
       </Dialog>
 
       {/* Alert Dialog Eliminar */}
-      <AlertDialog open={dialog.deleteDialogOpen} onOpenChange={dialog.setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Desactivar evento?</AlertDialogTitle>
-            <AlertDialogDescription>
-              El evento "{dialog.itemToDelete?.nombre}" será desactivado y no aparecerá en la lista de
-              eventos disponibles para registrar.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Desactivar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={dialog.deleteDialogOpen}
+        onOpenChange={dialog.setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="¿Desactivar evento?"
+        description={`El evento "${dialog.itemToDelete?.nombre}" será desactivado y no aparecerá en la lista de eventos disponibles para registrar.`}
+        confirmLabel="Desactivar"
+      />
     </div>
   );
 }

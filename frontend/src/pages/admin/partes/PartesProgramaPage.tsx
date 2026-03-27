@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EmptyState } from '@/components/EmptyState';
+import { PageSkeleton } from '@/components/PageSkeleton';
 import { LayoutList, Plus, Edit2, Trash2, Star, Lock, MoreVertical, Camera, Copy } from 'lucide-react';
 import {
   DropdownMenu,
@@ -103,12 +104,7 @@ export default function PartesProgramaPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="p-4 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -240,11 +236,7 @@ export default function PartesProgramaPage() {
                 </TableRow>
               ))}
               {partes?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No hay partes configuradas
-                  </TableCell>
-                </TableRow>
+                <EmptyState colSpan={5} title="No hay partes configuradas" />
               )}
             </TableBody>
           </Table>
@@ -382,26 +374,14 @@ export default function PartesProgramaPage() {
       </Dialog>
 
       {/* Alert Dialog Eliminar */}
-      <AlertDialog open={dialog.deleteDialogOpen} onOpenChange={dialog.setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Desactivar parte?</AlertDialogTitle>
-            <AlertDialogDescription>
-              La parte "{dialog.itemToDelete?.nombre}" será desactivada y no aparecerá en la lista de
-              partes disponibles para los programas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Desactivar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={dialog.deleteDialogOpen}
+        onOpenChange={dialog.setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="¿Desactivar parte?"
+        description={`La parte "${dialog.itemToDelete?.nombre}" será desactivada y no aparecerá en la lista de partes disponibles para los programas.`}
+        confirmLabel="Desactivar"
+      />
     </div>
   );
 }
