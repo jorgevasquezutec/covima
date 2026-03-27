@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,6 +10,8 @@ import { CreateUsuarioDto, UpdateUsuarioDto, ResetPasswordDto } from './dto';
 
 @Injectable()
 export class UsuariosService {
+  private readonly logger = new Logger(UsuariosService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async findAll(options?: {
@@ -823,7 +826,7 @@ export class UsuariosService {
     });
 
     if (!nivelInicial) {
-      console.error(
+      this.logger.error(
         'No existe el nivel bíblico 1 para crear perfil de gamificación',
       );
       return null;

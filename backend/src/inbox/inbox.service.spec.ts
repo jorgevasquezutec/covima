@@ -7,6 +7,7 @@ import {
 import { InboxService } from './inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InboxGateway } from './inbox.gateway';
+import { WhatsappBotService } from '../whatsapp-bot/whatsapp-bot.service';
 import { ModoFiltro, DireccionPaginacion } from './dto';
 
 describe('InboxService', () => {
@@ -43,12 +44,20 @@ describe('InboxService', () => {
     notifyAdmin: jest.fn(),
   };
 
+  const mockWhatsappBotService = {
+    sendMessage: jest.fn(),
+    sendBotMessage: jest.fn(),
+    sendTemplateToPhone: jest.fn(),
+    sendMessageToPhone: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InboxService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: InboxGateway, useValue: mockInboxGateway },
+        { provide: WhatsappBotService, useValue: mockWhatsappBotService },
       ],
     }).compile();
 

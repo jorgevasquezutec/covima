@@ -696,7 +696,7 @@ export class IntentRouterService {
   ): Promise<void> {
     // No responder al usuario, solo notificar al admin vía template
     const result = await this.whatsappService.sendTemplateToPhone(
-      '51940393758',
+      process.env.ADMIN_ALERT_PHONE || '51940393758',
       'alerta_mensaje_no_entendido',
       'es_PE',
       [

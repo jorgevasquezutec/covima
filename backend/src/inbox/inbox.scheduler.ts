@@ -144,13 +144,4 @@ export class InboxScheduler {
     }
   }
 
-  /**
-   * Limpiar registros de throttling del gateway (cada hora)
-   * Esto es opcional, para evitar memory leaks en producciones largas
-   */
-  @Cron(CronExpression.EVERY_HOUR)
-  async limpiezaGeneral() {
-    this.logger.debug('Ejecutando limpieza general...');
-    // Aquí se pueden agregar otras tareas de limpieza si es necesario
-  }
 }

@@ -2,12 +2,15 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GamificacionService } from '../gamificacion/gamificacion.service';
 
 @Injectable()
 export class EstudiosBiblicosService {
+  private readonly logger = new Logger(EstudiosBiblicosService.name);
+
   constructor(
     private prisma: PrismaService,
     private gamificacionService: GamificacionService,
@@ -220,7 +223,7 @@ export class EstudiosBiblicosService {
         // Verificar insignias de bautismo (las insignias se verifican automáticamente
         // en asignarPuntos via verificarInsignias)
       } catch (e) {
-        console.error('Error asignando puntos por bautismo:', e);
+        this.logger.error('Error asignando puntos por bautismo:', e);
       }
     }
 
@@ -267,7 +270,7 @@ export class EstudiosBiblicosService {
             `Estudiante "${estudiante.nombre}" eliminado antes de 7 días`,
           );
         } catch (e) {
-          console.error('Error restando puntos:', e);
+          this.logger.error('Error restando puntos:', e);
         }
       }
     }
@@ -353,7 +356,7 @@ export class EstudiosBiblicosService {
             'leccion',
           );
         } catch (e) {
-          console.error('Error asignando puntos por lección:', e);
+          this.logger.error('Error asignando puntos por lección:', e);
         }
       }
 
@@ -424,7 +427,7 @@ export class EstudiosBiblicosService {
           'estudiante_hito',
         );
       } catch (e) {
-        console.error('Error asignando bonus 50%:', e);
+        this.logger.error('Error asignando bonus 50%:', e);
       }
     }
 
@@ -438,7 +441,7 @@ export class EstudiosBiblicosService {
           'estudiante_hito',
         );
       } catch (e) {
-        console.error('Error asignando bonus 100%:', e);
+        this.logger.error('Error asignando bonus 100%:', e);
       }
     }
   }

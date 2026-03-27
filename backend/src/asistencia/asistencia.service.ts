@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -58,6 +59,8 @@ export interface CrearAsistenciaParams {
 
 @Injectable()
 export class AsistenciaService {
+  private readonly logger = new Logger(AsistenciaService.name);
+
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => AsistenciaGateway))
@@ -499,18 +502,7 @@ export class AsistenciaService {
 
     // Si viene con código QR, verificar que exista y esté activo
     if (dto.codigoQR) {
-      const qr = await this.prisma.qRAsistencia.findUnique({
-        where: { codigo: dto.codigoQR },
-        include: {
-          tipoAsistencia: {
-            include: {
-              campos: {
-                where: { activo: true },
-              },
-            },
-          },
-        },
-      });
+      const qr = await this.findQRByCodigoConTipo(dto.codigoQR);
 
       if (!qr) {
         throw new NotFoundException('Código QR no válido');
@@ -522,38 +514,15 @@ export class AsistenciaService {
 
       // Verificar horario del QR usando la hora actual real
       const now = new Date();
-      const horaActualEnMinutos = now.getHours() * 60 + now.getMinutes();
+      const { dentroDeHorario } = this.validarVentanaHoraria(qr, now);
 
-      // Obtener horas del QR
-      const horaInicioQR =
-        qr.horaInicio instanceof Date
-          ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
-          : 9 * 60; // Default 9:00
-      const horaFinQR =
-        qr.horaFin instanceof Date
-          ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
-          : 12 * 60; // Default 12:00
-
-      // Aplicar margen temprana: el QR se abre margenTemprana minutos antes de horaInicio
-      const margenTemprana = qr.margenTemprana || 0;
-      const horaAperturaQR = horaInicioQR - margenTemprana;
-
-      // Verificar si está en horario (considerando horarios que cruzan medianoche)
-      let enHorario: boolean;
-      if (horaFinQR > horaAperturaQR) {
-        // Horario normal (ej: 08:45 - 12:00 con margen temprana de 15 min)
-        enHorario =
-          horaActualEnMinutos >= horaAperturaQR &&
-          horaActualEnMinutos < horaFinQR;
-      } else {
-        // Horario que cruza medianoche
-        enHorario =
-          horaActualEnMinutos >= horaAperturaQR ||
-          horaActualEnMinutos < horaFinQR;
-      }
-
-      if (!enHorario) {
-        // Mostrar la hora de apertura real (con margen)
+      if (!dentroDeHorario) {
+        // Calcular hora de apertura para mensaje de error
+        const horaInicioQR =
+          qr.horaInicio instanceof Date
+            ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
+            : 9 * 60;
+        const horaAperturaQR = horaInicioQR - (qr.margenTemprana || 0);
         const horaAperturaDate = new Date();
         horaAperturaDate.setHours(
           Math.floor(horaAperturaQR / 60),
@@ -613,14 +582,10 @@ export class AsistenciaService {
     });
 
     // Verificar si ya registró en este QR (tanto por usuarioId como por teléfono del bot)
-    const orConditions: any[] = [{ usuarioId }];
-    if (usuario?.telefono) {
-      // Buscar registros hechos por el bot con el teléfono del usuario
-      orConditions.push({ telefonoRegistro: usuario.telefono });
-      orConditions.push({
-        telefonoRegistro: { endsWith: usuario.telefono.slice(-9) },
-      });
-    }
+    const orConditions = this.buildDuplicateCheckConditions(
+      usuarioId,
+      usuario?.telefono,
+    );
 
     const existente = await this.prisma.asistencia.findFirst({
       where: {
@@ -670,19 +635,7 @@ export class AsistenciaService {
     dto: RegistrarAsistenciaManualDto,
   ) {
     // Buscar el QR
-    const qr = await this.prisma.qRAsistencia.findUnique({
-      where: { codigo: dto.codigoQR },
-      include: {
-        tipoAsistencia: {
-          include: {
-            campos: {
-              where: { activo: true },
-              orderBy: { orden: 'asc' },
-            },
-          },
-        },
-      },
-    });
+    const qr = await this.findQRByCodigoConTipo(dto.codigoQR);
 
     if (!qr) {
       throw new NotFoundException('Código QR no válido');
@@ -695,26 +648,9 @@ export class AsistenciaService {
     // Validar horario del QR
     const hoy = getTodayAsUTC();
     const now = new Date();
-    const horaActual = now.getHours();
-    const minutoActual = now.getMinutes();
-    const horaActualEnMinutos = horaActual * 60 + minutoActual;
-
-    const horaInicioQR =
-      qr.horaInicio instanceof Date
-        ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
-        : 9 * 60;
-    const horaFinQR =
-      qr.horaFin instanceof Date
-        ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
-        : 12 * 60;
-
-    // Aplicar margen temprana: el QR se abre margenTemprana minutos antes de horaInicio
-    const margenTemprana = qr.margenTemprana || 0;
-    const horaAperturaQR = horaInicioQR - margenTemprana;
 
     // Determinar si está fuera de horario (no lanza error, guarda con estado fuera_horario)
-    const esFueraDeHorario =
-      horaActualEnMinutos < horaAperturaQR || horaActualEnMinutos >= horaFinQR;
+    const { esFueraDeHorario } = this.validarVentanaHoraria(qr, now);
 
     const semanaInicio = getInicioSemana(hoy);
     const tipoId = qr.tipoId;
@@ -771,22 +707,10 @@ export class AsistenciaService {
     // Verificar restricción única por QR específico
     // Buscar tanto por usuarioId como por telefonoRegistro (el bot puede registrar con teléfono)
     if (usuarioId || telefonoRegistro) {
-      const orConditions: any[] = [];
-
-      if (usuarioId) {
-        orConditions.push({ usuarioId });
-      }
-      if (telefonoRegistro) {
-        orConditions.push({ telefonoRegistro });
-      }
-      // Si hay un usuario con teléfono, también buscar registros hechos por el bot con ese teléfono
-      if (telefonoUsuario) {
-        orConditions.push({ telefonoRegistro: telefonoUsuario });
-        // También buscar con formato de WhatsApp (con código de país)
-        orConditions.push({
-          telefonoRegistro: { endsWith: telefonoUsuario.slice(-9) },
-        });
-      }
+      const orConditions = [
+        ...this.buildDuplicateCheckConditions(usuarioId, telefonoUsuario),
+        ...(telefonoRegistro ? [{ telefonoRegistro }] : []),
+      ];
 
       const existente = await this.prisma.asistencia.findFirst({
         where: {
@@ -843,7 +767,7 @@ export class AsistenciaService {
             qr,
           );
       } catch (error) {
-        console.error('Error asignando puntos de gamificación:', error);
+        this.logger.error('Error asignando puntos de gamificación:', error);
       }
     }
 
@@ -868,19 +792,7 @@ export class AsistenciaService {
     dto: RegistrarAsistenciaHistoricaDto,
   ) {
     // Buscar el QR (sin validar si está activo)
-    const qr = await this.prisma.qRAsistencia.findUnique({
-      where: { codigo: dto.codigoQR },
-      include: {
-        tipoAsistencia: {
-          include: {
-            campos: {
-              where: { activo: true },
-              orderBy: { orden: 'asc' },
-            },
-          },
-        },
-      },
-    });
+    const qr = await this.findQRByCodigoConTipo(dto.codigoQR);
 
     if (!qr) {
       throw new NotFoundException('Código QR no válido');
@@ -938,19 +850,10 @@ export class AsistenciaService {
 
     // Verificar duplicados
     if (usuarioId || telefonoRegistro) {
-      const orConditions: any[] = [];
-      if (usuarioId) {
-        orConditions.push({ usuarioId });
-      }
-      if (telefonoRegistro) {
-        orConditions.push({ telefonoRegistro });
-      }
-      if (telefonoUsuario) {
-        orConditions.push({ telefonoRegistro: telefonoUsuario });
-        orConditions.push({
-          telefonoRegistro: { endsWith: telefonoUsuario.slice(-9) },
-        });
-      }
+      const orConditions = [
+        ...this.buildDuplicateCheckConditions(usuarioId, telefonoUsuario),
+        ...(telefonoRegistro ? [{ telefonoRegistro }] : []),
+      ];
 
       const existente = await this.prisma.asistencia.findFirst({
         where: {
@@ -1035,7 +938,7 @@ export class AsistenciaService {
           });
         }
       } catch (error) {
-        console.error('Error asignando puntos de gamificación:', error);
+        this.logger.error('Error asignando puntos de gamificación:', error);
       }
     }
 
@@ -1055,19 +958,7 @@ export class AsistenciaService {
     dto: RegistrarAsistenciaMasivaDto,
   ) {
     // Buscar el QR
-    const qr = await this.prisma.qRAsistencia.findUnique({
-      where: { codigo: dto.codigoQR },
-      include: {
-        tipoAsistencia: {
-          include: {
-            campos: {
-              where: { activo: true },
-              orderBy: { orden: 'asc' },
-            },
-          },
-        },
-      },
-    });
+    const qr = await this.findQRByCodigoConTipo(dto.codigoQR);
 
     if (!qr) {
       throw new NotFoundException('Código QR no válido');
@@ -1080,21 +971,14 @@ export class AsistenciaService {
     // Validar horario
     const hoy = getTodayAsUTC();
     const now = new Date();
-    const horaActualEnMinutos = now.getHours() * 60 + now.getMinutes();
-    const horaInicioQR =
-      qr.horaInicio instanceof Date
-        ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
-        : 9 * 60;
-    const horaFinQR =
-      qr.horaFin instanceof Date
-        ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
-        : 12 * 60;
-    const horaAperturaQR = horaInicioQR - (qr.margenTemprana || 0);
+    const { dentroDeHorario } = this.validarVentanaHoraria(qr, now);
 
-    if (
-      horaActualEnMinutos < horaAperturaQR ||
-      horaActualEnMinutos >= horaFinQR
-    ) {
+    if (!dentroDeHorario) {
+      const horaInicioQR =
+        qr.horaInicio instanceof Date
+          ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
+          : 9 * 60;
+      const horaAperturaQR = horaInicioQR - (qr.margenTemprana || 0);
       const horaAperturaDate = new Date();
       horaAperturaDate.setHours(
         Math.floor(horaAperturaQR / 60),
@@ -1144,13 +1028,10 @@ export class AsistenciaService {
         }
 
         // Verificar duplicado
-        const orConditions: any[] = [{ usuarioId }];
-        if (usuario.telefono) {
-          orConditions.push({ telefonoRegistro: usuario.telefono });
-          orConditions.push({
-            telefonoRegistro: { endsWith: usuario.telefono.slice(-9) },
-          });
-        }
+        const orConditions = this.buildDuplicateCheckConditions(
+          usuarioId,
+          usuario.telefono,
+        );
 
         const existente = await this.prisma.asistencia.findFirst({
           where: { qrId: qr.id, OR: orConditions },
@@ -1197,7 +1078,7 @@ export class AsistenciaService {
             qr,
           );
         } catch (error) {
-          console.error(
+          this.logger.error(
             `Error asignando puntos a usuario ${usuarioId}:`,
             error,
           );
@@ -1244,19 +1125,7 @@ export class AsistenciaService {
     dto: RegistrarAsistenciaHistoricaMasivaDto,
   ) {
     // Buscar el QR (sin validar si está activo)
-    const qr = await this.prisma.qRAsistencia.findUnique({
-      where: { codigo: dto.codigoQR },
-      include: {
-        tipoAsistencia: {
-          include: {
-            campos: {
-              where: { activo: true },
-              orderBy: { orden: 'asc' },
-            },
-          },
-        },
-      },
-    });
+    const qr = await this.findQRByCodigoConTipo(dto.codigoQR);
 
     if (!qr) {
       throw new NotFoundException('Código QR no válido');
@@ -1305,13 +1174,10 @@ export class AsistenciaService {
         }
 
         // Verificar duplicado
-        const orConditions: any[] = [{ usuarioId }];
-        if (usuario.telefono) {
-          orConditions.push({ telefonoRegistro: usuario.telefono });
-          orConditions.push({
-            telefonoRegistro: { endsWith: usuario.telefono.slice(-9) },
-          });
-        }
+        const orConditions = this.buildDuplicateCheckConditions(
+          usuarioId,
+          usuario.telefono,
+        );
 
         const existente = await this.prisma.asistencia.findFirst({
           where: { qrId: qr.id, OR: orConditions },
@@ -1382,7 +1248,7 @@ export class AsistenciaService {
             });
           }
         } catch (error) {
-          console.error(
+          this.logger.error(
             `Error asignando puntos a usuario ${usuarioId}:`,
             error,
           );
@@ -1632,7 +1498,7 @@ export class AsistenciaService {
           );
       } catch (error) {
         // Log error but don't fail the confirmation
-        console.error('Error asignando puntos de gamificación:', error);
+        this.logger.error('Error asignando puntos de gamificación:', error);
       }
     }
 
@@ -1719,7 +1585,7 @@ export class AsistenciaService {
               } : undefined,
             );
           } catch (error) {
-            console.error(
+            this.logger.error(
               `Error asignando puntos para asistencia ${asistencia.id}:`,
               error,
             );
@@ -2108,6 +1974,92 @@ export class AsistenciaService {
   }
 
   // ==================== HELPERS ====================
+
+  /**
+   * Busca un QR por código incluyendo tipoAsistencia con sus campos activos.
+   * Patrón reutilizado en findQRByCodigo, registrarAsistencia, registrarAsistenciaManual,
+   * registrarAsistenciaHistorica, registrarAsistenciaManualMasivo y registrarAsistenciaHistoricaMasivo.
+   */
+  private async findQRByCodigoConTipo(codigo: string) {
+    return this.prisma.qRAsistencia.findUnique({
+      where: { codigo },
+      include: {
+        tipoAsistencia: {
+          include: {
+            campos: {
+              where: { activo: true },
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Valida si la hora actual está dentro de la ventana horaria del QR.
+   * Retorna si está dentro de horario y si está fuera de horario.
+   */
+  private validarVentanaHoraria(
+    qr: {
+      horaInicio: Date | null;
+      horaFin: Date | null;
+      margenTemprana: number | null;
+    },
+    horaActual: Date,
+  ): { dentroDeHorario: boolean; esFueraDeHorario: boolean } {
+    const horaActualEnMinutos =
+      horaActual.getHours() * 60 + horaActual.getMinutes();
+
+    const horaInicioQR =
+      qr.horaInicio instanceof Date
+        ? qr.horaInicio.getHours() * 60 + qr.horaInicio.getMinutes()
+        : 9 * 60;
+    const horaFinQR =
+      qr.horaFin instanceof Date
+        ? qr.horaFin.getHours() * 60 + qr.horaFin.getMinutes()
+        : 12 * 60;
+
+    const margenTemprana = qr.margenTemprana || 0;
+    const horaAperturaQR = horaInicioQR - margenTemprana;
+
+    let dentroDeHorario: boolean;
+    if (horaFinQR > horaAperturaQR) {
+      dentroDeHorario =
+        horaActualEnMinutos >= horaAperturaQR &&
+        horaActualEnMinutos < horaFinQR;
+    } else {
+      dentroDeHorario =
+        horaActualEnMinutos >= horaAperturaQR ||
+        horaActualEnMinutos < horaFinQR;
+    }
+
+    return {
+      dentroDeHorario,
+      esFueraDeHorario: !dentroDeHorario,
+    };
+  }
+
+  /**
+   * Construye las condiciones OR para verificar duplicados de asistencia.
+   * Busca por usuarioId y/o por teléfono (incluyendo formato parcial para WhatsApp).
+   */
+  private buildDuplicateCheckConditions(
+    usuarioId?: number | null,
+    telefono?: string | null,
+  ): any[] {
+    const orConditions: any[] = [];
+    if (usuarioId) {
+      orConditions.push({ usuarioId });
+    }
+    if (telefono) {
+      orConditions.push({ telefonoRegistro: telefono });
+      orConditions.push({
+        telefonoRegistro: { endsWith: telefono.slice(-9) },
+      });
+    }
+    return orConditions;
+  }
 
   /**
    * Calcula la racha de asistencia basada en semanas consecutivas

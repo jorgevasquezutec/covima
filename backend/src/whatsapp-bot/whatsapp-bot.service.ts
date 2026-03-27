@@ -192,48 +192,10 @@ export class WhatsappBotService {
   }
 
   /**
-   * Obtener información del contacto - stub
-   */
-  async getContact(contactId: number): Promise<any> {
-    return null;
-  }
-
-  /**
-   * Actualizar atributos del contacto - stub
-   */
-  async updateContactAttributes(
-    contactId: number,
-    customAttributes: Record<string, any>,
-  ): Promise<any> {
-    return null;
-  }
-
-  /**
    * Resolver conversación - limpia el mapa
    */
   async resolveConversation(conversationId: number): Promise<void> {
     this.conversationPhoneMap.delete(conversationId);
-  }
-
-  /**
-   * Buscar contacto por teléfono - stub
-   */
-  async findContactByPhone(phoneNumber: string): Promise<any | null> {
-    return { phone_number: phoneNumber };
-  }
-
-  /**
-   * Crear contacto - stub
-   */
-  async createContact(phoneNumber: string, name: string): Promise<any | null> {
-    return { id: Date.now(), phone_number: phoneNumber, name };
-  }
-
-  /**
-   * Obtener o crear conversación - stub
-   */
-  async getOrCreateConversation(contactId: number): Promise<number | null> {
-    return contactId;
   }
 
   /**
