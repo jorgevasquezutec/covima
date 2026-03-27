@@ -58,18 +58,16 @@ export function useAsistenciaSocket(options: UseAsistenciaSocketOptions) {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[Socket] Connected');
       setIsConnected(true);
       socket.emit('joinRoom', { qrCode });
     });
 
     socket.on('disconnect', () => {
-      console.log('[Socket] Disconnected');
       setIsConnected(false);
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('[Socket] Connection error:', error.message);
+    socket.on('connect_error', () => {
+      // connection error handled by reconnection
     });
 
     socket.on('estadoRoom', (data: RoomState) => {
@@ -108,7 +106,6 @@ export function useAsistenciaSocket(options: UseAsistenciaSocketOptions) {
     });
 
     return () => {
-      console.log('[Socket] Cleanup');
       socket.emit('leaveRoom', { qrCode });
       socket.disconnect();
       socketRef.current = null;

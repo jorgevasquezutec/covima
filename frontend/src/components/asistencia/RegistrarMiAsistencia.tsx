@@ -36,7 +36,7 @@ export default function RegistrarMiAsistencia({ onSuccess, compact = false }: Pr
             const data = await asistenciaApi.getQRsDisponibles();
             setQrs(data);
         } catch {
-            console.error('Error al cargar QRs disponibles');
+            // error loading available QRs
         } finally {
             setLoading(false);
         }

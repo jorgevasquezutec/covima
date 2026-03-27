@@ -70,7 +70,7 @@ export function ChatWindow({
       lastMessageIdRef.current = null;
 
       // Marcar como leído
-      inboxApi.marcarComoLeido(conversacion.id).catch(console.error);
+      inboxApi.marcarComoLeido(conversacion.id).catch(() => {});
     }
   }, [conversacion?.id]);
 
@@ -82,7 +82,7 @@ export function ChatWindow({
 
       // Marcar como leído si está viendo esta conversación
       if (conversacion?.id) {
-        inboxApi.marcarComoLeido(conversacion.id).catch(console.error);
+        inboxApi.marcarComoLeido(conversacion.id).catch(() => {});
       }
     }
   }, [newMessage, addMensaje, conversacion?.id]);

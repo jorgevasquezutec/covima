@@ -289,8 +289,7 @@ export default function PlantillasProgramaPage() {
       link.href = dataUrl;
       link.click();
       toast.success('Imagen descargada correctamente');
-    } catch (error) {
-      console.error('Error exporting:', error);
+    } catch {
       toast.error('Error al exportar la imagen');
     } finally {
       setExporting(false);

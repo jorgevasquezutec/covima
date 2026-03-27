@@ -108,7 +108,6 @@ export default function RegistrarAsistencia() {
                 }
             } catch {
                 // Si falla la verificación, continuar sin ella
-                console.log('No se pudo verificar asistencia previa');
             }
         } catch (err: unknown) {
             const axiosError = err as { response?: { data?: { message?: string } } };

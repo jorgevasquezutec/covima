@@ -67,23 +67,19 @@ export function useInboxSocket(options: UseInboxSocketOptions = {}) {
       setIsConnected(true);
       setConnectionError(null);
       reconnectAttempts.current = 0;
-      console.log('[InboxSocket] Connected');
     });
 
-    socketRef.current.on('disconnect', (reason) => {
+    socketRef.current.on('disconnect', () => {
       setIsConnected(false);
-      console.log('[InboxSocket] Disconnected:', reason);
     });
 
     socketRef.current.on('connect_error', (error) => {
       setConnectionError(error.message);
       reconnectAttempts.current++;
-      console.error('[InboxSocket] Connection error:', error.message);
     });
 
     socketRef.current.on('error', (error: { message: string }) => {
       setConnectionError(error.message);
-      console.error('[InboxSocket] Error:', error.message);
     });
 
     // Event listeners - use optionsRef to get latest callbacks
@@ -125,10 +121,8 @@ export function useInboxSocket(options: UseInboxSocketOptions = {}) {
 
   const joinConversation = useCallback((conversacionId: number) => {
     if (socketRef.current?.connected) {
-      socketRef.current.emit('join', { conversacionId }, (response: any) => {
-        if (!response.success) {
-          console.error('[InboxSocket] Failed to join conversation:', response.error);
-        }
+      socketRef.current.emit('join', { conversacionId }, () => {
+        // join response handled
       });
     }
   }, []);

@@ -163,7 +163,7 @@ export default function RegistroManualAsistencia({ onSuccess, embedded, selected
                 const response = await usuariosApi.getAll({ search: searchTerm, activo: true, limit: 10 });
                 setUsuarios(response.data);
             } catch {
-                console.error('Error buscando usuarios');
+                // error searching users
             } finally {
                 setSearching(false);
             }

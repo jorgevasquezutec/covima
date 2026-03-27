@@ -15,7 +15,7 @@ registerSW({
     }
   },
   onOfflineReady() {
-    console.log('PWA lista para uso offline')
+    // PWA ready for offline use
   },
 })
 

@@ -629,8 +629,8 @@ export default function OBSThemeEditor({
     removeWhiteBackground(logoUrl).then((dataUrl) => {
       processedLogoCache.current = { url: logoUrl, dataUrl };
       onChange({ ...latestThemeRef.current, _processedLogoUrl: dataUrl });
-    }).catch((err) => {
-      console.error('Error removing logo background:', err);
+    }).catch(() => {
+      // error removing logo background
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme.logoRemoveBg, theme.logoUrl]);

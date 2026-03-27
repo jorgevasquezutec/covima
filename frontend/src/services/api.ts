@@ -3,7 +3,6 @@ import type {
   LoginRequest,
   LoginResponse,
   User,
-  ChangePasswordRequest,
   Usuario,
   CreateUsuarioRequest,
   UpdateUsuarioRequest,
@@ -13,7 +12,6 @@ import type {
   UsuariosInactivosResponse,
   ResumenInactividad,
   ResumenPerfilIncompleto,
-  RankingsPorNivelResponse,
   PosicionEnNivel,
   EstadisticasDashboard,
   PlantillaPrograma,
@@ -78,10 +76,6 @@ export const authApi = {
   getProfile: async (): Promise<User> => {
     const response = await api.get<User>('/auth/profile');
     return response.data;
-  },
-
-  changePassword: async (data: ChangePasswordRequest): Promise<void> => {
-    await api.post('/auth/change-password', data);
   },
 
   forgotPassword: async (data: { codigoPais: string; telefono: string }) => {
@@ -205,17 +199,6 @@ export const usuariosApi = {
     return response.data;
   },
 
-  // Cumpleaños del mes
-  getCumpleanosDelMes: async (params?: { mes?: number; anio?: number }): Promise<{
-    mes: number;
-    mesNombre: string;
-    anio: number;
-    cumpleaneros: { id: number; nombre: string; dia: number; mes: number }[];
-  }> => {
-    const response = await api.get('/usuarios/cumpleanos-mes', { params });
-    return response.data;
-  },
-
   // ==================== SEGUIMIENTO DE INACTIVIDAD ====================
 
   getUsuariosInactivos: async (params?: {
@@ -287,11 +270,6 @@ export const programasApi = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/programas/${id}`);
-  },
-
-  getPartes: async (): Promise<Parte[]> => {
-    const response = await api.get<Parte[]>('/programas/partes');
-    return response.data;
   },
 
   getPartesObligatorias: async (): Promise<Parte[]> => {
@@ -372,18 +350,6 @@ export const programasApi = {
     return response.data;
   },
 
-  // Dashboard endpoints
-  getMisAsignaciones: async (): Promise<{
-    id: number;
-    fecha: string;
-    titulo: string;
-    estado: string;
-    partes: { id: number; nombre: string }[];
-  }[]> => {
-    const response = await api.get('/programas/mis-asignaciones');
-    return response.data;
-  },
-
   getEstadisticasAdmin: async (): Promise<{
     programasEsteMes: number;
     programasPendientes: number;
@@ -440,11 +406,6 @@ export const programasApi = {
 
   getPlantillas: async (): Promise<PlantillaPrograma[]> => {
     const response = await api.get<PlantillaPrograma[]>('/programas/plantillas');
-    return response.data;
-  },
-
-  getPlantilla: async (id: number): Promise<PlantillaPrograma> => {
-    const response = await api.get<PlantillaPrograma>(`/programas/plantillas/${id}`);
     return response.data;
   },
 
@@ -599,17 +560,6 @@ export const estudiosBiblicosApi = {
     return response.data;
   },
 
-  createInteresadosBulk: async (items: {
-    nombre: string;
-    edad: number;
-    telefono: string;
-    direccion?: string;
-    notas?: string;
-  }[]): Promise<Interesado[]> => {
-    const response = await api.post<Interesado[]>('/estudios-biblicos/interesados/bulk', { items });
-    return response.data;
-  },
-
   updateInteresado: async (id: number, data: {
     nombre?: string;
     edad?: number;
@@ -709,10 +659,6 @@ export const tiposAsistenciaApi = {
     await api.delete(`/tipos-asistencia/campos/${campoId}`);
   },
 
-  reorderCampos: async (tipoId: number, campoIds: number[]): Promise<TipoAsistencia> => {
-    const response = await api.put<TipoAsistencia>(`/tipos-asistencia/${tipoId}/campos/reorder`, { campoIds });
-    return response.data;
-  },
 };
 
 // ==================== ASISTENCIA API ====================
@@ -723,7 +669,6 @@ import type {
   RegistrarAsistenciaRequest,
   ConfirmarAsistenciaRequest,
   EstadisticasGenerales,
-  EstadisticasSemana,
   EstadisticasMesPorSemana,
   MiAsistencia,
   AsistenciaUsuarioResponse,
@@ -861,11 +806,6 @@ export const asistenciaApi = {
     return response.data;
   },
 
-  getEstadisticasSemana: async (semanaInicio: string): Promise<EstadisticasSemana> => {
-    const response = await api.get<EstadisticasSemana>('/asistencia/estadisticas/semana', { params: { semanaInicio } });
-    return response.data;
-  },
-
   getEstadisticasMesPorSemana: async (mes: string): Promise<EstadisticasMesPorSemana> => {
     const response = await api.get<EstadisticasMesPorSemana>('/asistencia/estadisticas/mes', { params: { mes } });
     return response.data;
@@ -913,7 +853,6 @@ import type {
 import type {
   MiProgreso,
   RankingUsuario,
-  RankingFilters,
   NivelBiblico,
   Insignia,
   ConfiguracionPuntaje,
@@ -927,7 +866,6 @@ import type {
   RankingGrupoUsuario,
   CrearGrupoRankingRequest,
   ActualizarGrupoRankingRequest,
-  MiVisibilidadRanking,
   PosicionGrupo,
   HistorialPuntosResponse,
   ResumenPeriodo,
@@ -963,21 +901,10 @@ export const gamificacionApi = {
     return response.data;
   },
 
-  getRanking: async (params?: RankingFilters): Promise<RankingUsuario[]> => {
-    const response = await api.get<RankingUsuario[]>('/gamificacion/ranking', { params });
-    return response.data;
-  },
-
   getNiveles: async (incluirInactivos = false): Promise<NivelBiblico[]> => {
     const response = await api.get<NivelBiblico[]>('/gamificacion/niveles', {
       params: { incluirInactivos },
     });
-    return response.data;
-  },
-
-  // [Admin] Obtener nivel por ID
-  getNivel: async (id: number): Promise<NivelBiblico> => {
-    const response = await api.get<NivelBiblico>(`/gamificacion/niveles/${id}`);
     return response.data;
   },
 
@@ -1064,11 +991,6 @@ export const gamificacionApi = {
     return response.data.id ? response.data : null;
   },
 
-  getPeriodo: async (id: number): Promise<PeriodoRanking> => {
-    const response = await api.get<PeriodoRanking>(`/gamificacion/periodos/${id}`);
-    return response.data;
-  },
-
   crearPeriodo: async (data: {
     nombre: string;
     descripcion?: string;
@@ -1147,14 +1069,6 @@ export const gamificacionApi = {
     return response.data;
   },
 
-  // Rankings por nivel (todos los niveles con sus top 3)
-  getRankingsPorNivel: async (periodoId?: number): Promise<RankingsPorNivelResponse> => {
-    const response = await api.get<RankingsPorNivelResponse>('/gamificacion/ranking-por-nivel', {
-      params: periodoId ? { periodoId } : undefined,
-    });
-    return response.data;
-  },
-
   // Ranking de un nivel específico con paginación
   getRankingNivel: async (nivelId: number, params?: { periodoId?: number; page?: number; limit?: number }): Promise<PaginatedResponse<RankingGrupoUsuario>> => {
     const response = await api.get<PaginatedResponse<RankingGrupoUsuario>>(`/gamificacion/ranking-nivel/${nivelId}`, {
@@ -1211,33 +1125,9 @@ export const gamificacionApi = {
     return response.data;
   },
 
-  // Obtener mi visibilidad en rankings
-  getMiVisibilidadRanking: async (): Promise<MiVisibilidadRanking> => {
-    const response = await api.get<MiVisibilidadRanking>('/gamificacion/grupos-ranking/mi-visibilidad');
-    return response.data;
-  },
-
   // Obtener mis posiciones en todos los grupos
   getMisPosicionesRanking: async (): Promise<PosicionGrupo[]> => {
     const response = await api.get<PosicionGrupo[]>('/gamificacion/grupos-ranking/mis-posiciones');
-    return response.data;
-  },
-
-  // Toggle visibilidad en ranking general
-  toggleOcultoGeneral: async (oculto: boolean): Promise<{ ocultoEnGeneral: boolean }> => {
-    const response = await api.put('/gamificacion/grupos-ranking/mi-visibilidad/general', { oculto });
-    return response.data;
-  },
-
-  // Toggle visibilidad en un grupo específico
-  toggleOcultoGrupo: async (grupoId: number, oculto: boolean): Promise<{ oculto: boolean }> => {
-    const response = await api.put(`/gamificacion/grupos-ranking/mi-visibilidad/${grupoId}`, { oculto });
-    return response.data;
-  },
-
-  // [Admin] Cambiar participación de un usuario en rankings
-  setParticipaEnRanking: async (usuarioId: number, participa: boolean): Promise<{ participaEnRanking: boolean }> => {
-    const response = await api.put(`/gamificacion/grupos-ranking/usuarios/${usuarioId}/participacion`, { participa });
     return response.data;
   },
 
@@ -1254,12 +1144,6 @@ export const gamificacionApi = {
     limit?: number;
   }): Promise<HistorialAdminResponse> => {
     const response = await api.get<HistorialAdminResponse>('/gamificacion/admin/historial', { params });
-    return response.data;
-  },
-
-  // [Admin] Obtener una entrada del historial
-  getHistorialEntry: async (id: number) => {
-    const response = await api.get(`/gamificacion/admin/historial/${id}`);
     return response.data;
   },
 
@@ -1314,11 +1198,6 @@ export const inboxApi = {
     search?: string;
   }): Promise<ConversacionesResponse> => {
     const response = await api.get<ConversacionesResponse>('/inbox/conversaciones', { params });
-    return response.data;
-  },
-
-  getConversacion: async (id: number): Promise<Conversacion> => {
-    const response = await api.get<Conversacion>(`/inbox/conversaciones/${id}`);
     return response.data;
   },
 
@@ -1440,25 +1319,6 @@ export const calendarioApi = {
     return response.data;
   },
 
-  // Actividades
-  getActividades: async (params?: {
-    page?: number;
-    limit?: number;
-    desde?: string;
-    hasta?: string;
-  }): Promise<PaginatedResponse<ActividadCalendario>> => {
-    const response = await api.get<PaginatedResponse<ActividadCalendario>>(
-      '/calendario/actividades',
-      { params }
-    );
-    return response.data;
-  },
-
-  getActividad: async (id: number): Promise<ActividadCalendario> => {
-    const response = await api.get<ActividadCalendario>(`/calendario/actividades/${id}`);
-    return response.data;
-  },
-
   createActividad: async (data: CreateActividadRequest): Promise<ActividadCalendario> => {
     const response = await api.post<ActividadCalendario>('/calendario/actividades', data);
     return response.data;
@@ -1533,11 +1393,6 @@ export const mediaApi = {
       { url, nombre, linkId },
       { timeout: 300000 },
     );
-    return response.data;
-  },
-
-  updateNombre: async (id: number, nombre: string): Promise<MediaItem> => {
-    const response = await api.patch<MediaItem>(`/media/${id}`, { nombre });
     return response.data;
   },
 

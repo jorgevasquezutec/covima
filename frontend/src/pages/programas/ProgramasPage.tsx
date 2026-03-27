@@ -171,8 +171,8 @@ export default function ProgramasPage() {
                 await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
                 toast.success('Texto copiado al portapapeles');
                 return;
-            } catch (err) {
-                console.warn('ClipboardItem API falló:', err);
+            } catch {
+                // ClipboardItem API not available
             }
         }
 
@@ -182,8 +182,8 @@ export default function ProgramasPage() {
                 await navigator.clipboard.writeText(textoWhatsapp);
                 toast.success('Texto copiado al portapapeles');
                 return;
-            } catch (err) {
-                console.warn('clipboard.writeText falló:', err);
+            } catch {
+                // clipboard.writeText not available
             }
         }
 

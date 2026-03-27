@@ -156,8 +156,7 @@ export default function CalendarioMes({
     try {
       const data = await calendarioApi.getCalendarioMes(mes, anio);
       setCalendario(data);
-    } catch (error) {
-      console.error('Error loading calendario:', error);
+    } catch {
       toast.error('Error al cargar el calendario');
     } finally {
       setLoading(false);
@@ -295,8 +294,7 @@ export default function CalendarioMes({
       link.click();
       toast.success('Imagen descargada correctamente');
       setShowExportDialog(false);
-    } catch (error) {
-      console.error('Error exporting:', error);
+    } catch {
       toast.error('Error al exportar la imagen');
     } finally {
       setExporting(false);

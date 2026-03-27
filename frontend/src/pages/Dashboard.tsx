@@ -256,8 +256,8 @@ export default function Dashboard() {
           setResumenPerfil(results[11]);
           setEstudiosBiblicosStats(results[12]);
         }
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
+      } catch {
+        // error loading dashboard data
       } finally {
         setLoading(false);
       }

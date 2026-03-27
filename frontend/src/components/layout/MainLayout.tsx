@@ -73,11 +73,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[MainLayout Socket] Connected for notifications');
+      // connected for notifications
     });
 
     socket.on('levelUp', (data: LevelUpData) => {
-      console.log('[MainLayout Socket] LevelUp received:', data);
       // Queue it — will show after onboarding if needed
       levelUpQueueRef.current.push(data);
       processLevelUpQueue();

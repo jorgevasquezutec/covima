@@ -49,8 +49,8 @@ export function TransferModal({
       const data = await inboxApi.getAdminsDisponibles();
       // Filtrar el admin actual
       setAdmins(data.filter((a) => a.id !== currentAdminId));
-    } catch (err) {
-      console.error('Error loading admins:', err);
+    } catch {
+      // error loading admins
     } finally {
       setLoading(false);
     }

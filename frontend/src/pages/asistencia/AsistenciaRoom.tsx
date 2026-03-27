@@ -174,7 +174,7 @@ export default function AsistenciaRoom() {
             const filtradas = response.data.filter((a: Asistencia) => a.qr?.codigo === codigo);
             setAsistencias(filtradas);
         } catch {
-            console.error('Error loading asistencias');
+            // error loading asistencias
         }
     };
 

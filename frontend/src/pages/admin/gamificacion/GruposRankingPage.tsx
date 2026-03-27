@@ -41,9 +41,6 @@ export default function GruposRankingPage() {
   const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [grupoToDelete, setGrupoToDelete] = useState<GrupoRanking | null>(null);
-  // Comentado: Convertir a personalizado ya no es necesario
-  // const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  // const [grupoToConvert, setGrupoToConvert] = useState<GrupoRanking | null>(null);
   const [grupoToEdit, setGrupoToEdit] = useState<GrupoRanking | null>(null);
   const [grupoForMembers, setGrupoForMembers] = useState<GrupoRanking | null>(null);
   const [viewMembersModalOpen, setViewMembersModalOpen] = useState(false);
@@ -157,21 +154,6 @@ export default function GruposRankingPage() {
       toast.error('Error al quitar miembro');
     },
   });
-
-  // Comentado: Convertir a personalizado ya no es necesario
-  // const convertirMutation = useMutation({
-  //   mutationFn: gamificacionApi.convertirGrupoAPersonalizado,
-  //   onSuccess: (data) => {
-  //     queryClient.invalidateQueries({ queryKey: ['grupos-ranking-admin'] });
-  //     queryClient.invalidateQueries({ queryKey: ['grupos-ranking'] });
-  //     toast.success(data.mensaje);
-  //     setConvertDialogOpen(false);
-  //     setGrupoToConvert(null);
-  //   },
-  //   onError: (error: any) => {
-  //     toast.error(error.response?.data?.message || 'Error al convertir grupo');
-  //   },
-  // });
 
   const handleOpenCreate = () => {
     setGrupoToEdit(null);
@@ -791,35 +773,6 @@ export default function GruposRankingPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Comentado: Convertir a personalizado ya no es necesario */}
-      {/* <AlertDialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Convertir a grupo personalizado?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                El grupo "{grupoToConvert?.nombre}" dejará de ser automático y podrás
-                agregar o quitar miembros manualmente.
-              </p>
-              <p className="font-medium text-foreground">
-                Se copiarán los {grupoToConvert?.totalMiembros || 0} miembros actuales al grupo.
-              </p>
-              <p className="text-yellow-600">
-                ⚠️ Esta acción no se puede deshacer.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => grupoToConvert && convertirMutation.mutate(grupoToConvert.id)}
-              disabled={convertirMutation.isPending}
-            >
-              {convertirMutation.isPending ? 'Convirtiendo...' : 'Convertir'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog> */}
     </div>
   );
 }

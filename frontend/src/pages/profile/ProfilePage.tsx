@@ -165,15 +165,6 @@ export default function ProfilePage() {
             .slice(0, 2);
     };
 
-    // Construir URL completa de la foto
-    // const getPhotoUrl = (url: string | null | undefined) => {
-    //     if (!url) return null;
-    //     if (url.startsWith('http')) return url;
-    //     // URL relativa, agregar base URL del backend
-    //     const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
-    //     return `${baseUrl}${url}`;
-    // };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
