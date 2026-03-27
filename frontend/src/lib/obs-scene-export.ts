@@ -372,6 +372,83 @@ export function parseBibleGatewayUrl(url: string): { search: string; version: st
   return null;
 }
 
+/** Build themed Bible slide HTML on the client side */
+export function buildBibleSlideHtml(opts: {
+  reference: string;
+  version: string;
+  passageHtml: string;
+  theme?: OBSTheme;
+}): string {
+  const { reference, version, passageHtml, theme = DEFAULT_OBS_THEME } = opts;
+  const fontFamily = theme.fontFamily ?? 'Inter';
+  const fontImport = fontFamily === 'Inter'
+    ? `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap');`
+    : `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@300;400;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap');`;
+
+  const bgUrl = theme.backgroundImageUrl
+    ? (theme.backgroundImageUrl.startsWith('/') ? getServerUrl(theme.backgroundImageUrl) : theme.backgroundImageUrl)
+    : undefined;
+
+  const fallback = passageHtml
+    ? ''
+    : `<p style="font-size:56px;font-weight:700;">${escapeHtml(reference)}</p>`;
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  ${fontImport}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: ${WIDTH}px; height: ${HEIGHT}px; overflow: hidden;
+    font-family: 'Merriweather', Georgia, serif;
+    background: ${theme.backgroundMode === 'solid' ? theme.colorPrimario : `linear-gradient(135deg, ${theme.colorPrimario} 0%, ${theme.colorSecundario} 100%)`};
+    color: ${theme.colorTexto}; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 80px 140px; text-align: center; position: relative;
+  }
+  body::before {
+    content: ''; position: absolute; top: -200px; right: -200px;
+    width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+  }
+  .accent { position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, transparent, ${theme.colorAccent}, transparent); }
+  .reference {
+    font-family: '${fontFamily}', 'Inter', sans-serif;
+    font-size: 30px; font-weight: 300;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 4px; text-transform: uppercase;
+    margin-bottom: 36px;
+  }
+  .passage {
+    font-size: 36px; line-height: 1.8;
+    color: rgba(255,255,255,0.92);
+    max-width: 1500px; font-weight: 300; position: relative; z-index: 1;
+  }
+  .passage p { margin-bottom: 12px; }
+  .versenum {
+    font-family: '${fontFamily}', 'Inter', sans-serif;
+    font-size: 20px; color: rgba(255,255,255,0.3);
+    vertical-align: super; margin: 0 3px; font-weight: 600;
+  }
+  .bottom-bar {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 50px;
+    background: rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-family: '${fontFamily}', 'Inter', sans-serif; font-size: 15px;
+    color: rgba(255,255,255,0.4); letter-spacing: 3px; text-transform: uppercase;
+  }
+  .bg-image {
+    position: absolute; inset: 0; z-index: 0;
+    background-size: contain; background-position: center; background-repeat: no-repeat;
+  }
+</style></head><body>
+  ${bgUrl ? `<div class="bg-image" style="background-image: url('${bgUrl}')"></div>` : ''}
+  <div class="accent"></div>
+  <div class="reference">${escapeHtml(reference)} &mdash; ${escapeHtml(version)}</div>
+  <div class="passage">${passageHtml || fallback}</div>
+</body></html>`;
+}
+
 /** Build backend URL that serves a styled Bible slide HTML page */
 export function buildBibleSlideUrl(search: string, version: string): string {
   const base = import.meta.env.VITE_API_URL

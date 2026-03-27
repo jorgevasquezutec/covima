@@ -19,6 +19,7 @@ import {
   isBibleUrl,
   parseBibleGatewayUrl,
   buildBibleSlideUrl,
+  buildBibleSlideHtml,
   getServerUrl,
 } from '@/lib/obs-scene-export';
 import MediaPickerDialog from '@/components/MediaPickerDialog';
@@ -440,7 +441,11 @@ export interface SourceTab {
   allowInteraction?: boolean;
 }
 
-export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] {
+export function buildSourceTabs(
+  scene: SceneData,
+  theme: OBSTheme,
+  biblePassages?: Map<string, string>,
+): SourceTab[] {
   const tabs: SourceTab[] = [];
 
   tabs.push({
@@ -481,12 +486,24 @@ export function buildSourceTabs(scene: SceneData, theme: OBSTheme): SourceTab[] 
         const parsed = parseBibleGatewayUrl(url);
         const ref = parsed?.search || link.nombre || 'Lectura';
         const ver = parsed?.version || 'NVI';
-        tabs.push({
-          label: link.nombre || 'Biblia',
-          type: 'bible',
-          content: buildBibleSlideUrl(ref, ver),
-          isIframeSrc: true,
-        });
+        const cacheKey = `${ref}|${ver}`;
+        const passage = biblePassages?.get(cacheKey);
+        if (passage !== undefined) {
+          // Render themed HTML client-side
+          tabs.push({
+            label: link.nombre || 'Biblia',
+            type: 'bible',
+            content: buildBibleSlideHtml({ reference: ref, version: ver, passageHtml: passage, theme }),
+          });
+        } else {
+          // Fallback: iframe to backend (no theme support)
+          tabs.push({
+            label: link.nombre || 'Biblia',
+            type: 'bible',
+            content: buildBibleSlideUrl(ref, ver),
+            isIframeSrc: true,
+          });
+        }
       } else {
         tabs.push({
           label: link.nombre || 'Link',
@@ -546,7 +563,10 @@ export default function OBSThemeEditor({
   const [editLayoutMode, setEditLayoutMode] = useState(false);
   const [selectedElement, setSelectedElement] = useState<OBSElementId | null>(null);
 
-  const scenes = partes.length > 0 ? partes : [{ nombre: 'Bienvenida' }];
+  const scenes = useMemo(
+    () => (partes.length > 0 ? partes : [{ nombre: 'Bienvenida' } as SceneData]),
+    [partes],
+  );
   const safeIndex = Math.min(currentIndex, scenes.length - 1);
   const currentScene = scenes[safeIndex];
   const hasParteId = !!currentScene.parteId;
@@ -703,39 +723,74 @@ export default function OBSThemeEditor({
     [theme, currentScene.parteId],
   );
 
+  // Fetch and cache Bible passages for client-side themed rendering
+  const [biblePassages, setBiblePassages] = useState<Map<string, string>>(() => new Map());
+  const bibleFetchedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const allLinks = scenes.flatMap((s) => s.links ?? []);
+    const bibleLinks = allLinks.filter((l) => l.url && isBibleUrl(l.url));
+    if (bibleLinks.length === 0) return;
+
+    bibleLinks.forEach((link) => {
+      const parsed = parseBibleGatewayUrl(link.url!);
+      if (!parsed) return;
+      const cacheKey = `${parsed.search}|${parsed.version}`;
+      if (bibleFetchedRef.current.has(cacheKey)) return;
+      bibleFetchedRef.current.add(cacheKey);
+
+      const slideUrl = buildBibleSlideUrl(parsed.search, parsed.version);
+      fetch(slideUrl)
+        .then((r) => r.text())
+        .then((html) => {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const passage = doc.querySelector('.passage')?.innerHTML ?? '';
+          setBiblePassages((prev) => {
+            const next = new Map(prev);
+            next.set(cacheKey, passage);
+            return next;
+          });
+        })
+        .catch(() => { /* keep iframe fallback */ });
+    });
+  }, [scenes]);
+
   const currentSources = useMemo(
-    () => buildSourceTabs(scenes[safeIndex], resolvedTheme),
-    [scenes, safeIndex, resolvedTheme],
+    () => buildSourceTabs(scenes[safeIndex], resolvedTheme, biblePassages),
+    [scenes, safeIndex, resolvedTheme, biblePassages],
   );
 
   const safeSourceIndex = Math.min(activeSource, currentSources.length - 1);
   const currentSource = currentSources[safeSourceIndex];
 
-  // Debounce srcDoc updates to prevent black flash from iframe reloads
+  // Debounce srcDoc updates to prevent black flash from iframe reloads.
+  // Scene/source changes update synchronously during render (React pattern
+  // for deriving state from props). Theme edits are debounced at 300ms.
+  const sourceKey = `${safeIndex}-${safeSourceIndex}`;
+  const [prevSourceKey, setPrevSourceKey] = useState(sourceKey);
   const [debouncedSrcDoc, setDebouncedSrcDoc] = useState(currentSource?.content ?? '');
   const srcDocTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevSourceKeyRef = useRef(`${safeIndex}-${safeSourceIndex}`);
 
+  // Synchronous update during render for scene/source tab changes
+  if (sourceKey !== prevSourceKey) {
+    setPrevSourceKey(sourceKey);
+    if (currentSource && !currentSource.isIframeSrc) {
+      setDebouncedSrcDoc(currentSource.content);
+    }
+  }
+
+  // Debounce theme edits (colors, fonts, etc.)
   useEffect(() => {
     if (!currentSource || currentSource.isIframeSrc) return;
-
-    const sourceKey = `${safeIndex}-${safeSourceIndex}`;
-    const sourceChanged = sourceKey !== prevSourceKeyRef.current;
-    prevSourceKeyRef.current = sourceKey;
-
-    // Immediately update on scene/source tab change, debounce theme edits
-    if (sourceChanged) {
-      if (srcDocTimerRef.current) clearTimeout(srcDocTimerRef.current);
-      setDebouncedSrcDoc(currentSource.content);
-      return;
-    }
+    // Skip if content matches (already set synchronously or unchanged)
+    if (currentSource.content === debouncedSrcDoc) return;
 
     if (srcDocTimerRef.current) clearTimeout(srcDocTimerRef.current);
     srcDocTimerRef.current = setTimeout(() => {
       setDebouncedSrcDoc(currentSource.content);
     }, 300);
     return () => { if (srcDocTimerRef.current) clearTimeout(srcDocTimerRef.current); };
-  }, [currentSource, safeIndex, safeSourceIndex]);
+  }, [currentSource, debouncedSrcDoc]);
 
   const thumbnailHtmlsRaw = useMemo(
     () =>
@@ -766,6 +821,15 @@ export default function OBSThemeEditor({
     setThumbnailHtmls(thumbnailHtmlsRaw);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenesKey]);
+
+  // Synchronous update when scene list changes (e.g. data loads)
+  const [prevScenesKey, setPrevScenesKey] = useState(scenesKey);
+  if (scenesKey !== prevScenesKey) {
+    setPrevScenesKey(scenesKey);
+    if (currentSource && !currentSource.isIframeSrc) {
+      setDebouncedSrcDoc(currentSource.content);
+    }
+  }
 
   // Keyboard
   useEffect(() => {
