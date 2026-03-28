@@ -9,8 +9,19 @@ import type { OBSThemeWithOverrides, Programa } from '@/types';
 import type { SceneData } from '@/components/OBSThemeEditor';
 import type { OBSExportParte } from '@/lib/obs-scene-export';
 
+function getBaseUrl() {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/api$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return `http://${window.location.hostname}:3000`;
+  }
+  return 'http://localhost:3000';
+}
+
 function buildScenes(programa: Programa): SceneData[] {
   const sorted = [...programa.partes].sort((a, b) => a.orden - b.orden);
+  const base = getBaseUrl();
 
   return sorted.map((pp) => {
     const links = programa.links
@@ -19,13 +30,13 @@ function buildScenes(programa: Programa): SceneData[] {
       .map((l) => ({
         nombre: l.nombre,
         url: l.url ?? undefined,
-        mediaUrl: l.mediaItem?.url ?? null,
+        mediaUrl: l.mediaItem?.url ? `${base}${l.mediaItem.url}` : null,
       }));
 
     const fotos = programa.fotos
       .filter((f) => (f.programaParteId ? f.programaParteId === pp.id : f.parte.id === pp.parteId) && f.url)
       .sort((a, b) => a.orden - b.orden)
-      .map((f) => ({ url: f.url, nombre: f.nombre }));
+      .map((f) => ({ url: `${base}${f.url}`, nombre: f.nombre }));
 
     const esBienvenida = pp.parte.nombre.toLowerCase().includes('bienvenida');
     const visitas =
