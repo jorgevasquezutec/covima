@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -44,6 +43,7 @@ import {
   ChevronsUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageSkeleton } from '@/components/PageSkeleton';
 import { estudiosBiblicosApi } from '@/services/api';
 import { toast } from 'sonner';
 import type { EstadoInteresado, Interesado } from '@/types';
@@ -544,17 +544,7 @@ export default function InteresadosPage() {
 
       {/* List */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <Skeleton className="h-6 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-1/2 mb-3" />
-                <Skeleton className="h-4 w-1/3" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <PageSkeleton type="cards" />
       ) : interesados.length === 0 ? (
         <Card className="p-8">
           <div className="text-center text-gray-500">

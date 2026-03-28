@@ -30,6 +30,8 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
 import {
     Plus,
@@ -373,11 +375,7 @@ export default function TiposAsistenciaPage() {
                                     </TableCell>
                                 </TableRow>
                             ) : tipos.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-gray-500 py-8">
-                                        No hay tipos de asistencia configurados
-                                    </TableCell>
-                                </TableRow>
+                                <EmptyState colSpan={4} title="No hay tipos de asistencia configurados" />
                             ) : (
                                 tipos.map((tipo) => (
                                     <TableRow key={tipo.id} className="border-gray-200 hover:bg-gray-50">
@@ -839,24 +837,14 @@ export default function TiposAsistenciaPage() {
             </Dialog>
 
             {/* Dialog: Confirmar Eliminación */}
-            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle className="text-gray-900">Eliminar Tipo</DialogTitle>
-                        <DialogDescription className="text-gray-500">
-                            ¿Estás seguro de eliminar "{tipoToDelete?.label}"? Esta acción no se puede deshacer.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} className="border-gray-300">
-                            Cancelar
-                        </Button>
-                        <Button onClick={handleDeleteTipo} variant="destructive">
-                            Eliminar
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                onConfirm={handleDeleteTipo}
+                title="¿Eliminar tipo?"
+                description={`¿Estás seguro de eliminar "${tipoToDelete?.label}"? Esta acción no se puede deshacer.`}
+                confirmLabel="Eliminar"
+            />
         </div>
     );
 }

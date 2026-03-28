@@ -13,7 +13,6 @@ import {
   Edit,
   Users,
   Loader2,
-  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,17 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { gamificacionApi } from '@/services/api';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import type { PeriodoRanking, EstadoRanking } from '@/types';
 import { DatePickerString } from '@/components/ui/date-picker';
 import { formatDate } from '@/lib/utils';
@@ -490,36 +480,14 @@ export default function PeriodosRankingPage() {
       </Dialog>
 
       {/* Dialog confirmar cierre */}
-      <AlertDialog open={!!showCerrarDialog} onOpenChange={() => setShowCerrarDialog(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              ¿Cerrar período de ranking?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción cerrará el período <strong>{showCerrarDialog?.nombre}</strong>.
-              <br /><br />
-              Al cerrar:
-              <ul className="list-disc list-inside mt-2">
-                <li>Se guardarán los resultados finales (top 10)</li>
-                <li>Se resetearán los puntos del período para todos los usuarios</li>
-                <li>No se podrán asignar más puntos a este período</li>
-              </ul>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => showCerrarDialog && cerrarMutation.mutate(showCerrarDialog.id)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {cerrarMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Cerrar Período
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!showCerrarDialog}
+        onOpenChange={() => setShowCerrarDialog(null)}
+        onConfirm={() => showCerrarDialog && cerrarMutation.mutate(showCerrarDialog.id)}
+        title="¿Cerrar período de ranking?"
+        description={`Esta acción cerrará el período "${showCerrarDialog?.nombre}". Se guardarán los resultados finales, se resetearán los puntos del período y no se podrán asignar más puntos.`}
+        confirmLabel="Cerrar Período"
+      />
 
       {/* Dialog resultado cierre */}
       <Dialog open={!!cerrarResult} onOpenChange={() => setCerrarResult(null)}>
@@ -554,26 +522,14 @@ export default function PeriodosRankingPage() {
       </Dialog>
 
       {/* Dialog confirmar eliminar */}
-      <AlertDialog open={!!showDeleteDialog} onOpenChange={() => setShowDeleteDialog(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar período?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará permanentemente el período <strong>{showDeleteDialog?.nombre}</strong>.
-              Solo se pueden eliminar períodos sin registros de puntos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => showDeleteDialog && deleteMutation.mutate(showDeleteDialog.id)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!showDeleteDialog}
+        onOpenChange={() => setShowDeleteDialog(null)}
+        onConfirm={() => showDeleteDialog && deleteMutation.mutate(showDeleteDialog.id)}
+        title="¿Eliminar período?"
+        description={`Esta acción eliminará permanentemente el período "${showDeleteDialog?.nombre}". Solo se pueden eliminar períodos sin registros de puntos.`}
+        confirmLabel="Eliminar"
+      />
     </div>
   );
 }

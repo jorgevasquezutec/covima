@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
 import {
   Search,
@@ -335,11 +336,7 @@ export default function UsuariosPage() {
                     </TableCell>
                   </TableRow>
                 ) : usuarios.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                      No se encontraron usuarios
-                    </TableCell>
-                  </TableRow>
+                  <EmptyState colSpan={6} title="No se encontraron usuarios" />
                 ) : (
                   usuarios.map((usuario) => (
                     <TableRow key={usuario.id} className="border-gray-200 hover:bg-gray-50">

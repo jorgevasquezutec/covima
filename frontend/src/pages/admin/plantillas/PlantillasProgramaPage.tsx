@@ -8,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PageSkeleton } from '@/components/PageSkeleton';
 import { LayoutTemplate, Plus, Edit2, Trash2, Star, GripVertical, Download, Loader2 } from 'lucide-react';
 import { programasApi } from '@/services/api';
 import type { PlantillaPrograma, PlantillaParte, Parte, OBSThemeWithOverrides } from '@/types';
@@ -321,19 +321,7 @@ export default function PlantillasProgramaPage() {
 
       {/* Plantillas Grid */}
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2 mt-2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <PageSkeleton type="cards" />
       ) : plantillas?.length === 0 ? (
         <Card className="p-12">
           <div className="text-center text-gray-500">
@@ -563,26 +551,14 @@ export default function PlantillasProgramaPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Plantilla</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar la plantilla "{plantillaToDelete?.nombre}"?
-              Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => plantillaToDelete && eliminarMutation.mutate(plantillaToDelete.id)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => plantillaToDelete && eliminarMutation.mutate(plantillaToDelete.id)}
+        title="¿Eliminar plantilla?"
+        description={`¿Estás seguro de que deseas eliminar la plantilla "${plantillaToDelete?.nombre}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+      />
 
       {/* Export Dialog */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>

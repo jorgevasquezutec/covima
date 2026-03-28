@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PageSkeleton } from '@/components/PageSkeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
@@ -17,16 +19,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Users, Plus, Edit2, Trash2, UserPlus, Crown, Search, Eye } from 'lucide-react';
 import { gamificacionApi, usuariosApi } from '@/services/api';
 import type { GrupoRanking, CrearGrupoRankingRequest } from '@/types';
@@ -258,12 +250,7 @@ export default function GruposRankingPage() {
     ) || [];
 
   if (isLoading) {
-    return (
-      <div className="px-3 py-4 sm:p-4 space-y-4 sm:space-y-6">
-        <Skeleton className="h-10 w-48 sm:w-64" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -752,26 +739,14 @@ export default function GruposRankingPage() {
       </Dialog>
 
       {/* Alert Dialog Eliminar */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar grupo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              El grupo "{grupoToDelete?.nombre}" será eliminado permanentemente.
-              Los miembros perderán acceso a este ranking.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => grupoToDelete && eliminarMutation.mutate(grupoToDelete.id)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => grupoToDelete && eliminarMutation.mutate(grupoToDelete.id)}
+        title="¿Eliminar grupo?"
+        description={`El grupo "${grupoToDelete?.nombre}" será eliminado permanentemente. Los miembros perderán acceso a este ranking.`}
+        confirmLabel="Eliminar"
+      />
 
     </div>
   );
