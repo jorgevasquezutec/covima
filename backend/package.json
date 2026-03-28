@@ -12,6 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "stop": "PORT=$(grep -m1 '^PORT=' .env | cut -d= -f2); lsof -ti :${PORT:-3000} | xargs kill 2>/dev/null; echo \"Killed processes on port ${PORT:-3000}\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",

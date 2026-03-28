@@ -115,7 +115,7 @@ export class AgregarMiembroDto {
   nombreLibre?: string;
 }
 
-export class AgregarMiembrosDto {
+export class AgregarMiembrosRolDto {
   @ApiProperty({ type: [AgregarMiembroDto] })
   @IsArray()
   @ValidateNested({ each: true })

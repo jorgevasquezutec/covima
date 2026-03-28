@@ -13,7 +13,7 @@ import { EstadoTurno } from '@prisma/client';
 import {
   CreateTipoRolDto,
   UpdateTipoRolDto,
-  AgregarMiembrosDto,
+  AgregarMiembrosRolDto,
   ReorderMiembrosDto,
   GenerarTurnosDto,
   CreateTurnoDto,
@@ -84,7 +84,7 @@ export class RolesServicioService {
     });
   }
 
-  async agregarMiembros(tipoRolId: number, dto: AgregarMiembrosDto) {
+  async agregarMiembros(tipoRolId: number, dto: AgregarMiembrosRolDto) {
     await this.findTipoOrFail(tipoRolId);
 
     // Get max orden

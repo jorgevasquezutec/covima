@@ -462,9 +462,10 @@ export function buildSourceTabs(
     for (const link of scene.links) {
       const url = link.url || '';
       if (link.mediaUrl) {
+        const isVideo = /\.(mp4|webm|mov)$/i.test(link.mediaUrl);
         tabs.push({
-          label: link.nombre || 'Video',
-          type: 'media',
+          label: link.nombre || (isVideo ? 'Video' : 'Imagen'),
+          type: isVideo ? 'media' : 'foto',
           content: link.mediaUrl,
         });
       } else if (!url) {

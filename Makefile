@@ -29,6 +29,10 @@ down: ## Apagar todo (Docker + matar procesos de dev)
 	@echo "🛑 Deteniendo procesos de desarrollo..."
 	-@pkill -f "nest start" 2>/dev/null || true
 	-@pkill -f "vite" 2>/dev/null || true
+	@PORT=$$(grep -m1 '^PORT=' backend/.env 2>/dev/null | cut -d= -f2); \
+	 PORT=$${PORT:-3000}; \
+	 PIDS=$$(lsof -ti :$$PORT 2>/dev/null); \
+	 if [ -n "$$PIDS" ]; then echo "🔪 Matando procesos en puerto $$PORT..."; kill $$PIDS 2>/dev/null || true; fi
 	@echo "🐳 Apagando servicios Docker..."
 	docker compose down
 	@echo "✅ Todo apagado"

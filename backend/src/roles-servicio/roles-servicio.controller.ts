@@ -23,7 +23,7 @@ import { RolesServicioService } from './roles-servicio.service';
 import {
   CreateTipoRolDto,
   UpdateTipoRolDto,
-  AgregarMiembrosDto,
+  AgregarMiembrosRolDto,
   ReorderMiembrosDto,
   GenerarTurnosDto,
   CreateTurnoDto,
@@ -88,7 +88,7 @@ export class RolesServicioController {
   @ApiOperation({ summary: 'Agregar miembros al pool' })
   async agregarMiembros(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AgregarMiembrosDto,
+    @Body() dto: AgregarMiembrosRolDto,
   ) {
     return this.rolesServicioService.agregarMiembros(id, dto);
   }
