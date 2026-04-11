@@ -104,7 +104,9 @@ export default function ProgramaPublicPage() {
     }
   >();
 
-  // Inicializar con partes del programa (usar pp.id como key para soportar partes duplicadas)
+  // Inicializar con partes del programa (usar pp.id como key para soportar partes duplicadas).
+  // Mapa secundario parte.id → primer pp.id para rescatar datos legacy con programaParteId nulo.
+  const parteIdFallback = new Map<number, number>();
   for (const pp of programa.partes) {
     parteMap.set(pp.id, {
       nombre: pp.parte.nombre,
@@ -115,31 +117,36 @@ export default function ProgramaPublicPage() {
       links: [],
       fotos: [],
     });
+    if (!parteIdFallback.has(pp.parte.id)) {
+      parteIdFallback.set(pp.parte.id, pp.id);
+    }
   }
 
-  // Agregar asignaciones (por programaParteId, fallback a parte.id para legacy)
+  const resolveParte = (item: {
+    programaParteId?: number | null;
+    parte: { id: number };
+  }) => {
+    const key = item.programaParteId ?? parteIdFallback.get(item.parte.id);
+    return key != null ? parteMap.get(key) : undefined;
+  };
+
   for (const asig of programa.asignaciones) {
-    const key = asig.programaParteId ?? asig.parte.id;
-    const p = parteMap.get(key);
+    const p = resolveParte(asig);
     if (p) {
       const nombre = asig.usuario?.nombre || asig.nombreLibre || 'Sin asignar';
       p.asignados.push(nombre);
     }
   }
 
-  // Agregar links
   for (const link of programa.links) {
-    const key = link.programaParteId ?? link.parte.id;
-    const p = parteMap.get(key);
+    const p = resolveParte(link);
     if (p) {
       p.links.push({ nombre: link.nombre, url: link.url });
     }
   }
 
-  // Agregar fotos
   for (const foto of programa.fotos) {
-    const key = foto.programaParteId ?? foto.parte.id;
-    const p = parteMap.get(key);
+    const p = resolveParte(foto);
     if (p) {
       p.fotos.push({ url: foto.url, nombre: foto.nombre });
     }

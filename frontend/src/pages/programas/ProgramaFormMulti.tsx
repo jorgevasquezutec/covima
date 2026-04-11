@@ -289,35 +289,36 @@ export default function ProgramaFormMulti() {
                 }));
 
                 const asignaciones: AsignacionDto[] = prog.partes
-                    .filter(p => p.usuarioIds.length > 0 || p.nombresLibres.length > 0)
-                    .map(p => ({
+                    .map((p, parteIndex) => ({ p, parteIndex }))
+                    .filter(({ p }) => p.usuarioIds.length > 0 || p.nombresLibres.length > 0)
+                    .map(({ p, parteIndex }) => ({
                         parteId: p.parteId,
+                        parteIndex,
                         usuarioIds: p.usuarioIds.length > 0 ? p.usuarioIds : undefined,
                         nombresLibres: p.nombresLibres.length > 0 ? p.nombresLibres : undefined,
                     }));
 
-                const links: LinkDto[] = prog.partes
-                    .filter(p => p.links.length > 0)
-                    .flatMap(p =>
-                        p.links
-                            .filter(l => l.nombre && l.url)
-                            .map(l => ({
-                                parteId: p.parteId,
-                                nombre: l.nombre,
-                                url: l.url,
-                            }))
-                    );
-
-                const fotos: FotoDto[] = prog.partes
-                    .filter(p => p.fotos.length > 0)
-                    .flatMap(p =>
-                        p.fotos.map(f => ({
+                const links: LinkDto[] = prog.partes.flatMap((p, parteIndex) =>
+                    p.links
+                        .filter(l => l.nombre && (l.url || l.mediaItemId))
+                        .map(l => ({
                             parteId: p.parteId,
-                            url: f.url,
-                            nombre: f.nombre,
-                            mediaItemId: f.mediaItemId,
+                            parteIndex,
+                            nombre: l.nombre,
+                            url: l.url || undefined,
+                            mediaItemId: l.mediaItemId ?? undefined,
                         }))
-                    );
+                );
+
+                const fotos: FotoDto[] = prog.partes.flatMap((p, parteIndex) =>
+                    p.fotos.map(f => ({
+                        parteId: p.parteId,
+                        parteIndex,
+                        url: f.url,
+                        nombre: f.nombre,
+                        mediaItemId: f.mediaItemId,
+                    }))
+                );
 
                 return {
                     fecha: prog.fecha,
