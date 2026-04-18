@@ -71,6 +71,37 @@ import { programasApi } from '@/services/api';
 import { formatDate, parseLocalDate } from '@/lib/utils';
 import type { Programa, PreviewNotificacionesResponse } from '@/types';
 
+function formatFechaTemplate(fechaIso: string): string {
+    const [y, m, d] = fechaIso.split('T')[0].split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('es-PE', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+    });
+}
+
+function buildMensajeManual(
+    nombre: string,
+    fechaLabel: string,
+    partes: string[],
+    codigo: string,
+): string {
+    const url = `${window.location.origin}/programa/${codigo}`;
+    return [
+        `¡Hola ${nombre}!`,
+        `Te recordamos que tienes asignaciones para el programa del *${fechaLabel}*.`,
+        `Tus partes: *${partes.join(', ')}*`,
+        `¡Que Dios te bendiga!`,
+        ``,
+        `Ver programa: ${url}`,
+    ].join('\n');
+}
+
+function buildWaMeUrl(codigoPais: string, telefono: string, mensaje: string): string {
+    const phone = `${codigoPais}${telefono}`.replace(/\D/g, '');
+    return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+}
+
 const estadoConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
     borrador: { label: 'Borrador', color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: <Clock className="w-3 h-3" /> },
     completo: { label: 'Completo', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: <CheckCircle className="w-3 h-3" /> },
@@ -98,6 +129,8 @@ export default function ProgramasPage() {
         detalles: { nombre: string; telefono: string; success: boolean; error?: string }[];
     } | null>(null);
     const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
+    const [manualMode, setManualMode] = useState(false);
+    const [linksAbiertos, setLinksAbiertos] = useState<Set<number>>(new Set());
     const [finalizingPrograma, setFinalizingPrograma] = useState<number | null>(null);
     const [previewFinalizar, setPreviewFinalizar] = useState<{
         programa: { id: number; titulo: string; fecha: string; estado: string };
@@ -732,8 +765,8 @@ export default function ProgramasPage() {
             </AlertDialog>
 
             {/* Dialog para preview de notificaciones WhatsApp */}
-            <Dialog open={!!previewNotif} onOpenChange={() => { setPreviewNotif(null); setSelectedUsers(new Set()); }}>
-                <DialogContent className="bg-white border-gray-200 max-w-4xl max-h-[90vh] overflow-y-auto">
+            <Dialog open={!!previewNotif} onOpenChange={() => { setPreviewNotif(null); setSelectedUsers(new Set()); setManualMode(false); setLinksAbiertos(new Set()); }}>
+                <DialogContent className="bg-white border-gray-200 max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
                     <DialogHeader>
                         <DialogTitle className="text-gray-900 flex items-center gap-2">
                             <MessageCircle className="h-5 w-5 text-green-600" />
@@ -793,6 +826,98 @@ export default function ProgramasPage() {
                                 </div>
                             )}
 
+                            {/* Vista de envío manual (links wa.me) */}
+                            {manualMode ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                                            <ExternalLink className="h-4 w-4 text-green-600" />
+                                            Envío manual ({linksAbiertos.size}/{selectedUsers.size})
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => setManualMode(false)}
+                                            className="text-sm text-blue-600 hover:text-blue-800"
+                                        >
+                                            ← Volver a envío por bot
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        Click en "Copiar y abrir" — abre el chat con el mensaje pre-llenado y también lo copia al portapapeles.
+                                    </p>
+                                    {previewNotif.notificaciones
+                                        .filter((n) => selectedUsers.has(n.usuario.id))
+                                        .map((notif) => {
+                                            const fechaLabel = formatFechaTemplate(previewNotif.programa.fecha);
+                                            const mensaje = buildMensajeManual(
+                                                notif.usuario.nombre,
+                                                fechaLabel,
+                                                notif.partes,
+                                                previewNotif.programa.codigo,
+                                            );
+                                            const waUrl = buildWaMeUrl(
+                                                notif.usuario.codigoPais,
+                                                notif.usuario.telefono,
+                                                mensaje,
+                                            );
+                                            const enviado = linksAbiertos.has(notif.usuario.id);
+                                            return (
+                                                <div
+                                                    key={notif.usuario.id}
+                                                    className={`border rounded-lg p-3 flex items-center justify-between gap-3 transition-colors ${enviado ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'}`}
+                                                >
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-medium text-gray-900 truncate">{notif.usuario.nombre}</p>
+                                                        <p className="text-sm text-gray-500">
+                                                            {notif.usuario.codigoPais} {notif.usuario.telefono}
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {notif.partes.map((p) => (
+                                                                <Badge key={p} variant="outline" className="text-xs bg-white">
+                                                                    {p}
+                                                                </Badge>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await navigator.clipboard.writeText(mensaje);
+                                                                    toast.success('Mensaje copiado');
+                                                                } catch {
+                                                                    toast.error('No se pudo copiar');
+                                                                }
+                                                            }}
+                                                            className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100"
+                                                            title="Solo copiar mensaje"
+                                                        >
+                                                            <Copy className="h-4 w-4" />
+                                                        </button>
+                                                        <a
+                                                            href={waUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(mensaje).then(
+                                                                    () => toast.success('Mensaje copiado, pegá con Ctrl/Cmd+V'),
+                                                                    () => toast.error('No se pudo copiar el mensaje'),
+                                                                );
+                                                                setLinksAbiertos((prev) => new Set(prev).add(notif.usuario.id));
+                                                            }}
+                                                            className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700"
+                                                        >
+                                                            <ExternalLink className="h-4 w-4" />
+                                                            {enviado ? 'Reabrir' : 'Copiar y abrir'}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            ) : (
+                            <>
                             {/* Lista de notificaciones */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
@@ -827,8 +952,8 @@ export default function ProgramasPage() {
                                             : 'border-gray-200 opacity-60'
                                             }`}
                                     >
-                                        <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
+                                        <div className="bg-gray-50 px-4 py-3 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3 min-w-0">
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleUserSelection(notif.usuario.id)}
@@ -876,6 +1001,8 @@ export default function ProgramasPage() {
                                     </div>
                                 ))}
                             </div>
+                            </>
+                            )}
 
                             {/* Resultado de envío */}
                             {notifResult && (
@@ -914,31 +1041,44 @@ export default function ProgramasPage() {
                             <DialogFooter className="border-t border-gray-200 pt-4">
                                 <Button
                                     variant="outline"
-                                    onClick={() => { setPreviewNotif(null); setNotifResult(null); setSelectedUsers(new Set()); }}
+                                    onClick={() => { setPreviewNotif(null); setNotifResult(null); setSelectedUsers(new Set()); setManualMode(false); setLinksAbiertos(new Set()); }}
                                     className="border-gray-300"
                                 >
                                     Cerrar
                                 </Button>
-                                <Button
-                                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                                    onClick={() => {
-                                        setNotifResult(null);
-                                        handleEnviarNotificaciones();
-                                    }}
-                                    disabled={sendingNotif || selectedUsers.size === 0}
-                                >
-                                    {sendingNotif ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Enviando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="h-4 w-4 mr-2" />
-                                            {notifResult ? 'Enviar de nuevo' : `Enviar via WhatsApp (${selectedUsers.size})`}
-                                        </>
-                                    )}
-                                </Button>
+                                {!manualMode && (
+                                    <Button
+                                        variant="outline"
+                                        className="border-green-600 text-green-700 hover:bg-green-50 hover:text-green-800"
+                                        onClick={() => setManualMode(true)}
+                                        disabled={selectedUsers.size === 0}
+                                    >
+                                        <ExternalLink className="h-4 w-4 mr-2" />
+                                        Enviar manual ({selectedUsers.size})
+                                    </Button>
+                                )}
+                                {!manualMode && (
+                                    <Button
+                                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                                        onClick={() => {
+                                            setNotifResult(null);
+                                            handleEnviarNotificaciones();
+                                        }}
+                                        disabled={sendingNotif || selectedUsers.size === 0}
+                                    >
+                                        {sendingNotif ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Enviando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send className="h-4 w-4 mr-2" />
+                                                {notifResult ? 'Enviar de nuevo' : `Enviar via WhatsApp (${selectedUsers.size})`}
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
                             </DialogFooter>
                         </div>
                     ) : null}
